@@ -1,0 +1,6 @@
+@CapitalPos.Api_HostAddress = http://localhost:5198
+
+GET {{CapitalPos.Api_HostAddress}}/api/health
+Accept: application/json
+
+###
