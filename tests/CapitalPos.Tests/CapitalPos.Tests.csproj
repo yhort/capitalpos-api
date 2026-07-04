@@ -21,6 +21,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\CapitalPos.Application\CapitalPos.Application.csproj" />
     <ProjectReference Include="..\..\src\CapitalPos.Domain\CapitalPos.Domain.csproj" />
+    <ProjectReference Include="..\..\src\CapitalPos.Infrastructure\CapitalPos.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>
