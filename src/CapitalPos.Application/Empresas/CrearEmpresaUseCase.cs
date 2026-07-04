@@ -4,10 +4,23 @@ namespace CapitalPos.Application.Empresas;
 
 public sealed class CrearEmpresaUseCase
 {
-    public Empresa Ejecutar(CrearEmpresaRequest request)
+    private readonly IEmpresaRepository _empresaRepository;
+
+    public CrearEmpresaUseCase(IEmpresaRepository empresaRepository)
+    {
+        _empresaRepository = empresaRepository;
+    }
+
+    public async Task<Empresa> EjecutarAsync(
+        CrearEmpresaRequest request,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        return request.CrearEmpresa();
+        var empresa = request.CrearEmpresa();
+
+        await _empresaRepository.AgregarAsync(empresa, cancellationToken);
+
+        return empresa;
     }
 }
