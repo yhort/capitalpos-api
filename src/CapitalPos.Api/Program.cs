@@ -12,6 +12,9 @@ if (builder.Environment.IsDevelopment())
 builder.Services.AddSingleton<IEmpresaRepository, InMemoryEmpresaRepository>();
 builder.Services.AddSingleton<IUsuarioRepository, InMemoryUsuarioRepository>();
 builder.Services.AddSingleton<IUsuarioEmpresaRepository, InMemoryUsuarioEmpresaRepository>();
+builder.Services.AddScoped<CrearEmpresaUseCase>();
+builder.Services.AddScoped<CrearUsuarioUseCase>();
+builder.Services.AddScoped<AsignarUsuarioEmpresaUseCase>();
 
 var app = builder.Build();
 
