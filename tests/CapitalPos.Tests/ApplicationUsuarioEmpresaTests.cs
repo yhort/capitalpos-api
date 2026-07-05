@@ -240,6 +240,58 @@ public class ApplicationUsuarioEmpresaTests
         Assert.Same(asignacion, repository.AsignacionActualizada);
     }
 
+    [Fact]
+    public async Task Cambiar_rol_usuario_empresa_use_case_cambia_rol_y_actualiza_repositorio()
+    {
+        var repository = new UsuarioEmpresaRepositoryFake();
+        var asignacion = new UsuarioEmpresa(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            RolEmpresa.Cajero);
+        await repository.AgregarAsync(asignacion);
+        var useCase = new CambiarRolUsuarioEmpresaUseCase(repository);
+        var request = new CambiarRolUsuarioEmpresaRequest(RolEmpresa.Contador);
+
+        var asignacionActualizada = await useCase.EjecutarAsync(asignacion.Id, request);
+
+        Assert.Same(asignacion, asignacionActualizada);
+        Assert.Equal(RolEmpresa.Contador, asignacion.Rol);
+        Assert.Same(asignacion, repository.AsignacionActualizada);
+    }
+
+    [Fact]
+    public async Task Cambiar_rol_usuario_empresa_use_case_devuelve_null_si_no_existe()
+    {
+        var repository = new UsuarioEmpresaRepositoryFake();
+        var useCase = new CambiarRolUsuarioEmpresaUseCase(repository);
+        var request = new CambiarRolUsuarioEmpresaRequest(RolEmpresa.Vendedor);
+
+        var asignacion = await useCase.EjecutarAsync(Guid.NewGuid(), request);
+
+        Assert.Null(asignacion);
+        Assert.Null(repository.AsignacionActualizada);
+    }
+
+    [Fact]
+    public async Task Cambiar_rol_usuario_empresa_use_case_propaga_rol_invalido()
+    {
+        var repository = new UsuarioEmpresaRepositoryFake();
+        var asignacion = new UsuarioEmpresa(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            RolEmpresa.Cajero);
+        await repository.AgregarAsync(asignacion);
+        var useCase = new CambiarRolUsuarioEmpresaUseCase(repository);
+        var request = new CambiarRolUsuarioEmpresaRequest((RolEmpresa)999);
+
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
+            useCase.EjecutarAsync(asignacion.Id, request));
+        Assert.Equal(RolEmpresa.Cajero, asignacion.Rol);
+        Assert.Null(repository.AsignacionActualizada);
+    }
+
     private sealed class UsuarioRepositoryFake : IUsuarioRepository
     {
         public List<Usuario> Usuarios { get; } = new();

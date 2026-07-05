@@ -48,4 +48,31 @@ public class UsuarioEmpresaTests
                 Guid.Empty,
                 RolEmpresa.Cajero));
     }
+
+    [Fact]
+    public void Cambiar_rol_actualiza_rol_de_la_relacion()
+    {
+        var usuarioEmpresa = new UsuarioEmpresa(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            RolEmpresa.Cajero);
+
+        usuarioEmpresa.CambiarRol(RolEmpresa.Almacenero);
+
+        Assert.Equal(RolEmpresa.Almacenero, usuarioEmpresa.Rol);
+    }
+
+    [Fact]
+    public void Cambiar_rol_rechaza_rol_invalido()
+    {
+        var usuarioEmpresa = new UsuarioEmpresa(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            RolEmpresa.Cajero);
+
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            usuarioEmpresa.CambiarRol((RolEmpresa)999));
+    }
 }

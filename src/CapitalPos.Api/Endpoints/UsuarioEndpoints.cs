@@ -43,6 +43,9 @@ public static class UsuarioEndpoints
         usuariosEmpresas.MapPatch("/{id:guid}/desactivar", DesactivarUsuarioEmpresaAsync)
             .WithName("DesactivarUsuarioEmpresa");
 
+        usuariosEmpresas.MapPatch("/{id:guid}/rol", CambiarRolUsuarioEmpresaAsync)
+            .WithName("CambiarRolUsuarioEmpresa");
+
         return app;
     }
 
@@ -172,6 +175,26 @@ public static class UsuarioEndpoints
         return usuarioEmpresa is null
             ? Results.NotFound()
             : Results.Ok(UsuarioEmpresaResponse.From(usuarioEmpresa));
+    }
+
+    private static async Task<IResult> CambiarRolUsuarioEmpresaAsync(
+        Guid id,
+        CambiarRolUsuarioEmpresaRequest request,
+        CambiarRolUsuarioEmpresaUseCase useCase,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var usuarioEmpresa = await useCase.EjecutarAsync(id, request, cancellationToken);
+
+            return usuarioEmpresa is null
+                ? Results.NotFound()
+                : Results.Ok(UsuarioEmpresaResponse.From(usuarioEmpresa));
+        }
+        catch (ArgumentOutOfRangeException ex)
+        {
+            return Results.BadRequest(ErrorResponse.From(ex.Message));
+        }
     }
 }
 

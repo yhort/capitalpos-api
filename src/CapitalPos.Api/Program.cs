@@ -28,6 +28,7 @@ builder.Services.AddScoped<ActivarUsuarioUseCase>();
 builder.Services.AddScoped<DesactivarUsuarioUseCase>();
 builder.Services.AddScoped<ActivarUsuarioEmpresaUseCase>();
 builder.Services.AddScoped<DesactivarUsuarioEmpresaUseCase>();
+builder.Services.AddScoped<CambiarRolUsuarioEmpresaUseCase>();
 
 var app = builder.Build();
 
