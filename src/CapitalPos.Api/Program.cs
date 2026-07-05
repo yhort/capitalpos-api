@@ -1,3 +1,4 @@
+using CapitalPos.Api.Endpoints;
 using CapitalPos.Application.Empresas;
 using CapitalPos.Application.Usuarios;
 using CapitalPos.Infrastructure.Persistence.InMemory;
@@ -26,6 +27,9 @@ if (app.Environment.IsDevelopment())
 app.MapGet("/api/health", () =>
     Results.Ok(new HealthResponse("ok", "CapitalPos.Api", DateTimeOffset.UtcNow)))
     .WithName("GetHealth");
+
+app.MapEmpresaEndpoints();
+app.MapUsuarioEndpoints();
 
 app.Run();
 
