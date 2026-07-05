@@ -41,4 +41,11 @@ public sealed class InMemoryUsuarioRepository : IUsuarioRepository
 
         return Task.CompletedTask;
     }
+
+    public Task<bool> ExisteCorreoAsync(string correo, CancellationToken cancellationToken = default)
+    {
+        var existe = _usuarios.Any(usuario => usuario.Correo == correo);
+
+        return Task.FromResult(existe);
+    }
 }

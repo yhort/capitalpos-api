@@ -37,6 +37,25 @@ public class ApplicationUsuarioEmpresaTests
     }
 
     [Fact]
+    public async Task Crear_usuario_use_case_rechaza_correo_duplicado()
+    {
+        var repository = new UsuarioRepositoryFake();
+        await repository.AgregarAsync(new Usuario(
+            Guid.NewGuid(),
+            "Grace",
+            "Hopper",
+            "grace@capitalpos.com"));
+        var useCase = new CrearUsuarioUseCase(repository);
+        var request = new CrearUsuarioRequest(
+            "Ada",
+            "Lovelace",
+            " GRACE@CAPITALPOS.COM ");
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => useCase.EjecutarAsync(request));
+        Assert.Single(repository.Usuarios);
+    }
+
+    [Fact]
     public async Task Listar_usuarios_use_case_devuelve_usuarios_guardados()
     {
         var repository = new UsuarioRepositoryFake();
@@ -154,6 +173,27 @@ public class ApplicationUsuarioEmpresaTests
 
         await Assert.ThrowsAsync<ArgumentException>(() => useCase.EjecutarAsync(request));
         Assert.Empty(repository.Asignaciones);
+    }
+
+    [Fact]
+    public async Task Asignar_usuario_empresa_use_case_rechaza_asignacion_duplicada()
+    {
+        var repository = new UsuarioEmpresaRepositoryFake();
+        var usuarioId = Guid.NewGuid();
+        var empresaId = Guid.NewGuid();
+        await repository.AgregarAsync(new UsuarioEmpresa(
+            Guid.NewGuid(),
+            usuarioId,
+            empresaId,
+            RolEmpresa.Cajero));
+        var useCase = new AsignarUsuarioEmpresaUseCase(repository);
+        var request = new AsignarUsuarioEmpresaRequest(
+            usuarioId,
+            empresaId,
+            RolEmpresa.Administrador);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => useCase.EjecutarAsync(request));
+        Assert.Single(repository.Asignaciones);
     }
 
     [Fact]
@@ -323,6 +363,13 @@ public class ApplicationUsuarioEmpresaTests
 
             return Task.CompletedTask;
         }
+
+        public Task<bool> ExisteCorreoAsync(string correo, CancellationToken cancellationToken = default)
+        {
+            var existe = Usuarios.Any(usuario => usuario.Correo == correo);
+
+            return Task.FromResult(existe);
+        }
     }
 
     private sealed class UsuarioEmpresaRepositoryFake : IUsuarioEmpresaRepository
@@ -355,6 +402,18 @@ public class ApplicationUsuarioEmpresaTests
             AsignacionActualizada = usuarioEmpresa;
 
             return Task.CompletedTask;
+        }
+
+        public Task<bool> ExisteAsignacionAsync(
+            Guid usuarioId,
+            Guid empresaId,
+            CancellationToken cancellationToken = default)
+        {
+            var existe = Asignaciones.Any(asignacion =>
+                asignacion.UsuarioId == usuarioId &&
+                asignacion.EmpresaId == empresaId);
+
+            return Task.FromResult(existe);
         }
     }
 }

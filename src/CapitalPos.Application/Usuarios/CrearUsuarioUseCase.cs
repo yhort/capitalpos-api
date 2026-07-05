@@ -19,6 +19,11 @@ public sealed class CrearUsuarioUseCase
 
         var usuario = request.CrearUsuario();
 
+        if (await _usuarioRepository.ExisteCorreoAsync(usuario.Correo, cancellationToken))
+        {
+            throw new InvalidOperationException("Ya existe un usuario registrado con el mismo correo.");
+        }
+
         await _usuarioRepository.AgregarAsync(usuario, cancellationToken);
 
         return usuario;

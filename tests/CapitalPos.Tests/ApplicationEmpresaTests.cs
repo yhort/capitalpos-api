@@ -37,6 +37,23 @@ public class ApplicationEmpresaTests
     }
 
     [Fact]
+    public async Task Crear_empresa_use_case_rechaza_ruc_duplicado()
+    {
+        var repository = new EmpresaRepositoryFake();
+        await repository.AgregarAsync(new Empresa(
+            Guid.NewGuid(),
+            "20606264004",
+            "CapitalPOS SAC"));
+        var useCase = new CrearEmpresaUseCase(repository);
+        var request = new CrearEmpresaRequest(
+            " 20606264004 ",
+            "CapitalPOS Servicios SAC");
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => useCase.EjecutarAsync(request));
+        Assert.Single(repository.Empresas);
+    }
+
+    [Fact]
     public async Task Listar_empresas_use_case_devuelve_empresas_guardadas()
     {
         var repository = new EmpresaRepositoryFake();
@@ -158,6 +175,13 @@ public class ApplicationEmpresaTests
             EmpresaActualizada = empresa;
 
             return Task.CompletedTask;
+        }
+
+        public Task<bool> ExisteRucAsync(string ruc, CancellationToken cancellationToken = default)
+        {
+            var existe = Empresas.Any(empresa => empresa.Ruc == ruc);
+
+            return Task.FromResult(existe);
         }
     }
 }

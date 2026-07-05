@@ -11,4 +11,6 @@ public interface IEmpresaRepository
     Task<Empresa?> ObtenerPorIdAsync(Guid id, CancellationToken cancellationToken = default);
 
     Task ActualizarAsync(Empresa empresa, CancellationToken cancellationToken = default);
+
+    Task<bool> ExisteRucAsync(string ruc, CancellationToken cancellationToken = default);
 }

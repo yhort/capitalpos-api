@@ -19,6 +19,11 @@ public sealed class CrearEmpresaUseCase
 
         var empresa = request.CrearEmpresa();
 
+        if (await _empresaRepository.ExisteRucAsync(empresa.Ruc, cancellationToken))
+        {
+            throw new InvalidOperationException("Ya existe una empresa registrada con el mismo RUC.");
+        }
+
         await _empresaRepository.AgregarAsync(empresa, cancellationToken);
 
         return empresa;

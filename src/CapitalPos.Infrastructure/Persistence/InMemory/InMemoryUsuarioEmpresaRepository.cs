@@ -41,4 +41,16 @@ public sealed class InMemoryUsuarioEmpresaRepository : IUsuarioEmpresaRepository
 
         return Task.CompletedTask;
     }
+
+    public Task<bool> ExisteAsignacionAsync(
+        Guid usuarioId,
+        Guid empresaId,
+        CancellationToken cancellationToken = default)
+    {
+        var existe = _usuariosEmpresa.Any(usuarioEmpresa =>
+            usuarioEmpresa.UsuarioId == usuarioId &&
+            usuarioEmpresa.EmpresaId == empresaId);
+
+        return Task.FromResult(existe);
+    }
 }

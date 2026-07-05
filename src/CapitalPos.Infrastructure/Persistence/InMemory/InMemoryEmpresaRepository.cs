@@ -41,4 +41,11 @@ public sealed class InMemoryEmpresaRepository : IEmpresaRepository
 
         return Task.CompletedTask;
     }
+
+    public Task<bool> ExisteRucAsync(string ruc, CancellationToken cancellationToken = default)
+    {
+        var existe = _empresas.Any(empresa => empresa.Ruc == ruc);
+
+        return Task.FromResult(existe);
+    }
 }

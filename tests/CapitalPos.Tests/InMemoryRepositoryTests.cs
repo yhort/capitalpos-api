@@ -88,6 +88,20 @@ public class InMemoryRepositoryTests
     }
 
     [Fact]
+    public async Task Empresa_repository_indica_si_existe_ruc()
+    {
+        var repository = new InMemoryEmpresaRepository();
+        await repository.AgregarAsync(new Empresa(
+            Guid.NewGuid(),
+            "20606264004",
+            "CapitalPOS SAC"));
+
+        var existe = await repository.ExisteRucAsync("20606264004");
+
+        Assert.True(existe);
+    }
+
+    [Fact]
     public async Task Usuario_repository_guarda_usuario_en_memoria()
     {
         var repository = new InMemoryUsuarioRepository();
@@ -175,6 +189,21 @@ public class InMemoryRepositoryTests
     }
 
     [Fact]
+    public async Task Usuario_repository_indica_si_existe_correo()
+    {
+        var repository = new InMemoryUsuarioRepository();
+        await repository.AgregarAsync(new Usuario(
+            Guid.NewGuid(),
+            "Grace",
+            "Hopper",
+            "grace@capitalpos.com"));
+
+        var existe = await repository.ExisteCorreoAsync("grace@capitalpos.com");
+
+        Assert.True(existe);
+    }
+
+    [Fact]
     public async Task Usuario_empresa_repository_guarda_asignacion_en_memoria()
     {
         var repository = new InMemoryUsuarioEmpresaRepository();
@@ -259,5 +288,22 @@ public class InMemoryRepositoryTests
             RolEmpresa.Cajero);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => repository.ActualizarAsync(usuarioEmpresa));
+    }
+
+    [Fact]
+    public async Task Usuario_empresa_repository_indica_si_existe_asignacion()
+    {
+        var repository = new InMemoryUsuarioEmpresaRepository();
+        var usuarioId = Guid.NewGuid();
+        var empresaId = Guid.NewGuid();
+        await repository.AgregarAsync(new UsuarioEmpresa(
+            Guid.NewGuid(),
+            usuarioId,
+            empresaId,
+            RolEmpresa.Cajero));
+
+        var existe = await repository.ExisteAsignacionAsync(usuarioId, empresaId);
+
+        Assert.True(existe);
     }
 }

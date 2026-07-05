@@ -66,6 +66,10 @@ public static class EmpresaEndpoints
         {
             return Results.BadRequest(ErrorResponse.From(ex.Message));
         }
+        catch (InvalidOperationException ex)
+        {
+            return Results.Conflict(ErrorResponse.From(ex.Message));
+        }
     }
 
     private static async Task<IResult> ActivarEmpresaAsync(
