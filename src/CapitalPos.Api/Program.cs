@@ -19,6 +19,9 @@ builder.Services.AddScoped<AsignarUsuarioEmpresaUseCase>();
 builder.Services.AddScoped<ListarEmpresasUseCase>();
 builder.Services.AddScoped<ListarUsuariosUseCase>();
 builder.Services.AddScoped<ListarUsuariosEmpresaUseCase>();
+builder.Services.AddScoped<ObtenerEmpresaPorIdUseCase>();
+builder.Services.AddScoped<ObtenerUsuarioPorIdUseCase>();
+builder.Services.AddScoped<ObtenerUsuarioEmpresaPorIdUseCase>();
 
 var app = builder.Build();
 

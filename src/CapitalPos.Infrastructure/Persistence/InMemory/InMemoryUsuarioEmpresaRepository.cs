@@ -22,4 +22,11 @@ public sealed class InMemoryUsuarioEmpresaRepository : IUsuarioEmpresaRepository
     {
         return Task.FromResult(UsuariosEmpresa);
     }
+
+    public Task<UsuarioEmpresa?> ObtenerPorIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        var usuarioEmpresa = _usuariosEmpresa.SingleOrDefault(usuarioEmpresa => usuarioEmpresa.Id == id);
+
+        return Task.FromResult(usuarioEmpresa);
+    }
 }

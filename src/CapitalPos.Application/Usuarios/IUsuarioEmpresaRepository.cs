@@ -7,4 +7,6 @@ public interface IUsuarioEmpresaRepository
     Task AgregarAsync(UsuarioEmpresa usuarioEmpresa, CancellationToken cancellationToken = default);
 
     Task<IReadOnlyCollection<UsuarioEmpresa>> ListarAsync(CancellationToken cancellationToken = default);
+
+    Task<UsuarioEmpresa?> ObtenerPorIdAsync(Guid id, CancellationToken cancellationToken = default);
 }

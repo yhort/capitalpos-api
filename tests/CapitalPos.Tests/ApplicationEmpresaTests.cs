@@ -52,6 +52,33 @@ public class ApplicationEmpresaTests
         Assert.Same(empresa, empresas.Single());
     }
 
+    [Fact]
+    public async Task Obtener_empresa_por_id_use_case_devuelve_empresa_guardada()
+    {
+        var repository = new EmpresaRepositoryFake();
+        var empresa = new Empresa(
+            Guid.NewGuid(),
+            "20606264004",
+            "CapitalPOS SAC");
+        await repository.AgregarAsync(empresa);
+        var useCase = new ObtenerEmpresaPorIdUseCase(repository);
+
+        var empresaEncontrada = await useCase.EjecutarAsync(empresa.Id);
+
+        Assert.Same(empresa, empresaEncontrada);
+    }
+
+    [Fact]
+    public async Task Obtener_empresa_por_id_use_case_devuelve_null_si_no_existe()
+    {
+        var repository = new EmpresaRepositoryFake();
+        var useCase = new ObtenerEmpresaPorIdUseCase(repository);
+
+        var empresa = await useCase.EjecutarAsync(Guid.NewGuid());
+
+        Assert.Null(empresa);
+    }
+
     private sealed class EmpresaRepositoryFake : IEmpresaRepository
     {
         public List<Empresa> Empresas { get; } = new();
@@ -66,6 +93,13 @@ public class ApplicationEmpresaTests
         public Task<IReadOnlyCollection<Empresa>> ListarAsync(CancellationToken cancellationToken = default)
         {
             return Task.FromResult<IReadOnlyCollection<Empresa>>(Empresas);
+        }
+
+        public Task<Empresa?> ObtenerPorIdAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            var empresa = Empresas.SingleOrDefault(empresa => empresa.Id == id);
+
+            return Task.FromResult(empresa);
         }
     }
 }

@@ -54,6 +54,34 @@ public class ApplicationUsuarioEmpresaTests
     }
 
     [Fact]
+    public async Task Obtener_usuario_por_id_use_case_devuelve_usuario_guardado()
+    {
+        var repository = new UsuarioRepositoryFake();
+        var usuario = new Usuario(
+            Guid.NewGuid(),
+            "Grace",
+            "Hopper",
+            "grace@capitalpos.com");
+        await repository.AgregarAsync(usuario);
+        var useCase = new ObtenerUsuarioPorIdUseCase(repository);
+
+        var usuarioEncontrado = await useCase.EjecutarAsync(usuario.Id);
+
+        Assert.Same(usuario, usuarioEncontrado);
+    }
+
+    [Fact]
+    public async Task Obtener_usuario_por_id_use_case_devuelve_null_si_no_existe()
+    {
+        var repository = new UsuarioRepositoryFake();
+        var useCase = new ObtenerUsuarioPorIdUseCase(repository);
+
+        var usuario = await useCase.EjecutarAsync(Guid.NewGuid());
+
+        Assert.Null(usuario);
+    }
+
+    [Fact]
     public async Task Asignar_usuario_empresa_use_case_construye_y_guarda_relacion_valida()
     {
         var repository = new UsuarioEmpresaRepositoryFake();
@@ -106,6 +134,34 @@ public class ApplicationUsuarioEmpresaTests
         Assert.Same(asignacion, asignaciones.Single());
     }
 
+    [Fact]
+    public async Task Obtener_usuario_empresa_por_id_use_case_devuelve_asignacion_guardada()
+    {
+        var repository = new UsuarioEmpresaRepositoryFake();
+        var asignacion = new UsuarioEmpresa(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            RolEmpresa.Contador);
+        await repository.AgregarAsync(asignacion);
+        var useCase = new ObtenerUsuarioEmpresaPorIdUseCase(repository);
+
+        var asignacionEncontrada = await useCase.EjecutarAsync(asignacion.Id);
+
+        Assert.Same(asignacion, asignacionEncontrada);
+    }
+
+    [Fact]
+    public async Task Obtener_usuario_empresa_por_id_use_case_devuelve_null_si_no_existe()
+    {
+        var repository = new UsuarioEmpresaRepositoryFake();
+        var useCase = new ObtenerUsuarioEmpresaPorIdUseCase(repository);
+
+        var asignacion = await useCase.EjecutarAsync(Guid.NewGuid());
+
+        Assert.Null(asignacion);
+    }
+
     private sealed class UsuarioRepositoryFake : IUsuarioRepository
     {
         public List<Usuario> Usuarios { get; } = new();
@@ -120,6 +176,13 @@ public class ApplicationUsuarioEmpresaTests
         public Task<IReadOnlyCollection<Usuario>> ListarAsync(CancellationToken cancellationToken = default)
         {
             return Task.FromResult<IReadOnlyCollection<Usuario>>(Usuarios);
+        }
+
+        public Task<Usuario?> ObtenerPorIdAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            var usuario = Usuarios.SingleOrDefault(usuario => usuario.Id == id);
+
+            return Task.FromResult(usuario);
         }
     }
 
@@ -137,6 +200,13 @@ public class ApplicationUsuarioEmpresaTests
         public Task<IReadOnlyCollection<UsuarioEmpresa>> ListarAsync(CancellationToken cancellationToken = default)
         {
             return Task.FromResult<IReadOnlyCollection<UsuarioEmpresa>>(Asignaciones);
+        }
+
+        public Task<UsuarioEmpresa?> ObtenerPorIdAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            var asignacion = Asignaciones.SingleOrDefault(asignacion => asignacion.Id == id);
+
+            return Task.FromResult(asignacion);
         }
     }
 }

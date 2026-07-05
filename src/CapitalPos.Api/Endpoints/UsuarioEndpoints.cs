@@ -13,6 +13,9 @@ public static class UsuarioEndpoints
         usuarios.MapGet("/", ListarUsuariosAsync)
             .WithName("ListarUsuarios");
 
+        usuarios.MapGet("/{id:guid}", ObtenerUsuarioPorIdAsync)
+            .WithName("ObtenerUsuarioPorId");
+
         usuarios.MapPost("/", CrearUsuarioAsync)
             .WithName("CrearUsuario");
 
@@ -21,6 +24,9 @@ public static class UsuarioEndpoints
 
         usuariosEmpresas.MapGet("/", ListarUsuariosEmpresaAsync)
             .WithName("ListarUsuariosEmpresa");
+
+        usuariosEmpresas.MapGet("/{id:guid}", ObtenerUsuarioEmpresaPorIdAsync)
+            .WithName("ObtenerUsuarioEmpresaPorId");
 
         usuariosEmpresas.MapPost("/", AsignarUsuarioEmpresaAsync)
             .WithName("AsignarUsuarioEmpresa");
@@ -35,6 +41,18 @@ public static class UsuarioEndpoints
         var usuarios = await useCase.EjecutarAsync(cancellationToken);
 
         return Results.Ok(usuarios.Select(UsuarioResponse.From));
+    }
+
+    private static async Task<IResult> ObtenerUsuarioPorIdAsync(
+        Guid id,
+        ObtenerUsuarioPorIdUseCase useCase,
+        CancellationToken cancellationToken)
+    {
+        var usuario = await useCase.EjecutarAsync(id, cancellationToken);
+
+        return usuario is null
+            ? Results.NotFound()
+            : Results.Ok(UsuarioResponse.From(usuario));
     }
 
     private static async Task<IResult> CrearUsuarioAsync(
@@ -63,6 +81,18 @@ public static class UsuarioEndpoints
         var usuariosEmpresa = await useCase.EjecutarAsync(cancellationToken);
 
         return Results.Ok(usuariosEmpresa.Select(UsuarioEmpresaResponse.From));
+    }
+
+    private static async Task<IResult> ObtenerUsuarioEmpresaPorIdAsync(
+        Guid id,
+        ObtenerUsuarioEmpresaPorIdUseCase useCase,
+        CancellationToken cancellationToken)
+    {
+        var usuarioEmpresa = await useCase.EjecutarAsync(id, cancellationToken);
+
+        return usuarioEmpresa is null
+            ? Results.NotFound()
+            : Results.Ok(UsuarioEmpresaResponse.From(usuarioEmpresa));
     }
 
     private static async Task<IResult> AsignarUsuarioEmpresaAsync(

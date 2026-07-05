@@ -13,6 +13,9 @@ public static class EmpresaEndpoints
         group.MapGet("/", ListarEmpresasAsync)
             .WithName("ListarEmpresas");
 
+        group.MapGet("/{id:guid}", ObtenerEmpresaPorIdAsync)
+            .WithName("ObtenerEmpresaPorId");
+
         group.MapPost("/", CrearEmpresaAsync)
             .WithName("CrearEmpresa");
 
@@ -26,6 +29,18 @@ public static class EmpresaEndpoints
         var empresas = await useCase.EjecutarAsync(cancellationToken);
 
         return Results.Ok(empresas.Select(EmpresaResponse.From));
+    }
+
+    private static async Task<IResult> ObtenerEmpresaPorIdAsync(
+        Guid id,
+        ObtenerEmpresaPorIdUseCase useCase,
+        CancellationToken cancellationToken)
+    {
+        var empresa = await useCase.EjecutarAsync(id, cancellationToken);
+
+        return empresa is null
+            ? Results.NotFound()
+            : Results.Ok(EmpresaResponse.From(empresa));
     }
 
     private static async Task<IResult> CrearEmpresaAsync(
