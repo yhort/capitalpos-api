@@ -35,7 +35,7 @@ Construir el backend principal de CapitalPOS para:
 - [x] Instalar EF Core
 - [x] Crear DbContext
 - [x] Crear configuraciones Fluent API
-- [ ] Crear migración inicial
+- [x] Crear migración inicial
 - [ ] Implementar repositorios
 - [ ] Reemplazar almacenamiento temporal
 - [ ] Agregar pruebas de integración
