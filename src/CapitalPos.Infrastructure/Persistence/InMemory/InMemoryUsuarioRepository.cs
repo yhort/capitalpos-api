@@ -17,4 +17,9 @@ public sealed class InMemoryUsuarioRepository : IUsuarioRepository
 
         return Task.CompletedTask;
     }
+
+    public Task<IReadOnlyCollection<Usuario>> ListarAsync(CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(Usuarios);
+    }
 }

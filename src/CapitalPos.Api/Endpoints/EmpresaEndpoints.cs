@@ -10,10 +10,22 @@ public static class EmpresaEndpoints
         var group = app.MapGroup("/api/empresas")
             .WithTags("Empresas");
 
+        group.MapGet("/", ListarEmpresasAsync)
+            .WithName("ListarEmpresas");
+
         group.MapPost("/", CrearEmpresaAsync)
             .WithName("CrearEmpresa");
 
         return app;
+    }
+
+    private static async Task<IResult> ListarEmpresasAsync(
+        ListarEmpresasUseCase useCase,
+        CancellationToken cancellationToken)
+    {
+        var empresas = await useCase.EjecutarAsync(cancellationToken);
+
+        return Results.Ok(empresas.Select(EmpresaResponse.From));
     }
 
     private static async Task<IResult> CrearEmpresaAsync(

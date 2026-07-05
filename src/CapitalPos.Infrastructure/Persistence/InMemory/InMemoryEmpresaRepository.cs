@@ -17,4 +17,9 @@ public sealed class InMemoryEmpresaRepository : IEmpresaRepository
 
         return Task.CompletedTask;
     }
+
+    public Task<IReadOnlyCollection<Empresa>> ListarAsync(CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(Empresas);
+    }
 }

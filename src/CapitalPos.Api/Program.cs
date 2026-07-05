@@ -16,6 +16,9 @@ builder.Services.AddSingleton<IUsuarioEmpresaRepository, InMemoryUsuarioEmpresaR
 builder.Services.AddScoped<CrearEmpresaUseCase>();
 builder.Services.AddScoped<CrearUsuarioUseCase>();
 builder.Services.AddScoped<AsignarUsuarioEmpresaUseCase>();
+builder.Services.AddScoped<ListarEmpresasUseCase>();
+builder.Services.AddScoped<ListarUsuariosUseCase>();
+builder.Services.AddScoped<ListarUsuariosEmpresaUseCase>();
 
 var app = builder.Build();
 

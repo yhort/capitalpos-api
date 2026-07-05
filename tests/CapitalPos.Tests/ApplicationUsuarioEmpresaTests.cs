@@ -37,6 +37,23 @@ public class ApplicationUsuarioEmpresaTests
     }
 
     [Fact]
+    public async Task Listar_usuarios_use_case_devuelve_usuarios_guardados()
+    {
+        var repository = new UsuarioRepositoryFake();
+        var usuario = new Usuario(
+            Guid.NewGuid(),
+            "Grace",
+            "Hopper",
+            "grace@capitalpos.com");
+        await repository.AgregarAsync(usuario);
+        var useCase = new ListarUsuariosUseCase(repository);
+
+        var usuarios = await useCase.EjecutarAsync();
+
+        Assert.Same(usuario, usuarios.Single());
+    }
+
+    [Fact]
     public async Task Asignar_usuario_empresa_use_case_construye_y_guarda_relacion_valida()
     {
         var repository = new UsuarioEmpresaRepositoryFake();
@@ -72,6 +89,23 @@ public class ApplicationUsuarioEmpresaTests
         Assert.Empty(repository.Asignaciones);
     }
 
+    [Fact]
+    public async Task Listar_usuarios_empresa_use_case_devuelve_asignaciones_guardadas()
+    {
+        var repository = new UsuarioEmpresaRepositoryFake();
+        var asignacion = new UsuarioEmpresa(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            RolEmpresa.Contador);
+        await repository.AgregarAsync(asignacion);
+        var useCase = new ListarUsuariosEmpresaUseCase(repository);
+
+        var asignaciones = await useCase.EjecutarAsync();
+
+        Assert.Same(asignacion, asignaciones.Single());
+    }
+
     private sealed class UsuarioRepositoryFake : IUsuarioRepository
     {
         public List<Usuario> Usuarios { get; } = new();
@@ -81,6 +115,11 @@ public class ApplicationUsuarioEmpresaTests
             Usuarios.Add(usuario);
 
             return Task.CompletedTask;
+        }
+
+        public Task<IReadOnlyCollection<Usuario>> ListarAsync(CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyCollection<Usuario>>(Usuarios);
         }
     }
 
@@ -93,6 +132,11 @@ public class ApplicationUsuarioEmpresaTests
             Asignaciones.Add(usuarioEmpresa);
 
             return Task.CompletedTask;
+        }
+
+        public Task<IReadOnlyCollection<UsuarioEmpresa>> ListarAsync(CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyCollection<UsuarioEmpresa>>(Asignaciones);
         }
     }
 }

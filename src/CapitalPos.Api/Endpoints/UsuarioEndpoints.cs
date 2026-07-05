@@ -10,16 +10,31 @@ public static class UsuarioEndpoints
         var usuarios = app.MapGroup("/api/usuarios")
             .WithTags("Usuarios");
 
+        usuarios.MapGet("/", ListarUsuariosAsync)
+            .WithName("ListarUsuarios");
+
         usuarios.MapPost("/", CrearUsuarioAsync)
             .WithName("CrearUsuario");
 
         var usuariosEmpresas = app.MapGroup("/api/usuarios-empresas")
             .WithTags("UsuariosEmpresas");
 
+        usuariosEmpresas.MapGet("/", ListarUsuariosEmpresaAsync)
+            .WithName("ListarUsuariosEmpresa");
+
         usuariosEmpresas.MapPost("/", AsignarUsuarioEmpresaAsync)
             .WithName("AsignarUsuarioEmpresa");
 
         return app;
+    }
+
+    private static async Task<IResult> ListarUsuariosAsync(
+        ListarUsuariosUseCase useCase,
+        CancellationToken cancellationToken)
+    {
+        var usuarios = await useCase.EjecutarAsync(cancellationToken);
+
+        return Results.Ok(usuarios.Select(UsuarioResponse.From));
     }
 
     private static async Task<IResult> CrearUsuarioAsync(
@@ -39,6 +54,15 @@ public static class UsuarioEndpoints
         {
             return Results.BadRequest(ErrorResponse.From(ex.Message));
         }
+    }
+
+    private static async Task<IResult> ListarUsuariosEmpresaAsync(
+        ListarUsuariosEmpresaUseCase useCase,
+        CancellationToken cancellationToken)
+    {
+        var usuariosEmpresa = await useCase.EjecutarAsync(cancellationToken);
+
+        return Results.Ok(usuariosEmpresa.Select(UsuarioEmpresaResponse.From));
     }
 
     private static async Task<IResult> AsignarUsuarioEmpresaAsync(

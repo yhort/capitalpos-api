@@ -36,6 +36,22 @@ public class ApplicationEmpresaTests
         Assert.Empty(repository.Empresas);
     }
 
+    [Fact]
+    public async Task Listar_empresas_use_case_devuelve_empresas_guardadas()
+    {
+        var repository = new EmpresaRepositoryFake();
+        var empresa = new Empresa(
+            Guid.NewGuid(),
+            "20606264004",
+            "CapitalPOS SAC");
+        await repository.AgregarAsync(empresa);
+        var useCase = new ListarEmpresasUseCase(repository);
+
+        var empresas = await useCase.EjecutarAsync();
+
+        Assert.Same(empresa, empresas.Single());
+    }
+
     private sealed class EmpresaRepositoryFake : IEmpresaRepository
     {
         public List<Empresa> Empresas { get; } = new();
@@ -45,6 +61,11 @@ public class ApplicationEmpresaTests
             Empresas.Add(empresa);
 
             return Task.CompletedTask;
+        }
+
+        public Task<IReadOnlyCollection<Empresa>> ListarAsync(CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyCollection<Empresa>>(Empresas);
         }
     }
 }
