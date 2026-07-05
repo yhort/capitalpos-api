@@ -2,6 +2,13 @@ namespace CapitalPos.Domain;
 
 public sealed class Usuario
 {
+    private Usuario()
+    {
+        Nombre = string.Empty;
+        Apellido = string.Empty;
+        Correo = string.Empty;
+    }
+
     public Usuario(
         Guid id,
         string nombre,

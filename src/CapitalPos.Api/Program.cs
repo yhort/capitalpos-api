@@ -1,6 +1,7 @@
 using CapitalPos.Api.Endpoints;
 using CapitalPos.Application.Empresas;
 using CapitalPos.Application.Usuarios;
+using CapitalPos.Infrastructure;
 using CapitalPos.Infrastructure.Persistence.InMemory;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -10,6 +11,7 @@ if (builder.Environment.IsDevelopment())
     builder.Services.AddOpenApi();
 }
 
+builder.Services.AddCapitalPosInfrastructure(builder.Configuration);
 builder.Services.AddSingleton<IEmpresaRepository, InMemoryEmpresaRepository>();
 builder.Services.AddSingleton<IUsuarioRepository, InMemoryUsuarioRepository>();
 builder.Services.AddSingleton<IUsuarioEmpresaRepository, InMemoryUsuarioEmpresaRepository>();

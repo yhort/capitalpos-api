@@ -31,10 +31,10 @@ Construir el backend principal de CapitalPOS para:
 
 ## Fase 3 — Persistencia
 
-- [ ] Elegir motor de base de datos
-- [ ] Instalar EF Core
-- [ ] Crear DbContext
-- [ ] Crear configuraciones Fluent API
+- [x] Elegir motor de base de datos
+- [x] Instalar EF Core
+- [x] Crear DbContext
+- [x] Crear configuraciones Fluent API
 - [ ] Crear migración inicial
 - [ ] Implementar repositorios
 - [ ] Reemplazar almacenamiento temporal

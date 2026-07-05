@@ -2,6 +2,10 @@ namespace CapitalPos.Domain;
 
 public sealed class UsuarioEmpresa
 {
+    private UsuarioEmpresa()
+    {
+    }
+
     public UsuarioEmpresa(
         Guid id,
         Guid usuarioId,

@@ -2,6 +2,13 @@ namespace CapitalPos.Domain;
 
 public sealed class Empresa
 {
+    private Empresa()
+    {
+        Ruc = string.Empty;
+        RazonSocial = string.Empty;
+        NombreComercial = string.Empty;
+    }
+
     public Empresa(
         Guid id,
         string ruc,
