@@ -1,3 +1,4 @@
+using CapitalPos.Application.Empresas;
 using CapitalPos.Application.Usuarios;
 using CapitalPos.Domain;
 
@@ -142,10 +143,24 @@ public class ApplicationUsuarioEmpresaTests
     [Fact]
     public async Task Asignar_usuario_empresa_use_case_construye_y_guarda_relacion_valida()
     {
+        var usuarioRepository = new UsuarioRepositoryFake();
+        var empresaRepository = new EmpresaRepositoryFake();
         var repository = new UsuarioEmpresaRepositoryFake();
-        var useCase = new AsignarUsuarioEmpresaUseCase(repository);
         var usuarioId = Guid.NewGuid();
         var empresaId = Guid.NewGuid();
+        await usuarioRepository.AgregarAsync(new Usuario(
+            usuarioId,
+            "Grace",
+            "Hopper",
+            "grace@capitalpos.com"));
+        await empresaRepository.AgregarAsync(new Empresa(
+            empresaId,
+            "20606264004",
+            "CapitalPOS SAC"));
+        var useCase = new AsignarUsuarioEmpresaUseCase(
+            repository,
+            usuarioRepository,
+            empresaRepository);
         var request = new AsignarUsuarioEmpresaRequest(
             usuarioId,
             empresaId,
@@ -164,8 +179,13 @@ public class ApplicationUsuarioEmpresaTests
     [Fact]
     public async Task Asignar_usuario_empresa_use_case_propaga_reglas_de_dominio()
     {
+        var usuarioRepository = new UsuarioRepositoryFake();
+        var empresaRepository = new EmpresaRepositoryFake();
         var repository = new UsuarioEmpresaRepositoryFake();
-        var useCase = new AsignarUsuarioEmpresaUseCase(repository);
+        var useCase = new AsignarUsuarioEmpresaUseCase(
+            repository,
+            usuarioRepository,
+            empresaRepository);
         var request = new AsignarUsuarioEmpresaRequest(
             Guid.Empty,
             Guid.NewGuid(),
@@ -178,15 +198,29 @@ public class ApplicationUsuarioEmpresaTests
     [Fact]
     public async Task Asignar_usuario_empresa_use_case_rechaza_asignacion_duplicada()
     {
+        var usuarioRepository = new UsuarioRepositoryFake();
+        var empresaRepository = new EmpresaRepositoryFake();
         var repository = new UsuarioEmpresaRepositoryFake();
         var usuarioId = Guid.NewGuid();
         var empresaId = Guid.NewGuid();
+        await usuarioRepository.AgregarAsync(new Usuario(
+            usuarioId,
+            "Grace",
+            "Hopper",
+            "grace@capitalpos.com"));
+        await empresaRepository.AgregarAsync(new Empresa(
+            empresaId,
+            "20606264004",
+            "CapitalPOS SAC"));
         await repository.AgregarAsync(new UsuarioEmpresa(
             Guid.NewGuid(),
             usuarioId,
             empresaId,
             RolEmpresa.Cajero));
-        var useCase = new AsignarUsuarioEmpresaUseCase(repository);
+        var useCase = new AsignarUsuarioEmpresaUseCase(
+            repository,
+            usuarioRepository,
+            empresaRepository);
         var request = new AsignarUsuarioEmpresaRequest(
             usuarioId,
             empresaId,
@@ -194,6 +228,55 @@ public class ApplicationUsuarioEmpresaTests
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => useCase.EjecutarAsync(request));
         Assert.Single(repository.Asignaciones);
+    }
+
+    [Fact]
+    public async Task Asignar_usuario_empresa_use_case_rechaza_usuario_inexistente()
+    {
+        var usuarioRepository = new UsuarioRepositoryFake();
+        var empresaRepository = new EmpresaRepositoryFake();
+        var repository = new UsuarioEmpresaRepositoryFake();
+        var empresaId = Guid.NewGuid();
+        await empresaRepository.AgregarAsync(new Empresa(
+            empresaId,
+            "20606264004",
+            "CapitalPOS SAC"));
+        var useCase = new AsignarUsuarioEmpresaUseCase(
+            repository,
+            usuarioRepository,
+            empresaRepository);
+        var request = new AsignarUsuarioEmpresaRequest(
+            Guid.NewGuid(),
+            empresaId,
+            RolEmpresa.Cajero);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => useCase.EjecutarAsync(request));
+        Assert.Empty(repository.Asignaciones);
+    }
+
+    [Fact]
+    public async Task Asignar_usuario_empresa_use_case_rechaza_empresa_inexistente()
+    {
+        var usuarioRepository = new UsuarioRepositoryFake();
+        var empresaRepository = new EmpresaRepositoryFake();
+        var repository = new UsuarioEmpresaRepositoryFake();
+        var usuarioId = Guid.NewGuid();
+        await usuarioRepository.AgregarAsync(new Usuario(
+            usuarioId,
+            "Grace",
+            "Hopper",
+            "grace@capitalpos.com"));
+        var useCase = new AsignarUsuarioEmpresaUseCase(
+            repository,
+            usuarioRepository,
+            empresaRepository);
+        var request = new AsignarUsuarioEmpresaRequest(
+            usuarioId,
+            Guid.NewGuid(),
+            RolEmpresa.Cajero);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => useCase.EjecutarAsync(request));
+        Assert.Empty(repository.Asignaciones);
     }
 
     [Fact]
@@ -367,6 +450,46 @@ public class ApplicationUsuarioEmpresaTests
         public Task<bool> ExisteCorreoAsync(string correo, CancellationToken cancellationToken = default)
         {
             var existe = Usuarios.Any(usuario => usuario.Correo == correo);
+
+            return Task.FromResult(existe);
+        }
+    }
+
+    private sealed class EmpresaRepositoryFake : IEmpresaRepository
+    {
+        public List<Empresa> Empresas { get; } = new();
+
+        public Empresa? EmpresaActualizada { get; private set; }
+
+        public Task AgregarAsync(Empresa empresa, CancellationToken cancellationToken = default)
+        {
+            Empresas.Add(empresa);
+
+            return Task.CompletedTask;
+        }
+
+        public Task<IReadOnlyCollection<Empresa>> ListarAsync(CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyCollection<Empresa>>(Empresas);
+        }
+
+        public Task<Empresa?> ObtenerPorIdAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            var empresa = Empresas.SingleOrDefault(empresa => empresa.Id == id);
+
+            return Task.FromResult(empresa);
+        }
+
+        public Task ActualizarAsync(Empresa empresa, CancellationToken cancellationToken = default)
+        {
+            EmpresaActualizada = empresa;
+
+            return Task.CompletedTask;
+        }
+
+        public Task<bool> ExisteRucAsync(string ruc, CancellationToken cancellationToken = default)
+        {
+            var existe = Empresas.Any(empresa => empresa.Ruc == ruc);
 
             return Task.FromResult(existe);
         }
