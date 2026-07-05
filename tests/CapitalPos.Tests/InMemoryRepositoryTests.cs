@@ -60,6 +60,34 @@ public class InMemoryRepositoryTests
     }
 
     [Fact]
+    public async Task Empresa_repository_actualiza_empresa_existente()
+    {
+        var repository = new InMemoryEmpresaRepository();
+        var empresa = new Empresa(
+            Guid.NewGuid(),
+            "20606264004",
+            "CapitalPOS SAC");
+        await repository.AgregarAsync(empresa);
+        empresa.Desactivar();
+
+        await repository.ActualizarAsync(empresa);
+
+        Assert.False(repository.Empresas.Single().Activa);
+    }
+
+    [Fact]
+    public async Task Empresa_repository_rechaza_actualizar_empresa_inexistente()
+    {
+        var repository = new InMemoryEmpresaRepository();
+        var empresa = new Empresa(
+            Guid.NewGuid(),
+            "20606264004",
+            "CapitalPOS SAC");
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => repository.ActualizarAsync(empresa));
+    }
+
+    [Fact]
     public async Task Usuario_repository_guarda_usuario_en_memoria()
     {
         var repository = new InMemoryUsuarioRepository();
@@ -117,6 +145,36 @@ public class InMemoryRepositoryTests
     }
 
     [Fact]
+    public async Task Usuario_repository_actualiza_usuario_existente()
+    {
+        var repository = new InMemoryUsuarioRepository();
+        var usuario = new Usuario(
+            Guid.NewGuid(),
+            "Grace",
+            "Hopper",
+            "grace@capitalpos.com");
+        await repository.AgregarAsync(usuario);
+        usuario.Desactivar();
+
+        await repository.ActualizarAsync(usuario);
+
+        Assert.False(repository.Usuarios.Single().Activo);
+    }
+
+    [Fact]
+    public async Task Usuario_repository_rechaza_actualizar_usuario_inexistente()
+    {
+        var repository = new InMemoryUsuarioRepository();
+        var usuario = new Usuario(
+            Guid.NewGuid(),
+            "Grace",
+            "Hopper",
+            "grace@capitalpos.com");
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => repository.ActualizarAsync(usuario));
+    }
+
+    [Fact]
     public async Task Usuario_empresa_repository_guarda_asignacion_en_memoria()
     {
         var repository = new InMemoryUsuarioEmpresaRepository();
@@ -171,5 +229,35 @@ public class InMemoryRepositoryTests
         var usuarioEmpresa = await repository.ObtenerPorIdAsync(Guid.NewGuid());
 
         Assert.Null(usuarioEmpresa);
+    }
+
+    [Fact]
+    public async Task Usuario_empresa_repository_actualiza_asignacion_existente()
+    {
+        var repository = new InMemoryUsuarioEmpresaRepository();
+        var usuarioEmpresa = new UsuarioEmpresa(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            RolEmpresa.Cajero);
+        await repository.AgregarAsync(usuarioEmpresa);
+        usuarioEmpresa.Desactivar();
+
+        await repository.ActualizarAsync(usuarioEmpresa);
+
+        Assert.False(repository.UsuariosEmpresa.Single().Activo);
+    }
+
+    [Fact]
+    public async Task Usuario_empresa_repository_rechaza_actualizar_asignacion_inexistente()
+    {
+        var repository = new InMemoryUsuarioEmpresaRepository();
+        var usuarioEmpresa = new UsuarioEmpresa(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            RolEmpresa.Cajero);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => repository.ActualizarAsync(usuarioEmpresa));
     }
 }

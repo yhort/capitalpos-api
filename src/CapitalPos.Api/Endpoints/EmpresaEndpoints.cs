@@ -19,6 +19,12 @@ public static class EmpresaEndpoints
         group.MapPost("/", CrearEmpresaAsync)
             .WithName("CrearEmpresa");
 
+        group.MapPatch("/{id:guid}/activar", ActivarEmpresaAsync)
+            .WithName("ActivarEmpresa");
+
+        group.MapPatch("/{id:guid}/desactivar", DesactivarEmpresaAsync)
+            .WithName("DesactivarEmpresa");
+
         return app;
     }
 
@@ -60,6 +66,30 @@ public static class EmpresaEndpoints
         {
             return Results.BadRequest(ErrorResponse.From(ex.Message));
         }
+    }
+
+    private static async Task<IResult> ActivarEmpresaAsync(
+        Guid id,
+        ActivarEmpresaUseCase useCase,
+        CancellationToken cancellationToken)
+    {
+        var empresa = await useCase.EjecutarAsync(id, cancellationToken);
+
+        return empresa is null
+            ? Results.NotFound()
+            : Results.Ok(EmpresaResponse.From(empresa));
+    }
+
+    private static async Task<IResult> DesactivarEmpresaAsync(
+        Guid id,
+        DesactivarEmpresaUseCase useCase,
+        CancellationToken cancellationToken)
+    {
+        var empresa = await useCase.EjecutarAsync(id, cancellationToken);
+
+        return empresa is null
+            ? Results.NotFound()
+            : Results.Ok(EmpresaResponse.From(empresa));
     }
 }
 

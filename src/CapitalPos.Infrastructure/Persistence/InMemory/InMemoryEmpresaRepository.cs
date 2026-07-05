@@ -29,4 +29,16 @@ public sealed class InMemoryEmpresaRepository : IEmpresaRepository
 
         return Task.FromResult(empresa);
     }
+
+    public Task ActualizarAsync(Empresa empresa, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(empresa);
+
+        if (_empresas.All(empresaGuardada => empresaGuardada.Id != empresa.Id))
+        {
+            throw new InvalidOperationException("La empresa no existe en el repositorio.");
+        }
+
+        return Task.CompletedTask;
+    }
 }

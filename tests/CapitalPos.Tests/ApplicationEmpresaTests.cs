@@ -79,9 +79,60 @@ public class ApplicationEmpresaTests
         Assert.Null(empresa);
     }
 
+    [Fact]
+    public async Task Desactivar_empresa_use_case_cambia_estado_y_actualiza_repositorio()
+    {
+        var repository = new EmpresaRepositoryFake();
+        var empresa = new Empresa(
+            Guid.NewGuid(),
+            "20606264004",
+            "CapitalPOS SAC");
+        await repository.AgregarAsync(empresa);
+        var useCase = new DesactivarEmpresaUseCase(repository);
+
+        var empresaDesactivada = await useCase.EjecutarAsync(empresa.Id);
+
+        Assert.Same(empresa, empresaDesactivada);
+        Assert.False(empresa.Activa);
+        Assert.Same(empresa, repository.EmpresaActualizada);
+    }
+
+    [Fact]
+    public async Task Activar_empresa_use_case_cambia_estado_y_actualiza_repositorio()
+    {
+        var repository = new EmpresaRepositoryFake();
+        var empresa = new Empresa(
+            Guid.NewGuid(),
+            "20606264004",
+            "CapitalPOS SAC",
+            activa: false);
+        await repository.AgregarAsync(empresa);
+        var useCase = new ActivarEmpresaUseCase(repository);
+
+        var empresaActivada = await useCase.EjecutarAsync(empresa.Id);
+
+        Assert.Same(empresa, empresaActivada);
+        Assert.True(empresa.Activa);
+        Assert.Same(empresa, repository.EmpresaActualizada);
+    }
+
+    [Fact]
+    public async Task Desactivar_empresa_use_case_devuelve_null_si_no_existe()
+    {
+        var repository = new EmpresaRepositoryFake();
+        var useCase = new DesactivarEmpresaUseCase(repository);
+
+        var empresa = await useCase.EjecutarAsync(Guid.NewGuid());
+
+        Assert.Null(empresa);
+        Assert.Null(repository.EmpresaActualizada);
+    }
+
     private sealed class EmpresaRepositoryFake : IEmpresaRepository
     {
         public List<Empresa> Empresas { get; } = new();
+
+        public Empresa? EmpresaActualizada { get; private set; }
 
         public Task AgregarAsync(Empresa empresa, CancellationToken cancellationToken = default)
         {
@@ -100,6 +151,13 @@ public class ApplicationEmpresaTests
             var empresa = Empresas.SingleOrDefault(empresa => empresa.Id == id);
 
             return Task.FromResult(empresa);
+        }
+
+        public Task ActualizarAsync(Empresa empresa, CancellationToken cancellationToken = default)
+        {
+            EmpresaActualizada = empresa;
+
+            return Task.CompletedTask;
         }
     }
 }

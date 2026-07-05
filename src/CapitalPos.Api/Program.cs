@@ -22,6 +22,12 @@ builder.Services.AddScoped<ListarUsuariosEmpresaUseCase>();
 builder.Services.AddScoped<ObtenerEmpresaPorIdUseCase>();
 builder.Services.AddScoped<ObtenerUsuarioPorIdUseCase>();
 builder.Services.AddScoped<ObtenerUsuarioEmpresaPorIdUseCase>();
+builder.Services.AddScoped<ActivarEmpresaUseCase>();
+builder.Services.AddScoped<DesactivarEmpresaUseCase>();
+builder.Services.AddScoped<ActivarUsuarioUseCase>();
+builder.Services.AddScoped<DesactivarUsuarioUseCase>();
+builder.Services.AddScoped<ActivarUsuarioEmpresaUseCase>();
+builder.Services.AddScoped<DesactivarUsuarioEmpresaUseCase>();
 
 var app = builder.Build();
 

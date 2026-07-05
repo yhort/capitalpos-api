@@ -9,4 +9,6 @@ public interface IEmpresaRepository
     Task<IReadOnlyCollection<Empresa>> ListarAsync(CancellationToken cancellationToken = default);
 
     Task<Empresa?> ObtenerPorIdAsync(Guid id, CancellationToken cancellationToken = default);
+
+    Task ActualizarAsync(Empresa empresa, CancellationToken cancellationToken = default);
 }

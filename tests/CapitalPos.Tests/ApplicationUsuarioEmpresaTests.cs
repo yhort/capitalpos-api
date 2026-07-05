@@ -82,6 +82,45 @@ public class ApplicationUsuarioEmpresaTests
     }
 
     [Fact]
+    public async Task Desactivar_usuario_use_case_cambia_estado_y_actualiza_repositorio()
+    {
+        var repository = new UsuarioRepositoryFake();
+        var usuario = new Usuario(
+            Guid.NewGuid(),
+            "Grace",
+            "Hopper",
+            "grace@capitalpos.com");
+        await repository.AgregarAsync(usuario);
+        var useCase = new DesactivarUsuarioUseCase(repository);
+
+        var usuarioDesactivado = await useCase.EjecutarAsync(usuario.Id);
+
+        Assert.Same(usuario, usuarioDesactivado);
+        Assert.False(usuario.Activo);
+        Assert.Same(usuario, repository.UsuarioActualizado);
+    }
+
+    [Fact]
+    public async Task Activar_usuario_use_case_cambia_estado_y_actualiza_repositorio()
+    {
+        var repository = new UsuarioRepositoryFake();
+        var usuario = new Usuario(
+            Guid.NewGuid(),
+            "Grace",
+            "Hopper",
+            "grace@capitalpos.com",
+            activo: false);
+        await repository.AgregarAsync(usuario);
+        var useCase = new ActivarUsuarioUseCase(repository);
+
+        var usuarioActivado = await useCase.EjecutarAsync(usuario.Id);
+
+        Assert.Same(usuario, usuarioActivado);
+        Assert.True(usuario.Activo);
+        Assert.Same(usuario, repository.UsuarioActualizado);
+    }
+
+    [Fact]
     public async Task Asignar_usuario_empresa_use_case_construye_y_guarda_relacion_valida()
     {
         var repository = new UsuarioEmpresaRepositoryFake();
@@ -162,9 +201,50 @@ public class ApplicationUsuarioEmpresaTests
         Assert.Null(asignacion);
     }
 
+    [Fact]
+    public async Task Desactivar_usuario_empresa_use_case_cambia_estado_y_actualiza_repositorio()
+    {
+        var repository = new UsuarioEmpresaRepositoryFake();
+        var asignacion = new UsuarioEmpresa(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            RolEmpresa.Contador);
+        await repository.AgregarAsync(asignacion);
+        var useCase = new DesactivarUsuarioEmpresaUseCase(repository);
+
+        var asignacionDesactivada = await useCase.EjecutarAsync(asignacion.Id);
+
+        Assert.Same(asignacion, asignacionDesactivada);
+        Assert.False(asignacion.Activo);
+        Assert.Same(asignacion, repository.AsignacionActualizada);
+    }
+
+    [Fact]
+    public async Task Activar_usuario_empresa_use_case_cambia_estado_y_actualiza_repositorio()
+    {
+        var repository = new UsuarioEmpresaRepositoryFake();
+        var asignacion = new UsuarioEmpresa(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            RolEmpresa.Contador,
+            activo: false);
+        await repository.AgregarAsync(asignacion);
+        var useCase = new ActivarUsuarioEmpresaUseCase(repository);
+
+        var asignacionActivada = await useCase.EjecutarAsync(asignacion.Id);
+
+        Assert.Same(asignacion, asignacionActivada);
+        Assert.True(asignacion.Activo);
+        Assert.Same(asignacion, repository.AsignacionActualizada);
+    }
+
     private sealed class UsuarioRepositoryFake : IUsuarioRepository
     {
         public List<Usuario> Usuarios { get; } = new();
+
+        public Usuario? UsuarioActualizado { get; private set; }
 
         public Task AgregarAsync(Usuario usuario, CancellationToken cancellationToken = default)
         {
@@ -184,11 +264,20 @@ public class ApplicationUsuarioEmpresaTests
 
             return Task.FromResult(usuario);
         }
+
+        public Task ActualizarAsync(Usuario usuario, CancellationToken cancellationToken = default)
+        {
+            UsuarioActualizado = usuario;
+
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class UsuarioEmpresaRepositoryFake : IUsuarioEmpresaRepository
     {
         public List<UsuarioEmpresa> Asignaciones { get; } = new();
+
+        public UsuarioEmpresa? AsignacionActualizada { get; private set; }
 
         public Task AgregarAsync(UsuarioEmpresa usuarioEmpresa, CancellationToken cancellationToken = default)
         {
@@ -207,6 +296,13 @@ public class ApplicationUsuarioEmpresaTests
             var asignacion = Asignaciones.SingleOrDefault(asignacion => asignacion.Id == id);
 
             return Task.FromResult(asignacion);
+        }
+
+        public Task ActualizarAsync(UsuarioEmpresa usuarioEmpresa, CancellationToken cancellationToken = default)
+        {
+            AsignacionActualizada = usuarioEmpresa;
+
+            return Task.CompletedTask;
         }
     }
 }

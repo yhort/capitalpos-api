@@ -29,4 +29,16 @@ public sealed class InMemoryUsuarioEmpresaRepository : IUsuarioEmpresaRepository
 
         return Task.FromResult(usuarioEmpresa);
     }
+
+    public Task ActualizarAsync(UsuarioEmpresa usuarioEmpresa, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(usuarioEmpresa);
+
+        if (_usuariosEmpresa.All(asignacionGuardada => asignacionGuardada.Id != usuarioEmpresa.Id))
+        {
+            throw new InvalidOperationException("La asignacion de usuario a empresa no existe en el repositorio.");
+        }
+
+        return Task.CompletedTask;
+    }
 }

@@ -9,4 +9,6 @@ public interface IUsuarioRepository
     Task<IReadOnlyCollection<Usuario>> ListarAsync(CancellationToken cancellationToken = default);
 
     Task<Usuario?> ObtenerPorIdAsync(Guid id, CancellationToken cancellationToken = default);
+
+    Task ActualizarAsync(Usuario usuario, CancellationToken cancellationToken = default);
 }

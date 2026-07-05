@@ -19,6 +19,12 @@ public static class UsuarioEndpoints
         usuarios.MapPost("/", CrearUsuarioAsync)
             .WithName("CrearUsuario");
 
+        usuarios.MapPatch("/{id:guid}/activar", ActivarUsuarioAsync)
+            .WithName("ActivarUsuario");
+
+        usuarios.MapPatch("/{id:guid}/desactivar", DesactivarUsuarioAsync)
+            .WithName("DesactivarUsuario");
+
         var usuariosEmpresas = app.MapGroup("/api/usuarios-empresas")
             .WithTags("UsuariosEmpresas");
 
@@ -30,6 +36,12 @@ public static class UsuarioEndpoints
 
         usuariosEmpresas.MapPost("/", AsignarUsuarioEmpresaAsync)
             .WithName("AsignarUsuarioEmpresa");
+
+        usuariosEmpresas.MapPatch("/{id:guid}/activar", ActivarUsuarioEmpresaAsync)
+            .WithName("ActivarUsuarioEmpresa");
+
+        usuariosEmpresas.MapPatch("/{id:guid}/desactivar", DesactivarUsuarioEmpresaAsync)
+            .WithName("DesactivarUsuarioEmpresa");
 
         return app;
     }
@@ -74,6 +86,30 @@ public static class UsuarioEndpoints
         }
     }
 
+    private static async Task<IResult> ActivarUsuarioAsync(
+        Guid id,
+        ActivarUsuarioUseCase useCase,
+        CancellationToken cancellationToken)
+    {
+        var usuario = await useCase.EjecutarAsync(id, cancellationToken);
+
+        return usuario is null
+            ? Results.NotFound()
+            : Results.Ok(UsuarioResponse.From(usuario));
+    }
+
+    private static async Task<IResult> DesactivarUsuarioAsync(
+        Guid id,
+        DesactivarUsuarioUseCase useCase,
+        CancellationToken cancellationToken)
+    {
+        var usuario = await useCase.EjecutarAsync(id, cancellationToken);
+
+        return usuario is null
+            ? Results.NotFound()
+            : Results.Ok(UsuarioResponse.From(usuario));
+    }
+
     private static async Task<IResult> ListarUsuariosEmpresaAsync(
         ListarUsuariosEmpresaUseCase useCase,
         CancellationToken cancellationToken)
@@ -112,6 +148,30 @@ public static class UsuarioEndpoints
         {
             return Results.BadRequest(ErrorResponse.From(ex.Message));
         }
+    }
+
+    private static async Task<IResult> ActivarUsuarioEmpresaAsync(
+        Guid id,
+        ActivarUsuarioEmpresaUseCase useCase,
+        CancellationToken cancellationToken)
+    {
+        var usuarioEmpresa = await useCase.EjecutarAsync(id, cancellationToken);
+
+        return usuarioEmpresa is null
+            ? Results.NotFound()
+            : Results.Ok(UsuarioEmpresaResponse.From(usuarioEmpresa));
+    }
+
+    private static async Task<IResult> DesactivarUsuarioEmpresaAsync(
+        Guid id,
+        DesactivarUsuarioEmpresaUseCase useCase,
+        CancellationToken cancellationToken)
+    {
+        var usuarioEmpresa = await useCase.EjecutarAsync(id, cancellationToken);
+
+        return usuarioEmpresa is null
+            ? Results.NotFound()
+            : Results.Ok(UsuarioEmpresaResponse.From(usuarioEmpresa));
     }
 }
 

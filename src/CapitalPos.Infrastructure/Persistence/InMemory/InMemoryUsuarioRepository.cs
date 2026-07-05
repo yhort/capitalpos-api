@@ -29,4 +29,16 @@ public sealed class InMemoryUsuarioRepository : IUsuarioRepository
 
         return Task.FromResult(usuario);
     }
+
+    public Task ActualizarAsync(Usuario usuario, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(usuario);
+
+        if (_usuarios.All(usuarioGuardado => usuarioGuardado.Id != usuario.Id))
+        {
+            throw new InvalidOperationException("El usuario no existe en el repositorio.");
+        }
+
+        return Task.CompletedTask;
+    }
 }
