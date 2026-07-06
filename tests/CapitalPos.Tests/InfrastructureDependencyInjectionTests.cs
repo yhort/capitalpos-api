@@ -1,7 +1,9 @@
 using CapitalPos.Application.Empresas;
+using CapitalPos.Application.Seguridad;
 using CapitalPos.Application.Usuarios;
 using CapitalPos.Infrastructure;
 using CapitalPos.Infrastructure.Persistence.Repositories;
+using CapitalPos.Infrastructure.Security;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Primitives;
@@ -41,6 +43,10 @@ public class InfrastructureDependencyInjectionTests
         Assert.Contains(services, descriptor =>
             descriptor.ServiceType == typeof(IUsuarioEmpresaRepository) &&
             descriptor.ImplementationType == typeof(EfUsuarioEmpresaRepository) &&
+            descriptor.Lifetime == ServiceLifetime.Scoped);
+        Assert.Contains(services, descriptor =>
+            descriptor.ServiceType == typeof(IPasswordHasher) &&
+            descriptor.ImplementationType == typeof(AspNetCoreIdentityPasswordHasher) &&
             descriptor.Lifetime == ServiceLifetime.Scoped);
     }
 

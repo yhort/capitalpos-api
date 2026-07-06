@@ -1,7 +1,9 @@
 using CapitalPos.Application.Empresas;
+using CapitalPos.Application.Seguridad;
 using CapitalPos.Application.Usuarios;
 using CapitalPos.Infrastructure.Persistence;
 using CapitalPos.Infrastructure.Persistence.Repositories;
+using CapitalPos.Infrastructure.Security;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -27,6 +29,7 @@ public static class DependencyInjection
         services.AddScoped<IEmpresaRepository, EfEmpresaRepository>();
         services.AddScoped<IUsuarioRepository, EfUsuarioRepository>();
         services.AddScoped<IUsuarioEmpresaRepository, EfUsuarioEmpresaRepository>();
+        services.AddScoped<IPasswordHasher, AspNetCoreIdentityPasswordHasher>();
 
         return services;
     }

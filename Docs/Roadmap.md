@@ -43,7 +43,7 @@ Construir el backend principal de CapitalPOS para:
 ## Fase 4 — Autenticación y seguridad
 
 - [x] Agregar credenciales de usuario
-- [ ] Implementar hashing de contraseñas
+- [x] Implementar hashing de contraseñas
 - [ ] Crear login
 - [ ] Implementar JWT o cookie segura
 - [ ] Crear refresh token si aplica
