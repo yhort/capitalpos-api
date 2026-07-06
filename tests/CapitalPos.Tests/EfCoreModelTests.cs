@@ -14,6 +14,7 @@ public class EfCoreModelTests
 
         Assert.NotNull(context.Model.FindEntityType(typeof(Empresa)));
         Assert.NotNull(context.Model.FindEntityType(typeof(Usuario)));
+        Assert.NotNull(context.Model.FindEntityType(typeof(UsuarioCredencial)));
         Assert.NotNull(context.Model.FindEntityType(typeof(UsuarioEmpresa)));
     }
 
@@ -49,6 +50,33 @@ public class EfCoreModelTests
         Assert.Contains(entityType.GetIndexes(), index =>
             index.IsUnique &&
             index.Properties.Select(property => property.Name).SequenceEqual([nameof(Usuario.Correo)]));
+    }
+
+    [Fact]
+    public void Usuario_credencial_tiene_relacion_uno_a_uno_campos_obligatorios_e_indices()
+    {
+        var entityType = ObtenerEntidad<UsuarioCredencial>();
+
+        Assert.Equal("usuarios_credenciales", entityType.GetTableName());
+        Assert.Equal(nameof(UsuarioCredencial.UsuarioId), entityType.FindPrimaryKey()?.Properties.Single().Name);
+        AssertPropiedad(entityType, nameof(UsuarioCredencial.UsuarioId), nullable: false);
+        AssertPropiedad(entityType, nameof(UsuarioCredencial.PasswordHash), maxLength: 500, nullable: false);
+        AssertPropiedad(entityType, nameof(UsuarioCredencial.Algoritmo), maxLength: 100, nullable: false);
+        AssertPropiedad(entityType, nameof(UsuarioCredencial.FechaCambio), nullable: false);
+        AssertPropiedad(entityType, nameof(UsuarioCredencial.Activo), nullable: false);
+        AssertPropiedad(entityType, nameof(UsuarioCredencial.Bloqueado), nullable: false);
+
+        Assert.Contains(entityType.GetIndexes(), index =>
+            index.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(UsuarioCredencial.Activo),
+                nameof(UsuarioCredencial.Bloqueado)
+            ]));
+
+        Assert.Contains(entityType.GetForeignKeys(), foreignKey =>
+            foreignKey.IsUnique &&
+            foreignKey.PrincipalEntityType.ClrType == typeof(Usuario) &&
+            foreignKey.DeleteBehavior == DeleteBehavior.Cascade &&
+            foreignKey.Properties.Select(property => property.Name).SequenceEqual([nameof(UsuarioCredencial.UsuarioId)]));
     }
 
     [Fact]

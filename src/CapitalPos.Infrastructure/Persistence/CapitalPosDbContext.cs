@@ -14,6 +14,8 @@ public sealed class CapitalPosDbContext : DbContext
 
     public DbSet<Usuario> Usuarios => Set<Usuario>();
 
+    public DbSet<UsuarioCredencial> UsuariosCredenciales => Set<UsuarioCredencial>();
+
     public DbSet<UsuarioEmpresa> UsuariosEmpresa => Set<UsuarioEmpresa>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
