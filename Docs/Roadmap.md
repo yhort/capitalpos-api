@@ -38,7 +38,7 @@ Construir el backend principal de CapitalPOS para:
 - [x] Crear migración inicial
 - [x] Implementar repositorios
 - [x] Reemplazar almacenamiento temporal
-- [ ] Agregar pruebas de integración
+- [x] Agregar pruebas de integración
 
 ## Fase 4 — Autenticación y seguridad
 
