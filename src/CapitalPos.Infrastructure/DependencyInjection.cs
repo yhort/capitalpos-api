@@ -31,6 +31,8 @@ public static class DependencyInjection
         services.AddScoped<IUsuarioEmpresaRepository, EfUsuarioEmpresaRepository>();
         services.AddScoped<IUsuarioCredencialRepository, EfUsuarioCredencialRepository>();
         services.AddScoped<IPasswordHasher, AspNetCoreIdentityPasswordHasher>();
+        services.Configure<JwtTokenOptions>(configuration.GetSection(JwtTokenOptions.SectionName));
+        services.AddScoped<IAccessTokenIssuer, JwtAccessTokenIssuer>();
 
         return services;
     }

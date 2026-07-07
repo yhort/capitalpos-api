@@ -52,6 +52,10 @@ public class InfrastructureDependencyInjectionTests
             descriptor.ServiceType == typeof(IPasswordHasher) &&
             descriptor.ImplementationType == typeof(AspNetCoreIdentityPasswordHasher) &&
             descriptor.Lifetime == ServiceLifetime.Scoped);
+        Assert.Contains(services, descriptor =>
+            descriptor.ServiceType == typeof(IAccessTokenIssuer) &&
+            descriptor.ImplementationType == typeof(JwtAccessTokenIssuer) &&
+            descriptor.Lifetime == ServiceLifetime.Scoped);
     }
 
     private static IConfiguration CrearConfiguracion(string capitalPosConnectionString)

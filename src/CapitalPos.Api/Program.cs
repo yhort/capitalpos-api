@@ -1,4 +1,5 @@
 using CapitalPos.Api.Endpoints;
+using CapitalPos.Api.Authentication;
 using CapitalPos.Application.Empresas;
 using CapitalPos.Application.Seguridad;
 using CapitalPos.Application.Usuarios;
@@ -12,6 +13,7 @@ if (builder.Environment.IsDevelopment())
 }
 
 builder.Services.AddCapitalPosInfrastructure(builder.Configuration);
+builder.Services.AddCapitalPosJwtAuthentication(builder.Configuration);
 builder.Services.AddScoped<CrearEmpresaUseCase>();
 builder.Services.AddScoped<CrearUsuarioUseCase>();
 builder.Services.AddScoped<AsignarUsuarioEmpresaUseCase>();
@@ -36,6 +38,9 @@ if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapGet("/api/health", () =>
     Results.Ok(new HealthResponse("ok", "CapitalPos.Api", DateTimeOffset.UtcNow)))
