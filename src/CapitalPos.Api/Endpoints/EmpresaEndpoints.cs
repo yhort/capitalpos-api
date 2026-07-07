@@ -1,4 +1,5 @@
 using CapitalPos.Application.Empresas;
+using CapitalPos.Api.ActiveCompany;
 using CapitalPos.Domain;
 
 namespace CapitalPos.Api.Endpoints;
@@ -8,7 +9,9 @@ public static class EmpresaEndpoints
     public static IEndpointRouteBuilder MapEmpresaEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/empresas")
-            .WithTags("Empresas");
+            .WithTags("Empresas")
+            .RequireAuthorization()
+            .AddEndpointFilter<EmpresaActivaEndpointFilter>();
 
         group.MapGet("/", ListarEmpresasAsync)
             .WithName("ListarEmpresas");

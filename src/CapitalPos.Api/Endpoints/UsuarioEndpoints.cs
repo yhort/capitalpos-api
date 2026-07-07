@@ -1,4 +1,5 @@
 using CapitalPos.Application.Usuarios;
+using CapitalPos.Api.ActiveCompany;
 using CapitalPos.Domain;
 
 namespace CapitalPos.Api.Endpoints;
@@ -8,7 +9,9 @@ public static class UsuarioEndpoints
     public static IEndpointRouteBuilder MapUsuarioEndpoints(this IEndpointRouteBuilder app)
     {
         var usuarios = app.MapGroup("/api/usuarios")
-            .WithTags("Usuarios");
+            .WithTags("Usuarios")
+            .RequireAuthorization()
+            .AddEndpointFilter<EmpresaActivaEndpointFilter>();
 
         usuarios.MapGet("/", ListarUsuariosAsync)
             .WithName("ListarUsuarios");
@@ -26,7 +29,9 @@ public static class UsuarioEndpoints
             .WithName("DesactivarUsuario");
 
         var usuariosEmpresas = app.MapGroup("/api/usuarios-empresas")
-            .WithTags("UsuariosEmpresas");
+            .WithTags("UsuariosEmpresas")
+            .RequireAuthorization()
+            .AddEndpointFilter<EmpresaActivaEndpointFilter>();
 
         usuariosEmpresas.MapGet("/", ListarUsuariosEmpresaAsync)
             .WithName("ListarUsuariosEmpresa");

@@ -251,6 +251,26 @@ public class InMemoryRepositoryTests
     }
 
     [Fact]
+    public async Task Usuario_empresa_repository_obtiene_asignacion_por_usuario_y_empresa()
+    {
+        var repository = new InMemoryUsuarioEmpresaRepository();
+        var usuarioId = Guid.NewGuid();
+        var empresaId = Guid.NewGuid();
+        var usuarioEmpresa = new UsuarioEmpresa(
+            Guid.NewGuid(),
+            usuarioId,
+            empresaId,
+            RolEmpresa.Cajero);
+        await repository.AgregarAsync(usuarioEmpresa);
+
+        var usuarioEmpresaEncontrado = await repository.ObtenerPorUsuarioYEmpresaAsync(
+            usuarioId,
+            empresaId);
+
+        Assert.Same(usuarioEmpresa, usuarioEmpresaEncontrado);
+    }
+
+    [Fact]
     public async Task Usuario_empresa_repository_devuelve_null_si_no_existe()
     {
         var repository = new InMemoryUsuarioEmpresaRepository();

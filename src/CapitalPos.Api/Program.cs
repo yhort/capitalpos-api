@@ -1,3 +1,4 @@
+using CapitalPos.Api.ActiveCompany;
 using CapitalPos.Api.Endpoints;
 using CapitalPos.Api.Authentication;
 using CapitalPos.Application.Empresas;
@@ -14,6 +15,9 @@ if (builder.Environment.IsDevelopment())
 
 builder.Services.AddCapitalPosInfrastructure(builder.Configuration);
 builder.Services.AddCapitalPosJwtAuthentication(builder.Configuration);
+builder.Services.AddScoped<EmpresaActivaContext>();
+builder.Services.AddScoped<IEmpresaActivaContext>(services =>
+    services.GetRequiredService<EmpresaActivaContext>());
 builder.Services.AddScoped<CrearEmpresaUseCase>();
 builder.Services.AddScoped<CrearUsuarioUseCase>();
 builder.Services.AddScoped<AsignarUsuarioEmpresaUseCase>();

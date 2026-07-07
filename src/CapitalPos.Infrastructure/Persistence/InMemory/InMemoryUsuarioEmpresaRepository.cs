@@ -30,6 +30,18 @@ public sealed class InMemoryUsuarioEmpresaRepository : IUsuarioEmpresaRepository
         return Task.FromResult(usuarioEmpresa);
     }
 
+    public Task<UsuarioEmpresa?> ObtenerPorUsuarioYEmpresaAsync(
+        Guid usuarioId,
+        Guid empresaId,
+        CancellationToken cancellationToken = default)
+    {
+        var usuarioEmpresa = _usuariosEmpresa.SingleOrDefault(usuarioEmpresa =>
+            usuarioEmpresa.UsuarioId == usuarioId &&
+            usuarioEmpresa.EmpresaId == empresaId);
+
+        return Task.FromResult(usuarioEmpresa);
+    }
+
     public Task ActualizarAsync(UsuarioEmpresa usuarioEmpresa, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(usuarioEmpresa);

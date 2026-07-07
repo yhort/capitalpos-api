@@ -10,6 +10,11 @@ public interface IUsuarioEmpresaRepository
 
     Task<UsuarioEmpresa?> ObtenerPorIdAsync(Guid id, CancellationToken cancellationToken = default);
 
+    Task<UsuarioEmpresa?> ObtenerPorUsuarioYEmpresaAsync(
+        Guid usuarioId,
+        Guid empresaId,
+        CancellationToken cancellationToken = default);
+
     Task ActualizarAsync(UsuarioEmpresa usuarioEmpresa, CancellationToken cancellationToken = default);
 
     Task<bool> ExisteAsignacionAsync(

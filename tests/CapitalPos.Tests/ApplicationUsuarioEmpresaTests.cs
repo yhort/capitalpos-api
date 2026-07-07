@@ -529,6 +529,18 @@ public class ApplicationUsuarioEmpresaTests
             return Task.FromResult(asignacion);
         }
 
+        public Task<UsuarioEmpresa?> ObtenerPorUsuarioYEmpresaAsync(
+            Guid usuarioId,
+            Guid empresaId,
+            CancellationToken cancellationToken = default)
+        {
+            var asignacion = Asignaciones.SingleOrDefault(asignacion =>
+                asignacion.UsuarioId == usuarioId &&
+                asignacion.EmpresaId == empresaId);
+
+            return Task.FromResult(asignacion);
+        }
+
         public Task ActualizarAsync(UsuarioEmpresa usuarioEmpresa, CancellationToken cancellationToken = default)
         {
             AsignacionActualizada = usuarioEmpresa;
