@@ -45,6 +45,10 @@ public class InfrastructureDependencyInjectionTests
             descriptor.ImplementationType == typeof(EfUsuarioEmpresaRepository) &&
             descriptor.Lifetime == ServiceLifetime.Scoped);
         Assert.Contains(services, descriptor =>
+            descriptor.ServiceType == typeof(IUsuarioCredencialRepository) &&
+            descriptor.ImplementationType == typeof(EfUsuarioCredencialRepository) &&
+            descriptor.Lifetime == ServiceLifetime.Scoped);
+        Assert.Contains(services, descriptor =>
             descriptor.ServiceType == typeof(IPasswordHasher) &&
             descriptor.ImplementationType == typeof(AspNetCoreIdentityPasswordHasher) &&
             descriptor.Lifetime == ServiceLifetime.Scoped);

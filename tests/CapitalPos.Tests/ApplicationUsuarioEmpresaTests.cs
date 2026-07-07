@@ -440,6 +440,14 @@ public class ApplicationUsuarioEmpresaTests
             return Task.FromResult(usuario);
         }
 
+        public Task<Usuario?> ObtenerPorCorreoAsync(string correo, CancellationToken cancellationToken = default)
+        {
+            var correoNormalizado = correo.Trim().ToLowerInvariant();
+            var usuario = Usuarios.SingleOrDefault(usuario => usuario.Correo == correoNormalizado);
+
+            return Task.FromResult(usuario);
+        }
+
         public Task ActualizarAsync(Usuario usuario, CancellationToken cancellationToken = default)
         {
             UsuarioActualizado = usuario;
@@ -449,7 +457,8 @@ public class ApplicationUsuarioEmpresaTests
 
         public Task<bool> ExisteCorreoAsync(string correo, CancellationToken cancellationToken = default)
         {
-            var existe = Usuarios.Any(usuario => usuario.Correo == correo);
+            var correoNormalizado = correo.Trim().ToLowerInvariant();
+            var existe = Usuarios.Any(usuario => usuario.Correo == correoNormalizado);
 
             return Task.FromResult(existe);
         }

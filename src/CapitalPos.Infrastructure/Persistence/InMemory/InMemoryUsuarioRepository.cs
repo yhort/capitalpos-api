@@ -30,6 +30,14 @@ public sealed class InMemoryUsuarioRepository : IUsuarioRepository
         return Task.FromResult(usuario);
     }
 
+    public Task<Usuario?> ObtenerPorCorreoAsync(string correo, CancellationToken cancellationToken = default)
+    {
+        var correoNormalizado = NormalizarCorreo(correo);
+        var usuario = _usuarios.SingleOrDefault(usuario => usuario.Correo == correoNormalizado);
+
+        return Task.FromResult(usuario);
+    }
+
     public Task ActualizarAsync(Usuario usuario, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(usuario);
@@ -44,8 +52,14 @@ public sealed class InMemoryUsuarioRepository : IUsuarioRepository
 
     public Task<bool> ExisteCorreoAsync(string correo, CancellationToken cancellationToken = default)
     {
-        var existe = _usuarios.Any(usuario => usuario.Correo == correo);
+        var correoNormalizado = NormalizarCorreo(correo);
+        var existe = _usuarios.Any(usuario => usuario.Correo == correoNormalizado);
 
         return Task.FromResult(existe);
+    }
+
+    private static string NormalizarCorreo(string? correo)
+    {
+        return correo?.Trim().ToLowerInvariant() ?? string.Empty;
     }
 }

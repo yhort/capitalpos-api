@@ -34,6 +34,14 @@ public sealed class EfUsuarioRepository : IUsuarioRepository
             .SingleOrDefaultAsync(usuario => usuario.Id == id, cancellationToken);
     }
 
+    public Task<Usuario?> ObtenerPorCorreoAsync(string correo, CancellationToken cancellationToken = default)
+    {
+        var correoNormalizado = NormalizarCorreo(correo);
+
+        return _dbContext.Usuarios
+            .SingleOrDefaultAsync(usuario => usuario.Correo == correoNormalizado, cancellationToken);
+    }
+
     public async Task ActualizarAsync(Usuario usuario, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(usuario);
@@ -44,8 +52,15 @@ public sealed class EfUsuarioRepository : IUsuarioRepository
 
     public Task<bool> ExisteCorreoAsync(string correo, CancellationToken cancellationToken = default)
     {
+        var correoNormalizado = NormalizarCorreo(correo);
+
         return _dbContext.Usuarios
             .AsNoTracking()
-            .AnyAsync(usuario => usuario.Correo == correo, cancellationToken);
+            .AnyAsync(usuario => usuario.Correo == correoNormalizado, cancellationToken);
+    }
+
+    private static string NormalizarCorreo(string? correo)
+    {
+        return correo?.Trim().ToLowerInvariant() ?? string.Empty;
     }
 }

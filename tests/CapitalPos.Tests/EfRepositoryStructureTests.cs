@@ -1,4 +1,5 @@
 using CapitalPos.Application.Empresas;
+using CapitalPos.Application.Seguridad;
 using CapitalPos.Application.Usuarios;
 using CapitalPos.Infrastructure.Persistence.Repositories;
 
@@ -22,5 +23,11 @@ public class EfRepositoryStructureTests
     public void Ef_usuario_empresa_repository_implementa_puerto_de_aplicacion()
     {
         Assert.True(typeof(IUsuarioEmpresaRepository).IsAssignableFrom(typeof(EfUsuarioEmpresaRepository)));
+    }
+
+    [Fact]
+    public void Ef_usuario_credencial_repository_implementa_puerto_de_aplicacion()
+    {
+        Assert.True(typeof(IUsuarioCredencialRepository).IsAssignableFrom(typeof(EfUsuarioCredencialRepository)));
     }
 }

@@ -1,5 +1,6 @@
 using CapitalPos.Api.Endpoints;
 using CapitalPos.Application.Empresas;
+using CapitalPos.Application.Seguridad;
 using CapitalPos.Application.Usuarios;
 using CapitalPos.Infrastructure;
 
@@ -14,6 +15,7 @@ builder.Services.AddCapitalPosInfrastructure(builder.Configuration);
 builder.Services.AddScoped<CrearEmpresaUseCase>();
 builder.Services.AddScoped<CrearUsuarioUseCase>();
 builder.Services.AddScoped<AsignarUsuarioEmpresaUseCase>();
+builder.Services.AddScoped<LoginUseCase>();
 builder.Services.AddScoped<ListarEmpresasUseCase>();
 builder.Services.AddScoped<ListarUsuariosUseCase>();
 builder.Services.AddScoped<ListarUsuariosEmpresaUseCase>();

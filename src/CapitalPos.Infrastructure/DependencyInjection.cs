@@ -29,6 +29,7 @@ public static class DependencyInjection
         services.AddScoped<IEmpresaRepository, EfEmpresaRepository>();
         services.AddScoped<IUsuarioRepository, EfUsuarioRepository>();
         services.AddScoped<IUsuarioEmpresaRepository, EfUsuarioEmpresaRepository>();
+        services.AddScoped<IUsuarioCredencialRepository, EfUsuarioCredencialRepository>();
         services.AddScoped<IPasswordHasher, AspNetCoreIdentityPasswordHasher>();
 
         return services;

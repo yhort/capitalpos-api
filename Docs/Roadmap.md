@@ -44,7 +44,7 @@ Construir el backend principal de CapitalPOS para:
 
 - [x] Agregar credenciales de usuario
 - [x] Implementar hashing de contraseñas
-- [ ] Crear login
+- [x] Crear login
 - [ ] Implementar JWT o cookie segura
 - [ ] Crear refresh token si aplica
 - [ ] Implementar empresa activa
