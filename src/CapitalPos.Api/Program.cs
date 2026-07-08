@@ -40,6 +40,7 @@ builder.Services.AddScoped<CambiarRolUsuarioEmpresaUseCase>();
 
 var app = builder.Build();
 
+app.UseMiddleware<RequestLoggingMiddleware>();
 app.UseMiddleware<GlobalExceptionHandlingMiddleware>();
 
 if (app.Environment.IsDevelopment())
