@@ -66,7 +66,7 @@ Construir el backend principal de CapitalPOS para:
 
 - [x] Manejo global de excepciones
 - [x] Logs estructurados
-- [ ] Auditoría de operaciones
+- [x] Auditoría de operaciones
 - [ ] Validaciones de entrada
 - [ ] Pruebas de integración HTTP
 - [ ] Revisión de paquetes vulnerables

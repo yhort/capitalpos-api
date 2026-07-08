@@ -1,8 +1,10 @@
+using CapitalPos.Application.Auditoria;
 using CapitalPos.Application.Cpe;
 using CapitalPos.Application.Empresas;
 using CapitalPos.Application.Seguridad;
 using CapitalPos.Application.Usuarios;
 using CapitalPos.Infrastructure;
+using CapitalPos.Infrastructure.Auditing;
 using CapitalPos.Infrastructure.Cpe;
 using CapitalPos.Infrastructure.Persistence.Repositories;
 using CapitalPos.Infrastructure.Security;
@@ -48,6 +50,10 @@ public class InfrastructureDependencyInjectionTests
         Assert.Contains(services, descriptor =>
             descriptor.ServiceType == typeof(IUsuarioCredencialRepository) &&
             descriptor.ImplementationType == typeof(EfUsuarioCredencialRepository) &&
+            descriptor.Lifetime == ServiceLifetime.Scoped);
+        Assert.Contains(services, descriptor =>
+            descriptor.ServiceType == typeof(IAuditoriaOperaciones) &&
+            descriptor.ImplementationType == typeof(LoggerAuditoriaOperaciones) &&
             descriptor.Lifetime == ServiceLifetime.Scoped);
         Assert.Contains(services, descriptor =>
             descriptor.ServiceType == typeof(IPasswordHasher) &&

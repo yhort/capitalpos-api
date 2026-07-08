@@ -1,6 +1,7 @@
 using CapitalPos.Application.Usuarios;
 using CapitalPos.Api.ActiveCompany;
 using CapitalPos.Api.Authorization;
+using CapitalPos.Application.Auditoria;
 using CapitalPos.Application.Seguridad;
 using CapitalPos.Domain;
 
@@ -91,11 +92,24 @@ public static class UsuarioEndpoints
     private static async Task<IResult> CrearUsuarioAsync(
         CrearUsuarioRequest request,
         CrearUsuarioUseCase useCase,
+        IAuditoriaOperaciones auditoria,
+        IEmpresaActivaContext empresaActiva,
+        HttpContext httpContext,
         CancellationToken cancellationToken)
     {
         try
         {
             var usuario = await useCase.EjecutarAsync(request, cancellationToken);
+            await AuditoriaEndpointHelper.AuditarAsync(
+                auditoria,
+                empresaActiva,
+                httpContext,
+                "CrearUsuario",
+                "Usuario",
+                "Crear",
+                AuditoriaResultados.Exitoso,
+                $"UsuarioId={usuario.Id}",
+                cancellationToken);
 
             return Results.Created(
                 $"/api/usuarios/{usuario.Id}",
@@ -103,36 +117,132 @@ public static class UsuarioEndpoints
         }
         catch (ArgumentException ex)
         {
+            await AuditoriaEndpointHelper.AuditarAsync(
+                auditoria,
+                empresaActiva,
+                httpContext,
+                "CrearUsuario",
+                "Usuario",
+                "Crear",
+                AuditoriaResultados.Rechazado,
+                "ValidacionDeDominio",
+                cancellationToken);
+
             return Results.BadRequest(ErrorResponse.From(ex.Message));
         }
         catch (InvalidOperationException ex)
         {
+            await AuditoriaEndpointHelper.AuditarAsync(
+                auditoria,
+                empresaActiva,
+                httpContext,
+                "CrearUsuario",
+                "Usuario",
+                "Crear",
+                AuditoriaResultados.Rechazado,
+                "ConflictoDeDominio",
+                cancellationToken);
+
             return Results.Conflict(ErrorResponse.From(ex.Message));
+        }
+        catch
+        {
+            await AuditoriaEndpointHelper.AuditarAsync(
+                auditoria,
+                empresaActiva,
+                httpContext,
+                "CrearUsuario",
+                "Usuario",
+                "Crear",
+                AuditoriaResultados.Error,
+                null,
+                cancellationToken);
+            throw;
         }
     }
 
     private static async Task<IResult> ActivarUsuarioAsync(
         Guid id,
         ActivarUsuarioUseCase useCase,
+        IAuditoriaOperaciones auditoria,
+        IEmpresaActivaContext empresaActiva,
+        HttpContext httpContext,
         CancellationToken cancellationToken)
     {
-        var usuario = await useCase.EjecutarAsync(id, cancellationToken);
+        try
+        {
+            var usuario = await useCase.EjecutarAsync(id, cancellationToken);
+            await AuditoriaEndpointHelper.AuditarAsync(
+                auditoria,
+                empresaActiva,
+                httpContext,
+                "ActivarUsuario",
+                "Usuario",
+                "Activar",
+                usuario is null ? AuditoriaResultados.Rechazado : AuditoriaResultados.Exitoso,
+                $"UsuarioId={id}",
+                cancellationToken);
 
-        return usuario is null
-            ? Results.NotFound()
-            : Results.Ok(UsuarioResponse.From(usuario));
+            return usuario is null
+                ? Results.NotFound()
+                : Results.Ok(UsuarioResponse.From(usuario));
+        }
+        catch
+        {
+            await AuditoriaEndpointHelper.AuditarAsync(
+                auditoria,
+                empresaActiva,
+                httpContext,
+                "ActivarUsuario",
+                "Usuario",
+                "Activar",
+                AuditoriaResultados.Error,
+                $"UsuarioId={id}",
+                cancellationToken);
+            throw;
+        }
     }
 
     private static async Task<IResult> DesactivarUsuarioAsync(
         Guid id,
         DesactivarUsuarioUseCase useCase,
+        IAuditoriaOperaciones auditoria,
+        IEmpresaActivaContext empresaActiva,
+        HttpContext httpContext,
         CancellationToken cancellationToken)
     {
-        var usuario = await useCase.EjecutarAsync(id, cancellationToken);
+        try
+        {
+            var usuario = await useCase.EjecutarAsync(id, cancellationToken);
+            await AuditoriaEndpointHelper.AuditarAsync(
+                auditoria,
+                empresaActiva,
+                httpContext,
+                "DesactivarUsuario",
+                "Usuario",
+                "Desactivar",
+                usuario is null ? AuditoriaResultados.Rechazado : AuditoriaResultados.Exitoso,
+                $"UsuarioId={id}",
+                cancellationToken);
 
-        return usuario is null
-            ? Results.NotFound()
-            : Results.Ok(UsuarioResponse.From(usuario));
+            return usuario is null
+                ? Results.NotFound()
+                : Results.Ok(UsuarioResponse.From(usuario));
+        }
+        catch
+        {
+            await AuditoriaEndpointHelper.AuditarAsync(
+                auditoria,
+                empresaActiva,
+                httpContext,
+                "DesactivarUsuario",
+                "Usuario",
+                "Desactivar",
+                AuditoriaResultados.Error,
+                $"UsuarioId={id}",
+                cancellationToken);
+            throw;
+        }
     }
 
     private static async Task<IResult> ListarUsuariosEmpresaAsync(
@@ -159,11 +269,24 @@ public static class UsuarioEndpoints
     private static async Task<IResult> AsignarUsuarioEmpresaAsync(
         AsignarUsuarioEmpresaRequest request,
         AsignarUsuarioEmpresaUseCase useCase,
+        IAuditoriaOperaciones auditoria,
+        IEmpresaActivaContext empresaActiva,
+        HttpContext httpContext,
         CancellationToken cancellationToken)
     {
         try
         {
             var usuarioEmpresa = await useCase.EjecutarAsync(request, cancellationToken);
+            await AuditoriaEndpointHelper.AuditarAsync(
+                auditoria,
+                empresaActiva,
+                httpContext,
+                "AsignarUsuarioEmpresa",
+                "UsuarioEmpresa",
+                "Asignar",
+                AuditoriaResultados.Exitoso,
+                $"UsuarioEmpresaId={usuarioEmpresa.Id}",
+                cancellationToken);
 
             return Results.Created(
                 $"/api/usuarios-empresas/{usuarioEmpresa.Id}",
@@ -171,47 +294,156 @@ public static class UsuarioEndpoints
         }
         catch (ArgumentException ex)
         {
+            await AuditoriaEndpointHelper.AuditarAsync(
+                auditoria,
+                empresaActiva,
+                httpContext,
+                "AsignarUsuarioEmpresa",
+                "UsuarioEmpresa",
+                "Asignar",
+                AuditoriaResultados.Rechazado,
+                "ValidacionDeDominio",
+                cancellationToken);
+
             return Results.BadRequest(ErrorResponse.From(ex.Message));
         }
         catch (InvalidOperationException ex)
         {
+            await AuditoriaEndpointHelper.AuditarAsync(
+                auditoria,
+                empresaActiva,
+                httpContext,
+                "AsignarUsuarioEmpresa",
+                "UsuarioEmpresa",
+                "Asignar",
+                AuditoriaResultados.Rechazado,
+                "ConflictoDeDominio",
+                cancellationToken);
+
             return Results.Conflict(ErrorResponse.From(ex.Message));
+        }
+        catch
+        {
+            await AuditoriaEndpointHelper.AuditarAsync(
+                auditoria,
+                empresaActiva,
+                httpContext,
+                "AsignarUsuarioEmpresa",
+                "UsuarioEmpresa",
+                "Asignar",
+                AuditoriaResultados.Error,
+                null,
+                cancellationToken);
+            throw;
         }
     }
 
     private static async Task<IResult> ActivarUsuarioEmpresaAsync(
         Guid id,
         ActivarUsuarioEmpresaUseCase useCase,
+        IAuditoriaOperaciones auditoria,
+        IEmpresaActivaContext empresaActiva,
+        HttpContext httpContext,
         CancellationToken cancellationToken)
     {
-        var usuarioEmpresa = await useCase.EjecutarAsync(id, cancellationToken);
+        try
+        {
+            var usuarioEmpresa = await useCase.EjecutarAsync(id, cancellationToken);
+            await AuditoriaEndpointHelper.AuditarAsync(
+                auditoria,
+                empresaActiva,
+                httpContext,
+                "ActivarUsuarioEmpresa",
+                "UsuarioEmpresa",
+                "Activar",
+                usuarioEmpresa is null ? AuditoriaResultados.Rechazado : AuditoriaResultados.Exitoso,
+                $"UsuarioEmpresaId={id}",
+                cancellationToken);
 
-        return usuarioEmpresa is null
-            ? Results.NotFound()
-            : Results.Ok(UsuarioEmpresaResponse.From(usuarioEmpresa));
+            return usuarioEmpresa is null
+                ? Results.NotFound()
+                : Results.Ok(UsuarioEmpresaResponse.From(usuarioEmpresa));
+        }
+        catch
+        {
+            await AuditoriaEndpointHelper.AuditarAsync(
+                auditoria,
+                empresaActiva,
+                httpContext,
+                "ActivarUsuarioEmpresa",
+                "UsuarioEmpresa",
+                "Activar",
+                AuditoriaResultados.Error,
+                $"UsuarioEmpresaId={id}",
+                cancellationToken);
+            throw;
+        }
     }
 
     private static async Task<IResult> DesactivarUsuarioEmpresaAsync(
         Guid id,
         DesactivarUsuarioEmpresaUseCase useCase,
+        IAuditoriaOperaciones auditoria,
+        IEmpresaActivaContext empresaActiva,
+        HttpContext httpContext,
         CancellationToken cancellationToken)
     {
-        var usuarioEmpresa = await useCase.EjecutarAsync(id, cancellationToken);
+        try
+        {
+            var usuarioEmpresa = await useCase.EjecutarAsync(id, cancellationToken);
+            await AuditoriaEndpointHelper.AuditarAsync(
+                auditoria,
+                empresaActiva,
+                httpContext,
+                "DesactivarUsuarioEmpresa",
+                "UsuarioEmpresa",
+                "Desactivar",
+                usuarioEmpresa is null ? AuditoriaResultados.Rechazado : AuditoriaResultados.Exitoso,
+                $"UsuarioEmpresaId={id}",
+                cancellationToken);
 
-        return usuarioEmpresa is null
-            ? Results.NotFound()
-            : Results.Ok(UsuarioEmpresaResponse.From(usuarioEmpresa));
+            return usuarioEmpresa is null
+                ? Results.NotFound()
+                : Results.Ok(UsuarioEmpresaResponse.From(usuarioEmpresa));
+        }
+        catch
+        {
+            await AuditoriaEndpointHelper.AuditarAsync(
+                auditoria,
+                empresaActiva,
+                httpContext,
+                "DesactivarUsuarioEmpresa",
+                "UsuarioEmpresa",
+                "Desactivar",
+                AuditoriaResultados.Error,
+                $"UsuarioEmpresaId={id}",
+                cancellationToken);
+            throw;
+        }
     }
 
     private static async Task<IResult> CambiarRolUsuarioEmpresaAsync(
         Guid id,
         CambiarRolUsuarioEmpresaRequest request,
         CambiarRolUsuarioEmpresaUseCase useCase,
+        IAuditoriaOperaciones auditoria,
+        IEmpresaActivaContext empresaActiva,
+        HttpContext httpContext,
         CancellationToken cancellationToken)
     {
         try
         {
             var usuarioEmpresa = await useCase.EjecutarAsync(id, request, cancellationToken);
+            await AuditoriaEndpointHelper.AuditarAsync(
+                auditoria,
+                empresaActiva,
+                httpContext,
+                "CambiarRolUsuarioEmpresa",
+                "UsuarioEmpresa",
+                "CambiarRol",
+                usuarioEmpresa is null ? AuditoriaResultados.Rechazado : AuditoriaResultados.Exitoso,
+                $"UsuarioEmpresaId={id}",
+                cancellationToken);
 
             return usuarioEmpresa is null
                 ? Results.NotFound()
@@ -219,7 +451,32 @@ public static class UsuarioEndpoints
         }
         catch (ArgumentOutOfRangeException ex)
         {
+            await AuditoriaEndpointHelper.AuditarAsync(
+                auditoria,
+                empresaActiva,
+                httpContext,
+                "CambiarRolUsuarioEmpresa",
+                "UsuarioEmpresa",
+                "CambiarRol",
+                AuditoriaResultados.Rechazado,
+                "ValidacionDeDominio",
+                cancellationToken);
+
             return Results.BadRequest(ErrorResponse.From(ex.Message));
+        }
+        catch
+        {
+            await AuditoriaEndpointHelper.AuditarAsync(
+                auditoria,
+                empresaActiva,
+                httpContext,
+                "CambiarRolUsuarioEmpresa",
+                "UsuarioEmpresa",
+                "CambiarRol",
+                AuditoriaResultados.Error,
+                $"UsuarioEmpresaId={id}",
+                cancellationToken);
+            throw;
         }
     }
 }
