@@ -6,6 +6,7 @@ using CapitalPos.Application.Empresas;
 using CapitalPos.Application.Seguridad;
 using CapitalPos.Application.Usuarios;
 using CapitalPos.Infrastructure;
+using Microsoft.AspNetCore.HttpOverrides;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,6 +14,11 @@ if (builder.Environment.IsDevelopment())
 {
     builder.Services.AddOpenApi();
 }
+
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+});
 
 builder.Services.AddCapitalPosInfrastructure(builder.Configuration);
 builder.Services.AddCapitalPosJwtAuthentication(builder.Configuration);
@@ -40,8 +46,16 @@ builder.Services.AddScoped<CambiarRolUsuarioEmpresaUseCase>();
 
 var app = builder.Build();
 
+app.UseForwardedHeaders();
 app.UseMiddleware<RequestLoggingMiddleware>();
 app.UseMiddleware<GlobalExceptionHandlingMiddleware>();
+
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHsts();
+}
+
+app.UseHttpsRedirection();
 
 if (app.Environment.IsDevelopment())
 {

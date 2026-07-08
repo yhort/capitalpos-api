@@ -204,6 +204,25 @@ public class HttpIntegrationTests
         Assert.Equal(correlationId, Assert.Single(values));
     }
 
+    [Fact]
+    public async Task X_forwarded_proto_https_permanece_compatible_con_health()
+    {
+        await using var factory = new CapitalPosHttpFactory();
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false
+        });
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/api/health");
+        request.Headers.Add("X-Forwarded-Proto", "https");
+
+        var response = await client.SendAsync(request);
+        var content = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("\"status\":\"ok\"", content);
+        AssertSeguro(content);
+    }
+
     private static HttpClient CrearClienteAutenticado(
         CapitalPosHttpFactory factory,
         Guid usuarioId,
