@@ -49,7 +49,7 @@ Construir el backend principal de CapitalPOS para:
 - [x] Crear refresh token si aplica — No aplicado por ahora; fuera del MVP actual
 - [x] Implementar empresa activa
 - [x] Validar roles y permisos
-- [ ] Proteger endpoints
+- [x] Proteger endpoints
 
 ## Fase 5 — Integración CPE
 
