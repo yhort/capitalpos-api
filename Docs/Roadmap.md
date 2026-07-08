@@ -78,7 +78,7 @@ Construir el backend principal de CapitalPOS para:
 - [x] Configurar secretos — Política documentada; integración con gestor real queda pendiente del despliegue
 - [x] Configurar HTTPS — Preparación para reverse proxy completada; certificados, dominio y proxy final quedan pendientes del despliegue
 - [x] Desplegar API — Preparación documentada; despliegue real pendiente de elegir proveedor y ambiente productivo
-- [ ] Agregar monitoreo
+- [x] Agregar monitoreo — Preparación documentada; integración real pendiente de elegir proveedor y desplegar la API
 - [ ] Definir backups
 - [ ] Ejecutar pruebas end-to-end
 
