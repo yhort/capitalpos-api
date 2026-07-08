@@ -80,7 +80,7 @@ Construir el backend principal de CapitalPOS para:
 - [x] Desplegar API — Preparación documentada; despliegue real pendiente de elegir proveedor y ambiente productivo
 - [x] Agregar monitoreo — Preparación documentada; integración real pendiente de elegir proveedor y desplegar la API
 - [x] Definir backups — Politica documentada; configuracion real pendiente de proveedor y base productiva
-- [ ] Ejecutar pruebas end-to-end
+- [x] Ejecutar pruebas end-to-end — Pruebas locales de CapitalPOS API contra capitalpos_test con CPE stub; Angular y CPE real quedan pendientes
 
 ## Criterio de MVP terminado
 
