@@ -64,7 +64,7 @@ Construir el backend principal de CapitalPOS para:
 
 ## Fase 6 — Calidad y operación
 
-- [ ] Manejo global de excepciones
+- [x] Manejo global de excepciones
 - [ ] Logs estructurados
 - [ ] Auditoría de operaciones
 - [ ] Validaciones de entrada

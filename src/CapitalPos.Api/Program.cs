@@ -1,6 +1,7 @@
 using CapitalPos.Api.ActiveCompany;
 using CapitalPos.Api.Endpoints;
 using CapitalPos.Api.Authentication;
+using CapitalPos.Api.Middleware;
 using CapitalPos.Application.Empresas;
 using CapitalPos.Application.Seguridad;
 using CapitalPos.Application.Usuarios;
@@ -38,6 +39,8 @@ builder.Services.AddScoped<DesactivarUsuarioEmpresaUseCase>();
 builder.Services.AddScoped<CambiarRolUsuarioEmpresaUseCase>();
 
 var app = builder.Build();
+
+app.UseMiddleware<GlobalExceptionHandlingMiddleware>();
 
 if (app.Environment.IsDevelopment())
 {
