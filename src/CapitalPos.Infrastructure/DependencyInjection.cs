@@ -39,10 +39,13 @@ public static class DependencyInjection
         {
             var options = new CpeApiOptions
             {
-                BaseUrl = configuration[$"{CpeApiOptions.SectionName}:BaseUrl"] ?? string.Empty
+                BaseUrl = configuration[$"{CpeApiOptions.SectionName}:BaseUrl"] ?? string.Empty,
+                ApiKey = configuration[$"{CpeApiOptions.SectionName}:ApiKey"] ?? string.Empty
             };
 
             httpClient.BaseAddress = options.ObtenerBaseAddress();
+            httpClient.DefaultRequestHeaders.Remove(CpeApiOptions.ApiKeyHeaderName);
+            httpClient.DefaultRequestHeaders.Add(CpeApiOptions.ApiKeyHeaderName, options.ObtenerApiKey());
         });
 
         return services;

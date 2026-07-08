@@ -55,7 +55,7 @@ Construir el backend principal de CapitalPOS para:
 
 - [x] Configurar cliente HTTP tipado
 - [x] Guardar BaseUrl de CPE API
-- [ ] Guardar X-API-KEY en configuración segura
+- [x] Guardar X-API-KEY en configuración segura
 - [ ] Crear gateway hacia CapitalPOS CPE API
 - [ ] Crear endpoint seguro POST /api/cpe/emitir
 - [ ] Validar usuario, empresa y permisos

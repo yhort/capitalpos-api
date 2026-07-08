@@ -3,8 +3,11 @@ namespace CapitalPos.Infrastructure.Cpe;
 public sealed class CpeApiOptions
 {
     public const string SectionName = "CpeApi";
+    public const string ApiKeyHeaderName = "X-API-KEY";
 
     public string BaseUrl { get; set; } = string.Empty;
+
+    public string ApiKey { get; set; } = string.Empty;
 
     public Uri ObtenerBaseAddress()
     {
@@ -22,5 +25,16 @@ public sealed class CpeApiOptions
         }
 
         return baseAddress;
+    }
+
+    public string ObtenerApiKey()
+    {
+        if (string.IsNullOrWhiteSpace(ApiKey))
+        {
+            throw new InvalidOperationException(
+                "La configuracion segura 'CpeApi:ApiKey' es obligatoria. Configurela con dotnet user-secrets o variables de entorno.");
+        }
+
+        return ApiKey.Trim();
     }
 }

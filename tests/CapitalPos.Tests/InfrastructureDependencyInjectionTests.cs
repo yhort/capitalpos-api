@@ -78,6 +78,25 @@ public class InfrastructureDependencyInjectionTests
     }
 
     [Fact]
+    public void Cliente_http_cpe_envia_header_api_key_configurada()
+    {
+        const string apiKey = "capitalpos-cpe-test-api-key";
+        var services = new ServiceCollection();
+        var configuration = CrearConfiguracion(
+            "Host=localhost;Database=capitalpos_test",
+            cpeApiApiKey: apiKey);
+
+        services.AddCapitalPosInfrastructure(configuration);
+
+        using var provider = services.BuildServiceProvider();
+        var client = provider.GetRequiredService<ICpeApiHttpClient>();
+        var httpClient = ObtenerHttpClient(client);
+        var headerValues = httpClient.DefaultRequestHeaders.GetValues(CpeApiOptions.ApiKeyHeaderName);
+
+        Assert.Equal([apiKey], headerValues);
+    }
+
+    [Fact]
     public void Cliente_http_cpe_rechaza_base_url_vacia_al_resolverse()
     {
         var services = new ServiceCollection();
@@ -92,6 +111,23 @@ public class InfrastructureDependencyInjectionTests
             provider.GetRequiredService<ICpeApiHttpClient>());
 
         Assert.Contains("CpeApi:BaseUrl", exception.Message);
+    }
+
+    [Fact]
+    public void Cliente_http_cpe_rechaza_api_key_vacia_al_resolverse()
+    {
+        var services = new ServiceCollection();
+        var configuration = CrearConfiguracion(
+            "Host=localhost;Database=capitalpos_test",
+            cpeApiApiKey: string.Empty);
+
+        services.AddCapitalPosInfrastructure(configuration);
+
+        using var provider = services.BuildServiceProvider();
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            provider.GetRequiredService<ICpeApiHttpClient>());
+
+        Assert.Contains("CpeApi:ApiKey", exception.Message);
     }
 
     [Fact]
@@ -125,6 +161,36 @@ public class InfrastructureDependencyInjectionTests
     }
 
     [Fact]
+    public void Opciones_cpe_normalizan_api_key_desde_configuracion()
+    {
+        var options = new CpeApiOptions
+        {
+            ApiKey = " capitalpos-cpe-test-api-key "
+        };
+
+        var apiKey = options.ObtenerApiKey();
+
+        Assert.Equal("capitalpos-cpe-test-api-key", apiKey);
+    }
+
+    [Fact]
+    public void Opciones_cpe_rechazan_api_key_vacia_sin_exponer_valores()
+    {
+        const string apiKey = "capitalpos-cpe-test-api-key";
+        var options = new CpeApiOptions
+        {
+            ApiKey = " "
+        };
+
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            options.ObtenerApiKey());
+
+        Assert.Contains("CpeApi:ApiKey", exception.Message);
+        Assert.DoesNotContain(apiKey, exception.Message);
+        Assert.DoesNotContain("X-API-KEY", exception.Message);
+    }
+
+    [Fact]
     public void Opciones_cpe_rechazan_esquemas_no_http()
     {
         var options = new CpeApiOptions
@@ -140,16 +206,28 @@ public class InfrastructureDependencyInjectionTests
 
     private static IConfiguration CrearConfiguracion(
         string capitalPosConnectionString,
-        string cpeApiBaseUrl = "https://cpe.capitalpos.test/")
+        string cpeApiBaseUrl = "https://cpe.capitalpos.test/",
+        string cpeApiApiKey = "capitalpos-cpe-test-api-key")
     {
         var settings = new Dictionary<string, string?>
         {
             ["ConnectionStrings:CapitalPos"] = capitalPosConnectionString,
-            ["CpeApi:BaseUrl"] = cpeApiBaseUrl
+            ["CpeApi:BaseUrl"] = cpeApiBaseUrl,
+            ["CpeApi:ApiKey"] = cpeApiApiKey
         };
 
         return new ConfigurationBuilder()
             .AddInMemoryCollection(settings)
             .Build();
+    }
+
+    private static HttpClient ObtenerHttpClient(ICpeApiHttpClient client)
+    {
+        var field = typeof(CpeApiHttpClient).GetField(
+            "_httpClient",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+
+        Assert.NotNull(field);
+        return Assert.IsType<HttpClient>(field.GetValue(client));
     }
 }
