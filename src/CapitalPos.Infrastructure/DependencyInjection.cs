@@ -37,21 +37,12 @@ public static class DependencyInjection
         services.Configure<CpeApiOptions>(configuration.GetSection(CpeApiOptions.SectionName));
         services.AddHttpClient<ICpeApiHttpClient, CpeApiHttpClient>((_, httpClient) =>
         {
-            var baseUrl = configuration[$"{CpeApiOptions.SectionName}:BaseUrl"] ?? string.Empty;
-            if (string.IsNullOrWhiteSpace(baseUrl))
+            var options = new CpeApiOptions
             {
-                throw new InvalidOperationException(
-                    "La configuracion 'CpeApi:BaseUrl' es obligatoria para consumir CapitalPOS CPE API.");
-            }
+                BaseUrl = configuration[$"{CpeApiOptions.SectionName}:BaseUrl"] ?? string.Empty
+            };
 
-            if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out var baseAddress) ||
-                baseAddress.Scheme is not ("http" or "https"))
-            {
-                throw new InvalidOperationException(
-                    "La configuracion 'CpeApi:BaseUrl' debe ser una URL absoluta http o https valida.");
-            }
-
-            httpClient.BaseAddress = baseAddress;
+            httpClient.BaseAddress = options.ObtenerBaseAddress();
         });
 
         return services;

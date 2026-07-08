@@ -111,6 +111,33 @@ public class InfrastructureDependencyInjectionTests
         Assert.Contains("CpeApi:BaseUrl", exception.Message);
     }
 
+    [Fact]
+    public void Opciones_cpe_normalizan_base_url_desde_configuracion()
+    {
+        var options = new CpeApiOptions
+        {
+            BaseUrl = " https://cpe.capitalpos.test/api/ "
+        };
+
+        var baseAddress = options.ObtenerBaseAddress();
+
+        Assert.Equal(new Uri("https://cpe.capitalpos.test/api/"), baseAddress);
+    }
+
+    [Fact]
+    public void Opciones_cpe_rechazan_esquemas_no_http()
+    {
+        var options = new CpeApiOptions
+        {
+            BaseUrl = "ftp://cpe.capitalpos.test"
+        };
+
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            options.ObtenerBaseAddress());
+
+        Assert.Contains("CpeApi:BaseUrl", exception.Message);
+    }
+
     private static IConfiguration CrearConfiguracion(
         string capitalPosConnectionString,
         string cpeApiBaseUrl = "https://cpe.capitalpos.test/")
