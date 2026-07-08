@@ -2,11 +2,11 @@ using CapitalPos.Application.Empresas;
 using CapitalPos.Application.Seguridad;
 using CapitalPos.Application.Usuarios;
 using CapitalPos.Infrastructure;
+using CapitalPos.Infrastructure.Cpe;
 using CapitalPos.Infrastructure.Persistence.Repositories;
 using CapitalPos.Infrastructure.Security;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Primitives;
 
 namespace CapitalPos.Tests;
 
@@ -56,101 +56,73 @@ public class InfrastructureDependencyInjectionTests
             descriptor.ServiceType == typeof(IAccessTokenIssuer) &&
             descriptor.ImplementationType == typeof(JwtAccessTokenIssuer) &&
             descriptor.Lifetime == ServiceLifetime.Scoped);
+        Assert.Contains(services, descriptor =>
+            descriptor.ServiceType == typeof(ICpeApiHttpClient) &&
+            descriptor.Lifetime == ServiceLifetime.Transient);
     }
 
-    private static IConfiguration CrearConfiguracion(string capitalPosConnectionString)
+    [Fact]
+    public void Cliente_http_cpe_usa_base_url_configurada()
     {
-        return new TestConfiguration(capitalPosConnectionString);
+        var services = new ServiceCollection();
+        var configuration = CrearConfiguracion(
+            "Host=localhost;Database=capitalpos_test",
+            cpeApiBaseUrl: "https://cpe.capitalpos.test/");
+
+        services.AddCapitalPosInfrastructure(configuration);
+
+        using var provider = services.BuildServiceProvider();
+        var client = provider.GetRequiredService<ICpeApiHttpClient>();
+
+        Assert.Equal(new Uri("https://cpe.capitalpos.test/"), client.BaseAddress);
     }
 
-    private sealed class TestConfiguration : IConfiguration
+    [Fact]
+    public void Cliente_http_cpe_rechaza_base_url_vacia_al_resolverse()
     {
-        private readonly string _capitalPosConnectionString;
+        var services = new ServiceCollection();
+        var configuration = CrearConfiguracion(
+            "Host=localhost;Database=capitalpos_test",
+            cpeApiBaseUrl: string.Empty);
 
-        public TestConfiguration(string capitalPosConnectionString)
-        {
-            _capitalPosConnectionString = capitalPosConnectionString;
-        }
+        services.AddCapitalPosInfrastructure(configuration);
 
-        public string? this[string key]
-        {
-            get => key == "ConnectionStrings:CapitalPos" ? _capitalPosConnectionString : null;
-            set => throw new NotSupportedException();
-        }
+        using var provider = services.BuildServiceProvider();
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            provider.GetRequiredService<ICpeApiHttpClient>());
 
-        public IEnumerable<IConfigurationSection> GetChildren()
-        {
-            return [];
-        }
-
-        public IChangeToken GetReloadToken()
-        {
-            return new TestChangeToken();
-        }
-
-        public IConfigurationSection GetSection(string key)
-        {
-            return new TestConfigurationSection(
-                key,
-                key == "ConnectionStrings" ? _capitalPosConnectionString : null);
-        }
+        Assert.Contains("CpeApi:BaseUrl", exception.Message);
     }
 
-    private sealed class TestConfigurationSection : IConfigurationSection
+    [Fact]
+    public void Cliente_http_cpe_rechaza_base_url_relativa_al_resolverse()
     {
-        private readonly string? _capitalPosConnectionString;
+        var services = new ServiceCollection();
+        var configuration = CrearConfiguracion(
+            "Host=localhost;Database=capitalpos_test",
+            cpeApiBaseUrl: "/api/cpe");
 
-        public TestConfigurationSection(string key, string? capitalPosConnectionString)
-        {
-            Key = key;
-            Path = key;
-            _capitalPosConnectionString = capitalPosConnectionString;
-        }
+        services.AddCapitalPosInfrastructure(configuration);
 
-        public string? this[string key]
-        {
-            get => key == "CapitalPos" ? _capitalPosConnectionString : null;
-            set => throw new NotSupportedException();
-        }
+        using var provider = services.BuildServiceProvider();
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            provider.GetRequiredService<ICpeApiHttpClient>());
 
-        public string Key { get; }
-
-        public string Path { get; }
-
-        public string? Value { get; set; }
-
-        public IEnumerable<IConfigurationSection> GetChildren()
-        {
-            return [];
-        }
-
-        public IChangeToken GetReloadToken()
-        {
-            return new TestChangeToken();
-        }
-
-        public IConfigurationSection GetSection(string key)
-        {
-            return new TestConfigurationSection(key, null);
-        }
+        Assert.Contains("CpeApi:BaseUrl", exception.Message);
     }
 
-    private sealed class TestChangeToken : IChangeToken
+    private static IConfiguration CrearConfiguracion(
+        string capitalPosConnectionString,
+        string cpeApiBaseUrl = "https://cpe.capitalpos.test/")
     {
-        public bool ActiveChangeCallbacks => false;
-
-        public bool HasChanged => false;
-
-        public IDisposable RegisterChangeCallback(Action<object?> callback, object? state)
+        var settings = new Dictionary<string, string?>
         {
-            return new EmptyDisposable();
-        }
-    }
+            ["ConnectionStrings:CapitalPos"] = capitalPosConnectionString,
+            ["CpeApi:BaseUrl"] = cpeApiBaseUrl
+        };
 
-    private sealed class EmptyDisposable : IDisposable
-    {
-        public void Dispose()
-        {
-        }
+        return new ConfigurationBuilder()
+            .AddInMemoryCollection(settings)
+            .Build();
     }
 }

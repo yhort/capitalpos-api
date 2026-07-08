@@ -1,6 +1,7 @@
 using CapitalPos.Application.Empresas;
 using CapitalPos.Application.Seguridad;
 using CapitalPos.Application.Usuarios;
+using CapitalPos.Infrastructure.Cpe;
 using CapitalPos.Infrastructure.Persistence;
 using CapitalPos.Infrastructure.Persistence.Repositories;
 using CapitalPos.Infrastructure.Security;
@@ -33,6 +34,25 @@ public static class DependencyInjection
         services.AddScoped<IPasswordHasher, AspNetCoreIdentityPasswordHasher>();
         services.Configure<JwtTokenOptions>(configuration.GetSection(JwtTokenOptions.SectionName));
         services.AddScoped<IAccessTokenIssuer, JwtAccessTokenIssuer>();
+        services.Configure<CpeApiOptions>(configuration.GetSection(CpeApiOptions.SectionName));
+        services.AddHttpClient<ICpeApiHttpClient, CpeApiHttpClient>((_, httpClient) =>
+        {
+            var baseUrl = configuration[$"{CpeApiOptions.SectionName}:BaseUrl"] ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(baseUrl))
+            {
+                throw new InvalidOperationException(
+                    "La configuracion 'CpeApi:BaseUrl' es obligatoria para consumir CapitalPOS CPE API.");
+            }
+
+            if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out var baseAddress) ||
+                baseAddress.Scheme is not ("http" or "https"))
+            {
+                throw new InvalidOperationException(
+                    "La configuracion 'CpeApi:BaseUrl' debe ser una URL absoluta http o https valida.");
+            }
+
+            httpClient.BaseAddress = baseAddress;
+        });
 
         return services;
     }
