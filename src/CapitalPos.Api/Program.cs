@@ -53,6 +53,7 @@ app.MapGet("/api/health", () =>
 
 app.MapEmpresaEndpoints();
 app.MapUsuarioEndpoints();
+app.MapCpeEndpoints();
 
 app.Run();
 
