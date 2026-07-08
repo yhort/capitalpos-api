@@ -79,7 +79,7 @@ Construir el backend principal de CapitalPOS para:
 - [x] Configurar HTTPS — Preparación para reverse proxy completada; certificados, dominio y proxy final quedan pendientes del despliegue
 - [x] Desplegar API — Preparación documentada; despliegue real pendiente de elegir proveedor y ambiente productivo
 - [x] Agregar monitoreo — Preparación documentada; integración real pendiente de elegir proveedor y desplegar la API
-- [ ] Definir backups
+- [x] Definir backups — Politica documentada; configuracion real pendiente de proveedor y base productiva
 - [ ] Ejecutar pruebas end-to-end
 
 ## Criterio de MVP terminado
