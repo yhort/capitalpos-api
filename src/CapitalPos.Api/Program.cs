@@ -1,6 +1,7 @@
 using CapitalPos.Api.ActiveCompany;
 using CapitalPos.Api.Endpoints;
 using CapitalPos.Api.Authentication;
+using CapitalPos.Api.Development;
 using CapitalPos.Api.Middleware;
 using CapitalPos.Application.Empresas;
 using CapitalPos.Application.Seguridad;
@@ -22,6 +23,7 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 
 builder.Services.AddCapitalPosInfrastructure(builder.Configuration);
 builder.Services.AddCapitalPosJwtAuthentication(builder.Configuration);
+builder.Services.AddDemoSeed(builder.Configuration);
 builder.Services.AddScoped<EmpresaActivaContext>();
 builder.Services.AddScoped<IEmpresaActivaContext>(services =>
     services.GetRequiredService<EmpresaActivaContext>());
@@ -74,7 +76,9 @@ app.MapEmpresaEndpoints();
 app.MapUsuarioEndpoints();
 app.MapCpeEndpoints();
 
-app.Run();
+await app.SeedDemoDataAsync();
+
+await app.RunAsync();
 
 public sealed record HealthResponse(string Status, string Service, DateTimeOffset Timestamp);
 
