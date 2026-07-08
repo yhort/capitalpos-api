@@ -68,7 +68,7 @@ Construir el backend principal de CapitalPOS para:
 - [x] Logs estructurados
 - [x] Auditoría de operaciones
 - [x] Validaciones de entrada
-- [ ] Pruebas de integración HTTP
+- [x] Pruebas de integración HTTP
 - [ ] Revisión de paquetes vulnerables
 - [ ] Documentación de ejecución
 

@@ -62,3 +62,5 @@ app.MapCpeEndpoints();
 app.Run();
 
 public sealed record HealthResponse(string Status, string Service, DateTimeOffset Timestamp);
+
+public partial class Program;
