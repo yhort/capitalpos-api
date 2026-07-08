@@ -69,7 +69,7 @@ Construir el backend principal de CapitalPOS para:
 - [x] Auditoría de operaciones
 - [x] Validaciones de entrada
 - [x] Pruebas de integración HTTP
-- [ ] Revisión de paquetes vulnerables
+- [x] Revisión de paquetes vulnerables
 - [ ] Documentación de ejecución
 
 ## Fase 7 — Producción
