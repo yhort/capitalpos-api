@@ -75,7 +75,7 @@ Construir el backend principal de CapitalPOS para:
 ## Fase 7 — Producción
 
 - [x] Configurar base de datos productiva — Preparación segura documentada; aprovisionamiento real queda pendiente del despliegue
-- [ ] Configurar secretos
+- [x] Configurar secretos — Política documentada; integración con gestor real queda pendiente del despliegue
 - [ ] Configurar HTTPS
 - [ ] Desplegar API
 - [ ] Agregar monitoreo
