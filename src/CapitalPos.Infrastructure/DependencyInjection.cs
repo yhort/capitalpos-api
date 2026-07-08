@@ -1,3 +1,4 @@
+using CapitalPos.Application.Cpe;
 using CapitalPos.Application.Empresas;
 using CapitalPos.Application.Seguridad;
 using CapitalPos.Application.Usuarios;
@@ -36,18 +37,23 @@ public static class DependencyInjection
         services.AddScoped<IAccessTokenIssuer, JwtAccessTokenIssuer>();
         services.Configure<CpeApiOptions>(configuration.GetSection(CpeApiOptions.SectionName));
         services.AddHttpClient<ICpeApiHttpClient, CpeApiHttpClient>((_, httpClient) =>
-        {
-            var options = new CpeApiOptions
-            {
-                BaseUrl = configuration[$"{CpeApiOptions.SectionName}:BaseUrl"] ?? string.Empty,
-                ApiKey = configuration[$"{CpeApiOptions.SectionName}:ApiKey"] ?? string.Empty
-            };
-
-            httpClient.BaseAddress = options.ObtenerBaseAddress();
-            httpClient.DefaultRequestHeaders.Remove(CpeApiOptions.ApiKeyHeaderName);
-            httpClient.DefaultRequestHeaders.Add(CpeApiOptions.ApiKeyHeaderName, options.ObtenerApiKey());
-        });
+            ConfigurarCpeHttpClient(configuration, httpClient));
+        services.AddHttpClient<ICpeGateway, CpeApiGateway>((_, httpClient) =>
+            ConfigurarCpeHttpClient(configuration, httpClient));
 
         return services;
+    }
+
+    private static void ConfigurarCpeHttpClient(IConfiguration configuration, HttpClient httpClient)
+    {
+        var options = new CpeApiOptions
+        {
+            BaseUrl = configuration[$"{CpeApiOptions.SectionName}:BaseUrl"] ?? string.Empty,
+            ApiKey = configuration[$"{CpeApiOptions.SectionName}:ApiKey"] ?? string.Empty
+        };
+
+        httpClient.BaseAddress = options.ObtenerBaseAddress();
+        httpClient.DefaultRequestHeaders.Remove(CpeApiOptions.ApiKeyHeaderName);
+        httpClient.DefaultRequestHeaders.Add(CpeApiOptions.ApiKeyHeaderName, options.ObtenerApiKey());
     }
 }

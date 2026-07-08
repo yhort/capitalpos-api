@@ -1,3 +1,4 @@
+using CapitalPos.Application.Cpe;
 using CapitalPos.Application.Empresas;
 using CapitalPos.Application.Seguridad;
 using CapitalPos.Application.Usuarios;
@@ -58,6 +59,9 @@ public class InfrastructureDependencyInjectionTests
             descriptor.Lifetime == ServiceLifetime.Scoped);
         Assert.Contains(services, descriptor =>
             descriptor.ServiceType == typeof(ICpeApiHttpClient) &&
+            descriptor.Lifetime == ServiceLifetime.Transient);
+        Assert.Contains(services, descriptor =>
+            descriptor.ServiceType == typeof(ICpeGateway) &&
             descriptor.Lifetime == ServiceLifetime.Transient);
     }
 
