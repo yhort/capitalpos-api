@@ -59,7 +59,7 @@ Construir el backend principal de CapitalPOS para:
 - [x] Crear gateway hacia CapitalPOS CPE API
 - [x] Crear endpoint seguro POST /api/cpe/emitir
 - [x] Validar usuario, empresa y permisos
-- [ ] Normalizar respuesta para Angular
+- [x] Normalizar respuesta para Angular
 - [ ] Agregar pruebas del cliente CPE
 
 ## Fase 6 — Calidad y operación

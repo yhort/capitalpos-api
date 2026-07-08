@@ -34,15 +34,16 @@ public class CpeEndpointStructureTests
     }
 
     [Fact]
-    public void Endpoint_emitir_llama_gateway_y_no_normaliza_respuesta()
+    public void Endpoint_emitir_llama_gateway_y_no_devuelve_cuerpo_crudo()
     {
         var source = File.ReadAllText(ResolverRutaRepo("src/CapitalPos.Api/Endpoints/CpeEndpoints.cs"));
 
         Assert.Contains("ICpeGateway gateway", source);
         Assert.Contains("gateway.EmitirAsync(request, cancellationToken)", source);
-        Assert.Contains("Results.Content(", source);
+        Assert.Contains("EmitirCpeResponseNormalizer.Normalizar(response)", source);
+        Assert.Contains("Results.Json(", source);
+        Assert.DoesNotContain("Results.Content(", source);
         Assert.DoesNotContain("ApiResponse", source);
-        Assert.DoesNotContain("Normalizar", source, StringComparison.OrdinalIgnoreCase);
     }
 
     private static string ResolverRutaRepo(string relativePath)

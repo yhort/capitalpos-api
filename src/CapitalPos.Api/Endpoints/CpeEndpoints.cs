@@ -28,10 +28,10 @@ public static class CpeEndpoints
         CancellationToken cancellationToken)
     {
         var response = await gateway.EmitirAsync(request, cancellationToken);
+        var normalizedResponse = EmitirCpeResponseNormalizer.Normalizar(response);
 
-        return Results.Content(
-            response.Content,
-            response.ContentType,
-            statusCode: response.StatusCode);
+        return Results.Json(
+            normalizedResponse.Body,
+            statusCode: normalizedResponse.StatusCode);
     }
 }
