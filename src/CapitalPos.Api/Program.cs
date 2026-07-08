@@ -69,6 +69,7 @@ app.MapGet("/api/health", () =>
     Results.Ok(new HealthResponse("ok", "CapitalPos.Api", DateTimeOffset.UtcNow)))
     .WithName("GetHealth");
 
+app.MapAuthEndpoints();
 app.MapEmpresaEndpoints();
 app.MapUsuarioEndpoints();
 app.MapCpeEndpoints();
