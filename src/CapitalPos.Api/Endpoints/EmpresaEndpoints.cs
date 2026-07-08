@@ -1,5 +1,7 @@
 using CapitalPos.Application.Empresas;
 using CapitalPos.Api.ActiveCompany;
+using CapitalPos.Api.Authorization;
+using CapitalPos.Application.Seguridad;
 using CapitalPos.Domain;
 
 namespace CapitalPos.Api.Endpoints;
@@ -14,19 +16,24 @@ public static class EmpresaEndpoints
             .AddEndpointFilter<EmpresaActivaEndpointFilter>();
 
         group.MapGet("/", ListarEmpresasAsync)
-            .WithName("ListarEmpresas");
+            .WithName("ListarEmpresas")
+            .RequirePermisoEmpresa(PermisoEmpresa.ConsultarEmpresa);
 
         group.MapGet("/{id:guid}", ObtenerEmpresaPorIdAsync)
-            .WithName("ObtenerEmpresaPorId");
+            .WithName("ObtenerEmpresaPorId")
+            .RequirePermisoEmpresa(PermisoEmpresa.ConsultarEmpresa);
 
         group.MapPost("/", CrearEmpresaAsync)
-            .WithName("CrearEmpresa");
+            .WithName("CrearEmpresa")
+            .RequirePermisoEmpresa(PermisoEmpresa.GestionarEmpresas);
 
         group.MapPatch("/{id:guid}/activar", ActivarEmpresaAsync)
-            .WithName("ActivarEmpresa");
+            .WithName("ActivarEmpresa")
+            .RequirePermisoEmpresa(PermisoEmpresa.GestionarEmpresas);
 
         group.MapPatch("/{id:guid}/desactivar", DesactivarEmpresaAsync)
-            .WithName("DesactivarEmpresa");
+            .WithName("DesactivarEmpresa")
+            .RequirePermisoEmpresa(PermisoEmpresa.GestionarEmpresas);
 
         return app;
     }

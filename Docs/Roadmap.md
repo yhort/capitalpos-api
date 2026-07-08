@@ -48,7 +48,7 @@ Construir el backend principal de CapitalPOS para:
 - [x] Implementar JWT o cookie segura
 - [x] Crear refresh token si aplica — No aplicado por ahora; fuera del MVP actual
 - [x] Implementar empresa activa
-- [ ] Validar roles y permisos
+- [x] Validar roles y permisos
 - [ ] Proteger endpoints
 
 ## Fase 5 — Integración CPE

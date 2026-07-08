@@ -1,5 +1,7 @@
 using CapitalPos.Application.Usuarios;
 using CapitalPos.Api.ActiveCompany;
+using CapitalPos.Api.Authorization;
+using CapitalPos.Application.Seguridad;
 using CapitalPos.Domain;
 
 namespace CapitalPos.Api.Endpoints;
@@ -14,19 +16,24 @@ public static class UsuarioEndpoints
             .AddEndpointFilter<EmpresaActivaEndpointFilter>();
 
         usuarios.MapGet("/", ListarUsuariosAsync)
-            .WithName("ListarUsuarios");
+            .WithName("ListarUsuarios")
+            .RequirePermisoEmpresa(PermisoEmpresa.GestionarUsuarios);
 
         usuarios.MapGet("/{id:guid}", ObtenerUsuarioPorIdAsync)
-            .WithName("ObtenerUsuarioPorId");
+            .WithName("ObtenerUsuarioPorId")
+            .RequirePermisoEmpresa(PermisoEmpresa.GestionarUsuarios);
 
         usuarios.MapPost("/", CrearUsuarioAsync)
-            .WithName("CrearUsuario");
+            .WithName("CrearUsuario")
+            .RequirePermisoEmpresa(PermisoEmpresa.GestionarUsuarios);
 
         usuarios.MapPatch("/{id:guid}/activar", ActivarUsuarioAsync)
-            .WithName("ActivarUsuario");
+            .WithName("ActivarUsuario")
+            .RequirePermisoEmpresa(PermisoEmpresa.GestionarUsuarios);
 
         usuarios.MapPatch("/{id:guid}/desactivar", DesactivarUsuarioAsync)
-            .WithName("DesactivarUsuario");
+            .WithName("DesactivarUsuario")
+            .RequirePermisoEmpresa(PermisoEmpresa.GestionarUsuarios);
 
         var usuariosEmpresas = app.MapGroup("/api/usuarios-empresas")
             .WithTags("UsuariosEmpresas")
@@ -34,22 +41,28 @@ public static class UsuarioEndpoints
             .AddEndpointFilter<EmpresaActivaEndpointFilter>();
 
         usuariosEmpresas.MapGet("/", ListarUsuariosEmpresaAsync)
-            .WithName("ListarUsuariosEmpresa");
+            .WithName("ListarUsuariosEmpresa")
+            .RequirePermisoEmpresa(PermisoEmpresa.GestionarRoles);
 
         usuariosEmpresas.MapGet("/{id:guid}", ObtenerUsuarioEmpresaPorIdAsync)
-            .WithName("ObtenerUsuarioEmpresaPorId");
+            .WithName("ObtenerUsuarioEmpresaPorId")
+            .RequirePermisoEmpresa(PermisoEmpresa.GestionarRoles);
 
         usuariosEmpresas.MapPost("/", AsignarUsuarioEmpresaAsync)
-            .WithName("AsignarUsuarioEmpresa");
+            .WithName("AsignarUsuarioEmpresa")
+            .RequirePermisoEmpresa(PermisoEmpresa.GestionarRoles);
 
         usuariosEmpresas.MapPatch("/{id:guid}/activar", ActivarUsuarioEmpresaAsync)
-            .WithName("ActivarUsuarioEmpresa");
+            .WithName("ActivarUsuarioEmpresa")
+            .RequirePermisoEmpresa(PermisoEmpresa.GestionarRoles);
 
         usuariosEmpresas.MapPatch("/{id:guid}/desactivar", DesactivarUsuarioEmpresaAsync)
-            .WithName("DesactivarUsuarioEmpresa");
+            .WithName("DesactivarUsuarioEmpresa")
+            .RequirePermisoEmpresa(PermisoEmpresa.GestionarRoles);
 
         usuariosEmpresas.MapPatch("/{id:guid}/rol", CambiarRolUsuarioEmpresaAsync)
-            .WithName("CambiarRolUsuarioEmpresa");
+            .WithName("CambiarRolUsuarioEmpresa")
+            .RequirePermisoEmpresa(PermisoEmpresa.GestionarRoles);
 
         return app;
     }
