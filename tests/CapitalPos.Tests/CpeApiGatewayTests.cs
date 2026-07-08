@@ -34,6 +34,10 @@ public class CpeApiGatewayTests
         Assert.Equal(
             new Uri("https://cpe.capitalpos.test/api/cpe/emitir"),
             handler.Request.RequestUri);
+        Assert.True(handler.Request.Headers.TryGetValues(
+            CpeApiOptions.ApiKeyHeaderName,
+            out var apiKeyValues));
+        Assert.Equal(["capitalpos-cpe-test-api-key"], apiKeyValues);
         Assert.Equal("application/json", handler.Request.Content?.Headers.ContentType?.MediaType);
         Assert.Contains(
             "\"rucEmisor\": \"20123456789\"",

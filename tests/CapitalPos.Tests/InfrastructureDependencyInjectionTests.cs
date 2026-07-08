@@ -101,6 +101,27 @@ public class InfrastructureDependencyInjectionTests
     }
 
     [Fact]
+    public void Gateway_cpe_usa_base_url_y_api_key_configuradas()
+    {
+        const string apiKey = "capitalpos-cpe-test-api-key";
+        var services = new ServiceCollection();
+        var configuration = CrearConfiguracion(
+            "Host=localhost;Database=capitalpos_test",
+            cpeApiBaseUrl: "https://cpe.capitalpos.test/",
+            cpeApiApiKey: apiKey);
+
+        services.AddCapitalPosInfrastructure(configuration);
+
+        using var provider = services.BuildServiceProvider();
+        var gateway = provider.GetRequiredService<ICpeGateway>();
+        var httpClient = ObtenerHttpClient(gateway);
+        var headerValues = httpClient.DefaultRequestHeaders.GetValues(CpeApiOptions.ApiKeyHeaderName);
+
+        Assert.Equal(new Uri("https://cpe.capitalpos.test/"), httpClient.BaseAddress);
+        Assert.Equal([apiKey], headerValues);
+    }
+
+    [Fact]
     public void Cliente_http_cpe_rechaza_base_url_vacia_al_resolverse()
     {
         var services = new ServiceCollection();
@@ -233,5 +254,15 @@ public class InfrastructureDependencyInjectionTests
 
         Assert.NotNull(field);
         return Assert.IsType<HttpClient>(field.GetValue(client));
+    }
+
+    private static HttpClient ObtenerHttpClient(ICpeGateway gateway)
+    {
+        var field = typeof(CpeApiGateway).GetField(
+            "_httpClient",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+
+        Assert.NotNull(field);
+        return Assert.IsType<HttpClient>(field.GetValue(gateway));
     }
 }
