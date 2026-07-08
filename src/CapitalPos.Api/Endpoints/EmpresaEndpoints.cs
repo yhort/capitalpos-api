@@ -70,6 +70,22 @@ public static class EmpresaEndpoints
     {
         try
         {
+            if (!EndpointInputValidator.TryValidate(request, out var error))
+            {
+                await AuditoriaEndpointHelper.AuditarAsync(
+                    auditoria,
+                    empresaActiva,
+                    httpContext,
+                    "CrearEmpresa",
+                    "Empresa",
+                    "Crear",
+                    AuditoriaResultados.Rechazado,
+                    "ValidacionDeEntrada",
+                    cancellationToken);
+
+                return Results.BadRequest(ErrorResponse.From(error));
+            }
+
             var empresa = await useCase.EjecutarAsync(request, cancellationToken);
             await AuditoriaEndpointHelper.AuditarAsync(
                 auditoria,

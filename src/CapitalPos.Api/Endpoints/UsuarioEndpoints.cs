@@ -99,6 +99,22 @@ public static class UsuarioEndpoints
     {
         try
         {
+            if (!EndpointInputValidator.TryValidate(request, out var error))
+            {
+                await AuditoriaEndpointHelper.AuditarAsync(
+                    auditoria,
+                    empresaActiva,
+                    httpContext,
+                    "CrearUsuario",
+                    "Usuario",
+                    "Crear",
+                    AuditoriaResultados.Rechazado,
+                    "ValidacionDeEntrada",
+                    cancellationToken);
+
+                return Results.BadRequest(ErrorResponse.From(error));
+            }
+
             var usuario = await useCase.EjecutarAsync(request, cancellationToken);
             await AuditoriaEndpointHelper.AuditarAsync(
                 auditoria,
@@ -276,6 +292,22 @@ public static class UsuarioEndpoints
     {
         try
         {
+            if (!EndpointInputValidator.TryValidate(request, out var error))
+            {
+                await AuditoriaEndpointHelper.AuditarAsync(
+                    auditoria,
+                    empresaActiva,
+                    httpContext,
+                    "AsignarUsuarioEmpresa",
+                    "UsuarioEmpresa",
+                    "Asignar",
+                    AuditoriaResultados.Rechazado,
+                    "ValidacionDeEntrada",
+                    cancellationToken);
+
+                return Results.BadRequest(ErrorResponse.From(error));
+            }
+
             var usuarioEmpresa = await useCase.EjecutarAsync(request, cancellationToken);
             await AuditoriaEndpointHelper.AuditarAsync(
                 auditoria,
@@ -433,6 +465,22 @@ public static class UsuarioEndpoints
     {
         try
         {
+            if (!EndpointInputValidator.TryValidate(request, out var error))
+            {
+                await AuditoriaEndpointHelper.AuditarAsync(
+                    auditoria,
+                    empresaActiva,
+                    httpContext,
+                    "CambiarRolUsuarioEmpresa",
+                    "UsuarioEmpresa",
+                    "CambiarRol",
+                    AuditoriaResultados.Rechazado,
+                    "ValidacionDeEntrada",
+                    cancellationToken);
+
+                return Results.BadRequest(ErrorResponse.From(error));
+            }
+
             var usuarioEmpresa = await useCase.EjecutarAsync(id, request, cancellationToken);
             await AuditoriaEndpointHelper.AuditarAsync(
                 auditoria,
