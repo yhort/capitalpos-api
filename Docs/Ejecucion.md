@@ -88,6 +88,8 @@ X-CapitalPos-EmpresaId
 ```
 
 Angular nunca debe conocer ni enviar la `X-API-KEY` de `capitalpos-cpe-api`.
+El contrato publico de `POST /api/cpe/emitir` esta definido en
+`Docs/ContratoCpeEmision.md`.
 
 ## Validación local
 
