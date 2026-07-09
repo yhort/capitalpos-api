@@ -13,14 +13,48 @@ public static class CpeEndpoints
     {
         var group = app.MapGroup("/api/cpe")
             .WithTags("CPE")
-            .RequireAuthorization()
-            .AddEndpointFilter<EmpresaActivaEndpointFilter>();
+            .RequireAuthorization();
+
+        group.MapGet("/estado", ObtenerEstadoAsync)
+            .WithName("ObtenerEstadoCpe");
 
         group.MapPost("/emitir", EmitirAsync)
+            .AddEndpointFilter<EmpresaActivaEndpointFilter>()
             .WithName("EmitirCpe")
             .RequirePermisoEmpresa(PermisoEmpresa.EmitirCpe);
 
         return app;
+    }
+
+    private static async Task<IResult> ObtenerEstadoAsync(
+        ICpeGateway gateway,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var response = await gateway.ObtenerEstadoAsync(cancellationToken);
+            var normalizedResponse = CpeEstadoResponseNormalizer.Normalizar(response);
+
+            return Results.Json(
+                normalizedResponse.Body,
+                statusCode: normalizedResponse.StatusCode);
+        }
+        catch (HttpRequestException ex)
+        {
+            var normalizedResponse = CpeEstadoResponseNormalizer.CrearNoDisponible(ex);
+
+            return Results.Json(
+                normalizedResponse.Body,
+                statusCode: normalizedResponse.StatusCode);
+        }
+        catch (TaskCanceledException ex)
+        {
+            var normalizedResponse = CpeEstadoResponseNormalizer.CrearNoDisponible(ex);
+
+            return Results.Json(
+                normalizedResponse.Body,
+                statusCode: normalizedResponse.StatusCode);
+        }
     }
 
     private static async Task<IResult> EmitirAsync(

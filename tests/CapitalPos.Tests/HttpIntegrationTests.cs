@@ -291,6 +291,7 @@ public class HttpIntegrationTests
             Environment.SetEnvironmentVariable("Jwt__AccessTokenMinutes", "15");
             Environment.SetEnvironmentVariable("CpeApi__BaseUrl", "http://localhost/capitalpos-cpe-tests/");
             Environment.SetEnvironmentVariable("CpeApi__ApiKey", ApiKeyFicticia);
+            Environment.SetEnvironmentVariable("DemoSeed__Enabled", "false");
         }
 
         public FakeEmpresaRepository EmpresaRepository { get; } = new();
@@ -324,7 +325,8 @@ public class HttpIntegrationTests
                     ["Jwt:SigningKey"] = SigningKey,
                     ["Jwt:AccessTokenMinutes"] = "15",
                     ["CpeApi:BaseUrl"] = "http://localhost/capitalpos-cpe-tests/",
-                    ["CpeApi:ApiKey"] = ApiKeyFicticia
+                    ["CpeApi:ApiKey"] = ApiKeyFicticia,
+                    ["DemoSeed:Enabled"] = "false"
                 });
             });
             builder.ConfigureServices(services =>

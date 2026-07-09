@@ -205,6 +205,7 @@ public class AuthEndpointTests
             Environment.SetEnvironmentVariable("Jwt__AccessTokenMinutes", "15");
             Environment.SetEnvironmentVariable("CpeApi__BaseUrl", "http://localhost/capitalpos-cpe-auth-tests/");
             Environment.SetEnvironmentVariable("CpeApi__ApiKey", ApiKeyFicticia);
+            Environment.SetEnvironmentVariable("DemoSeed__Enabled", "false");
         }
 
         protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -220,7 +221,8 @@ public class AuthEndpointTests
                     ["Jwt:SigningKey"] = SigningKey,
                     ["Jwt:AccessTokenMinutes"] = "15",
                     ["CpeApi:BaseUrl"] = "http://localhost/capitalpos-cpe-auth-tests/",
-                    ["CpeApi:ApiKey"] = ApiKeyFicticia
+                    ["CpeApi:ApiKey"] = ApiKeyFicticia,
+                    ["DemoSeed:Enabled"] = "false"
                 });
             });
             builder.ConfigureServices(services =>
@@ -324,6 +326,15 @@ public class AuthEndpointTests
 
     private sealed class CpeGatewayFake : ICpeGateway
     {
+        public Task<CpeGatewayResponse> ObtenerEstadoAsync(CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(new CpeGatewayResponse(
+                StatusCodes.Status200OK,
+                true,
+                """{"ok":true,"data":{"status":"OK"}}""",
+                "application/json"));
+        }
+
         public Task<CpeGatewayResponse> EmitirAsync(
             JsonElement request,
             CancellationToken cancellationToken = default)

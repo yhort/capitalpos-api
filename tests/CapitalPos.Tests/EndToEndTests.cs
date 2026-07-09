@@ -511,7 +511,8 @@ public class EndToEndTests
                     ["Jwt:SigningKey"] = SigningKey,
                     ["Jwt:AccessTokenMinutes"] = "15",
                     ["CpeApi:BaseUrl"] = "http://localhost/capitalpos-cpe-e2e/",
-                    ["CpeApi:ApiKey"] = ApiKeyFicticia
+                    ["CpeApi:ApiKey"] = ApiKeyFicticia,
+                    ["DemoSeed:Enabled"] = "false"
                 });
             });
             builder.ConfigureServices(services =>
@@ -551,6 +552,30 @@ public class EndToEndTests
         public StubCpeGateway(CpeStubMode mode)
         {
             _mode = mode;
+        }
+
+        public Task<CpeGatewayResponse> ObtenerEstadoAsync(CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(new CpeGatewayResponse(
+                StatusCodes.Status200OK,
+                true,
+                """
+                {
+                  "ok": true,
+                  "mensaje": "API CPE funcionando correctamente.",
+                  "data": {
+                    "status": "OK",
+                    "service": "CapitalPOS CPE API",
+                    "version": "1.0.0",
+                    "modo": "BETA",
+                    "simularGeneracionXml": false,
+                    "simularFirma": false,
+                    "simularEnvioSunat": true
+                  },
+                  "errores": []
+                }
+                """,
+                "application/json"));
         }
 
         public Task<CpeGatewayResponse> EmitirAsync(

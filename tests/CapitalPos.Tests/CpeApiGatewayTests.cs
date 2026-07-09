@@ -8,6 +8,33 @@ namespace CapitalPos.Tests;
 public class CpeApiGatewayTests
 {
     [Fact]
+    public async Task Obtener_estado_envia_get_a_health_con_api_key()
+    {
+        var handler = new RecordingHandler(new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(
+                """{"ok":true,"data":{"status":"OK"}}""",
+                Encoding.UTF8,
+                "application/json")
+        });
+        var gateway = CrearGateway(handler);
+
+        var response = await gateway.ObtenerEstadoAsync();
+
+        Assert.NotNull(handler.Request);
+        Assert.Equal(HttpMethod.Get, handler.Request.Method);
+        Assert.Equal(
+            new Uri("https://cpe.capitalpos.test/api/health"),
+            handler.Request.RequestUri);
+        Assert.True(handler.Request.Headers.TryGetValues(
+            CpeApiOptions.ApiKeyHeaderName,
+            out var apiKeyValues));
+        Assert.Equal(["capitalpos-cpe-test-api-key"], apiKeyValues);
+        Assert.Equal(200, response.StatusCode);
+        Assert.True(response.IsSuccessStatusCode);
+    }
+
+    [Fact]
     public async Task Emitir_envia_post_a_endpoint_emitir_con_payload_json()
     {
         using var requestJson = JsonDocument.Parse("""

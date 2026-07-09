@@ -7,11 +7,19 @@ namespace CapitalPos.Infrastructure.Cpe;
 public sealed class CpeApiGateway : ICpeGateway
 {
     private const string EmitirPath = "api/cpe/emitir";
+    private const string HealthPath = "api/health";
     private readonly HttpClient _httpClient;
 
     public CpeApiGateway(HttpClient httpClient)
     {
         _httpClient = httpClient;
+    }
+
+    public async Task<CpeGatewayResponse> ObtenerEstadoAsync(CancellationToken cancellationToken = default)
+    {
+        using var response = await _httpClient.GetAsync(HealthPath, cancellationToken);
+
+        return await CrearResponseAsync(response, cancellationToken);
     }
 
     public async Task<CpeGatewayResponse> EmitirAsync(
@@ -28,6 +36,13 @@ public sealed class CpeApiGateway : ICpeGateway
             content,
             cancellationToken);
 
+        return await CrearResponseAsync(response, cancellationToken);
+    }
+
+    private static async Task<CpeGatewayResponse> CrearResponseAsync(
+        HttpResponseMessage response,
+        CancellationToken cancellationToken)
+    {
         var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
         var contentType = response.Content.Headers.ContentType?.ToString() ?? string.Empty;
 
