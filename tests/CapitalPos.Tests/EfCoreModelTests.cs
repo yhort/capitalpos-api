@@ -21,6 +21,7 @@ public class EfCoreModelTests
         Assert.NotNull(context.Model.FindEntityType(typeof(Cliente)));
         Assert.NotNull(context.Model.FindEntityType(typeof(Venta)));
         Assert.NotNull(context.Model.FindEntityType(typeof(VentaDetalle)));
+        Assert.NotNull(context.Model.FindEntityType(typeof(Comprobante)));
     }
 
     [Fact]
@@ -328,6 +329,46 @@ public class EfCoreModelTests
             foreignKey.Properties.Select(property => property.Name).SequenceEqual([
                 nameof(VentaDetalle.ProductoVarianteId),
                 nameof(VentaDetalle.EmpresaId)
+            ]));
+    }
+
+    [Fact]
+    public void Comprobante_tiene_empresa_venta_estado_cpe_e_indice_unico()
+    {
+        var entityType = ObtenerEntidad<Comprobante>();
+
+        Assert.Equal("comprobantes", entityType.GetTableName());
+        Assert.Equal(nameof(Comprobante.Id), entityType.FindPrimaryKey()?.Properties.Single().Name);
+        AssertPropiedad(entityType, nameof(Comprobante.EmpresaId), nullable: false);
+        AssertPropiedad(entityType, nameof(Comprobante.VentaId), nullable: false);
+        AssertPropiedad(entityType, nameof(Comprobante.TipoComprobante), maxLength: 2, nullable: false);
+        AssertPropiedad(entityType, nameof(Comprobante.Serie), maxLength: 4, nullable: false);
+        AssertPropiedad(entityType, nameof(Comprobante.Correlativo), nullable: false);
+        AssertPropiedad(entityType, nameof(Comprobante.EstadoCpe), maxLength: 50, nullable: false);
+        AssertPropiedad(entityType, nameof(Comprobante.Mensaje), maxLength: 500, nullable: false);
+        AssertPropiedad(entityType, nameof(Comprobante.Hash), maxLength: 200, nullable: false);
+        AssertPropiedad(entityType, nameof(Comprobante.NombreXml), maxLength: 200, nullable: false);
+        AssertPropiedad(entityType, nameof(Comprobante.NombreZip), maxLength: 200, nullable: false);
+        AssertPropiedad(entityType, nameof(Comprobante.NombreCdr), maxLength: 200, nullable: false);
+        AssertPropiedad(entityType, nameof(Comprobante.FechaCreacion), nullable: false);
+
+        Assert.Contains(entityType.GetIndexes(), index =>
+            index.Properties.Select(property => property.Name).SequenceEqual([nameof(Comprobante.EmpresaId)]));
+        Assert.Contains(entityType.GetIndexes(), index =>
+            index.IsUnique &&
+            index.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(Comprobante.EmpresaId),
+                nameof(Comprobante.TipoComprobante),
+                nameof(Comprobante.Serie),
+                nameof(Comprobante.Correlativo)
+            ]));
+
+        Assert.Contains(entityType.GetForeignKeys(), foreignKey =>
+            foreignKey.PrincipalEntityType.ClrType == typeof(Venta) &&
+            foreignKey.DeleteBehavior == DeleteBehavior.Restrict &&
+            foreignKey.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(Comprobante.VentaId),
+                nameof(Comprobante.EmpresaId)
             ]));
     }
 

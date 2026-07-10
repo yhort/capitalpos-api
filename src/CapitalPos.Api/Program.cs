@@ -58,6 +58,7 @@ builder.Services.AddScoped<ListarClientesUseCase>();
 builder.Services.AddScoped<ObtenerClientePorIdUseCase>();
 builder.Services.AddScoped<CrearVentaUseCase>();
 builder.Services.AddScoped<EmitirCpeDesdeVentaUseCase>();
+builder.Services.AddScoped<RegistrarComprobanteCpeUseCase>();
 
 var app = builder.Build();
 

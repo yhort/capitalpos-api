@@ -125,6 +125,7 @@ public static class VentaEndpoints
         Guid id,
         EmitirCpeDesdeVentaRequest request,
         EmitirCpeDesdeVentaUseCase useCase,
+        RegistrarComprobanteCpeUseCase registrarComprobanteUseCase,
         IAuditoriaOperaciones auditoria,
         IEmpresaActivaContext empresaActiva,
         ILoggerFactory loggerFactory,
@@ -169,6 +170,19 @@ public static class VentaEndpoints
             LogDiagnosticoEmisionCpe(loggerFactory, response);
             var normalizedResponse = EmitirCpeResponseNormalizer.Normalizar(response);
             var publicResponse = EmitirCpeApiResponse.From(normalizedResponse.Body);
+            await registrarComprobanteUseCase.EjecutarAsync(
+                new RegistrarComprobanteCpeRequest(
+                    id,
+                    request.TipoComprobante,
+                    request.Serie,
+                    request.Correlativo,
+                    normalizedResponse.Body.Estado,
+                    normalizedResponse.Body.Mensaje,
+                    normalizedResponse.Body.Hash,
+                    normalizedResponse.Body.NombreXml,
+                    normalizedResponse.Body.NombreZip,
+                    normalizedResponse.Body.NombreCdr),
+                cancellationToken);
             var resultado = normalizedResponse.Body.Ok
                 ? AuditoriaResultados.Exitoso
                 : normalizedResponse.StatusCode >= StatusCodes.Status500InternalServerError

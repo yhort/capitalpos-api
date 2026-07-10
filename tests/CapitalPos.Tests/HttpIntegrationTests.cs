@@ -344,6 +344,7 @@ public class HttpIntegrationTests
                 services.RemoveAll<IProductoVarianteRepository>();
                 services.RemoveAll<IClienteRepository>();
                 services.RemoveAll<IVentaRepository>();
+                services.RemoveAll<IComprobanteRepository>();
 
                 services.AddSingleton<IEmpresaRepository>(EmpresaRepository);
                 services.AddSingleton<IUsuarioRepository>(UsuarioRepository);
@@ -353,6 +354,7 @@ public class HttpIntegrationTests
                 services.AddSingleton<IProductoVarianteRepository, FakeProductoVarianteRepository>();
                 services.AddSingleton<IClienteRepository, FakeClienteRepository>();
                 services.AddSingleton<IVentaRepository, FakeVentaRepository>();
+                services.AddSingleton<IComprobanteRepository, FakeComprobanteRepository>();
             });
         }
     }
@@ -616,6 +618,14 @@ public class HttpIntegrationTests
             CancellationToken cancellationToken = default)
         {
             return Task.FromResult<Venta?>(null);
+        }
+    }
+
+    private sealed class FakeComprobanteRepository : IComprobanteRepository
+    {
+        public Task AgregarAsync(Comprobante comprobante, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
         }
     }
 }

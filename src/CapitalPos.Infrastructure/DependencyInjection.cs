@@ -41,6 +41,7 @@ public static class DependencyInjection
         services.AddScoped<IProductoVarianteRepository, EfProductoVarianteRepository>();
         services.AddScoped<IClienteRepository, EfClienteRepository>();
         services.AddScoped<IVentaRepository, EfVentaRepository>();
+        services.AddScoped<IComprobanteRepository, EfComprobanteRepository>();
         services.AddScoped<IAuditoriaOperaciones, LoggerAuditoriaOperaciones>();
         services.AddScoped<IPasswordHasher, AspNetCoreIdentityPasswordHasher>();
         services.Configure<JwtTokenOptions>(configuration.GetSection(JwtTokenOptions.SectionName));

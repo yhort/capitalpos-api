@@ -229,6 +229,87 @@ public class ApplicationVentaTests
         Assert.Null(gateway.UltimoRequest);
     }
 
+    [Fact]
+    public async Task Registrar_comprobante_cpe_use_case_guarda_resultado_para_venta_de_empresa_activa()
+    {
+        var empresaId = Guid.NewGuid();
+        var ventaId = Guid.NewGuid();
+        var ventaRepository = new VentaRepositoryFake();
+        var comprobanteRepository = new ComprobanteRepositoryFake();
+        await ventaRepository.AgregarAsync(CrearVenta(ventaId, empresaId));
+        var useCase = new RegistrarComprobanteCpeUseCase(
+            comprobanteRepository,
+            ventaRepository,
+            new EmpresaActivaContextFake(empresaId));
+        var request = new RegistrarComprobanteCpeRequest(
+            ventaId,
+            "03",
+            "B001",
+            7,
+            "SIMULADO",
+            "Aceptado en simulacion",
+            "hash",
+            "xml.xml",
+            "zip.zip",
+            "cdr.zip");
+
+        var comprobante = await useCase.EjecutarAsync(request);
+
+        Assert.NotNull(comprobante);
+        Assert.Equal(empresaId, comprobante.EmpresaId);
+        Assert.Equal(ventaId, comprobante.VentaId);
+        Assert.Equal("SIMULADO", comprobante.EstadoCpe);
+        Assert.Equal("hash", comprobante.Hash);
+        Assert.Same(comprobante, comprobanteRepository.Comprobantes.Single());
+    }
+
+    [Fact]
+    public async Task Registrar_comprobante_cpe_use_case_no_guarda_si_venta_es_de_otra_empresa()
+    {
+        var empresaAId = Guid.NewGuid();
+        var empresaBId = Guid.NewGuid();
+        var ventaId = Guid.NewGuid();
+        var ventaRepository = new VentaRepositoryFake();
+        var comprobanteRepository = new ComprobanteRepositoryFake();
+        await ventaRepository.AgregarAsync(CrearVenta(ventaId, empresaBId));
+        var useCase = new RegistrarComprobanteCpeUseCase(
+            comprobanteRepository,
+            ventaRepository,
+            new EmpresaActivaContextFake(empresaAId));
+
+        var comprobante = await useCase.EjecutarAsync(new RegistrarComprobanteCpeRequest(
+            ventaId,
+            "03",
+            "B001",
+            7,
+            "SIMULADO"));
+
+        Assert.Null(comprobante);
+        Assert.Empty(comprobanteRepository.Comprobantes);
+    }
+
+    private static Venta CrearVenta(Guid ventaId, Guid empresaId)
+    {
+        return new Venta(
+            ventaId,
+            empresaId,
+            DateTimeOffset.UtcNow,
+            10m,
+            0m,
+            10m,
+            [
+                new VentaDetalle(
+                    Guid.NewGuid(),
+                    empresaId,
+                    ventaId,
+                    Guid.NewGuid(),
+                    1m,
+                    10m,
+                    0m,
+                    10m)
+            ]);
+    }
+
     private static CrearVentaUseCase CrearUseCase(
         VentaRepositoryFake ventaRepository,
         ProductoRepositoryFake productoRepository,
@@ -414,6 +495,18 @@ public class ApplicationVentaTests
         public Guid EmpresaId { get; }
 
         public RolEmpresa Rol { get; }
+    }
+
+    private sealed class ComprobanteRepositoryFake : IComprobanteRepository
+    {
+        public List<Comprobante> Comprobantes { get; } = new();
+
+        public Task AgregarAsync(Comprobante comprobante, CancellationToken cancellationToken = default)
+        {
+            Comprobantes.Add(comprobante);
+
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class CpeGatewayFake : ICpeGateway
