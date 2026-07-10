@@ -96,6 +96,35 @@ public class EmpresaActivaEndpointFilterTests
     }
 
     [Fact]
+    public async Task Filtro_devuelve_forbidden_si_usuario_pertenece_a_empresa_a_pero_header_indica_empresa_b()
+    {
+        var usuarioId = Guid.NewGuid();
+        var empresaAId = Guid.NewGuid();
+        var empresaBId = Guid.NewGuid();
+        var asignacionEmpresaA = new UsuarioEmpresa(
+            Guid.NewGuid(),
+            usuarioId,
+            empresaAId,
+            RolEmpresa.Administrador);
+        var httpContext = CrearHttpContext(usuarioId, empresaBId, [asignacionEmpresaA]);
+        var filter = new EmpresaActivaEndpointFilter();
+        var nextWasCalled = false;
+
+        var result = await filter.InvokeAsync(
+            new TestEndpointFilterInvocationContext(httpContext),
+            _ =>
+            {
+                nextWasCalled = true;
+                return ValueTask.FromResult<object?>(Results.Ok());
+            });
+
+        var empresaActiva = httpContext.RequestServices.GetRequiredService<EmpresaActivaContext>();
+        Assert.False(nextWasCalled);
+        Assert.False(empresaActiva.TieneEmpresaActiva);
+        Assert.Equal(StatusCodes.Status403Forbidden, await ObtenerStatusCodeAsync(result));
+    }
+
+    [Fact]
     public async Task Filtro_devuelve_forbidden_si_asignacion_esta_inactiva()
     {
         var usuarioId = Guid.NewGuid();

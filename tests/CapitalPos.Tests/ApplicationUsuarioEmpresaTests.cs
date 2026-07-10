@@ -325,6 +325,45 @@ public class ApplicationUsuarioEmpresaTests
     }
 
     [Fact]
+    public async Task Repositorio_usuario_empresa_no_devuelve_relacion_de_otra_empresa_al_buscar_por_usuario_y_empresa()
+    {
+        var repository = new UsuarioEmpresaRepositoryFake();
+        var usuarioId = Guid.NewGuid();
+        var empresaAId = Guid.NewGuid();
+        var empresaBId = Guid.NewGuid();
+        var asignacionEmpresaA = new UsuarioEmpresa(
+            Guid.NewGuid(),
+            usuarioId,
+            empresaAId,
+            RolEmpresa.Administrador);
+        await repository.AgregarAsync(asignacionEmpresaA);
+
+        var asignacion = await repository.ObtenerPorUsuarioYEmpresaAsync(usuarioId, empresaBId);
+
+        Assert.Null(asignacion);
+    }
+
+    [Fact]
+    public async Task Repositorio_usuario_empresa_existe_asignacion_respeta_empresa()
+    {
+        var repository = new UsuarioEmpresaRepositoryFake();
+        var usuarioId = Guid.NewGuid();
+        var empresaAId = Guid.NewGuid();
+        var empresaBId = Guid.NewGuid();
+        await repository.AgregarAsync(new UsuarioEmpresa(
+            Guid.NewGuid(),
+            usuarioId,
+            empresaAId,
+            RolEmpresa.Administrador));
+
+        var existeEnEmpresaA = await repository.ExisteAsignacionAsync(usuarioId, empresaAId);
+        var existeEnEmpresaB = await repository.ExisteAsignacionAsync(usuarioId, empresaBId);
+
+        Assert.True(existeEnEmpresaA);
+        Assert.False(existeEnEmpresaB);
+    }
+
+    [Fact]
     public async Task Desactivar_usuario_empresa_use_case_cambia_estado_y_actualiza_repositorio()
     {
         var repository = new UsuarioEmpresaRepositoryFake();

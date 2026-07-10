@@ -61,6 +61,25 @@ public class PermisoEmpresaEndpointFilterTests
     }
 
     [Fact]
+    public async Task Filtro_permiso_depende_del_rol_de_la_empresa_activa()
+    {
+        var httpContext = CrearHttpContext(RolEmpresa.Vendedor, autenticado: true);
+        var filter = new PermisoEmpresaEndpointFilter(PermisoEmpresa.OperarCaja);
+        var nextWasCalled = false;
+
+        var result = await filter.InvokeAsync(
+            new TestEndpointFilterInvocationContext(httpContext),
+            _ =>
+            {
+                nextWasCalled = true;
+                return ValueTask.FromResult<object?>(Results.Ok());
+            });
+
+        Assert.False(nextWasCalled);
+        Assert.Equal(StatusCodes.Status403Forbidden, await ObtenerStatusCodeAsync(result));
+    }
+
+    [Fact]
     public async Task Filtro_permiso_rechaza_usuario_no_autenticado()
     {
         var httpContext = CrearHttpContext(RolEmpresa.Administrador, autenticado: false);
