@@ -62,13 +62,16 @@ public static class CpeEndpoints
         ICpeGateway gateway,
         IAuditoriaOperaciones auditoria,
         IEmpresaActivaContext empresaActiva,
+        ILoggerFactory loggerFactory,
         HttpContext httpContext,
         CancellationToken cancellationToken)
     {
         try
         {
             var response = await gateway.EmitirAsync(request, cancellationToken);
+            LogDiagnosticoEmisionCpe(loggerFactory, response);
             var normalizedResponse = EmitirCpeResponseNormalizer.Normalizar(response);
+            var publicResponse = EmitirCpeApiResponse.From(normalizedResponse.Body);
             var resultado = normalizedResponse.Body.Ok
                 ? AuditoriaResultados.Exitoso
                 : normalizedResponse.StatusCode >= StatusCodes.Status500InternalServerError
@@ -87,7 +90,7 @@ public static class CpeEndpoints
                 cancellationToken);
 
             return Results.Json(
-                normalizedResponse.Body,
+                publicResponse,
                 statusCode: normalizedResponse.StatusCode);
         }
         catch
@@ -104,5 +107,19 @@ public static class CpeEndpoints
                 cancellationToken);
             throw;
         }
+    }
+
+    private static void LogDiagnosticoEmisionCpe(
+        ILoggerFactory loggerFactory,
+        CpeGatewayResponse response)
+    {
+        var diagnostics = EmitirCpeResponseNormalizer.ObtenerDiagnosticoSeguro(response);
+        var logger = loggerFactory.CreateLogger("CapitalPos.Api.Cpe.Emision");
+        logger.LogInformation(
+            "Respuesta CPE recibida. StatusCode={StatusCode}; TieneOk={TieneOk}; TieneDataEstado={TieneDataEstado}; TieneMensaje={TieneMensaje}",
+            diagnostics.StatusCode,
+            diagnostics.TieneOk,
+            diagnostics.TieneDataEstado,
+            diagnostics.TieneMensaje);
     }
 }

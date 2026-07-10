@@ -166,6 +166,43 @@ public class EmitirCpeResponseNormalizerTests
     }
 
     [Fact]
+    public void Normaliza_http_400_con_data_error_validacion_y_errores_string()
+    {
+        var result = Normalizar("""
+            {
+                "ok": false,
+                "mensaje": "El comprobante tiene errores de validación.",
+                "data": {
+                    "ok": false,
+                    "estado": "ERROR_VALIDACION",
+                    "mensaje": "El comprobante tiene errores de validación.",
+                    "errores": [
+                        "Debe indicar la serie del comprobante.",
+                        "Debe indicar los datos del cliente."
+                    ]
+                },
+                "errores": [
+                    "El comprobante tiene errores de validación."
+                ]
+            }
+            """, statusCode: 400);
+
+        Assert.Equal(400, result.StatusCode);
+        Assert.False(result.Body.Ok);
+        Assert.Equal("ERROR_VALIDACION", result.Body.Estado);
+        Assert.Equal("ERROR_VALIDACION", result.Body.Codigo);
+        Assert.Equal("El comprobante tiene errores de validación.", result.Body.Mensaje);
+        Assert.Contains(result.Body.Errores, error =>
+            error.Codigo == "ERROR_VALIDACION" &&
+            error.Campo is null &&
+            error.Mensaje == "Debe indicar la serie del comprobante.");
+        Assert.Contains(result.Body.Errores, error =>
+            error.Codigo == "ERROR_VALIDACION" &&
+            error.Campo is null &&
+            error.Mensaje == "Debe indicar los datos del cliente.");
+    }
+
+    [Fact]
     public void Normaliza_error_sunat_como_error_funcional()
     {
         var result = Normalizar("""
@@ -195,6 +232,68 @@ public class EmitirCpeResponseNormalizerTests
         Assert.Contains(result.Body.Errores, error =>
             error.Codigo == "SUNAT_TIMEOUT" &&
             error.Mensaje == "SUNAT no respondio dentro del tiempo esperado.");
+    }
+
+    [Theory]
+    [InlineData(400)]
+    [InlineData(500)]
+    public void Normaliza_error_sunat_conservando_estado_en_http_400_y_500(int statusCode)
+    {
+        var result = Normalizar("""
+            {
+                "ok": false,
+                "mensaje": "SUNAT no pudo procesar el comprobante.",
+                "data": {
+                    "ok": false,
+                    "estado": "ERROR_SUNAT",
+                    "mensaje": "SUNAT no pudo procesar el comprobante.",
+                    "errores": [
+                        "SUNAT no respondio dentro del tiempo esperado."
+                    ]
+                },
+                "errores": [
+                    "SUNAT no pudo procesar el comprobante."
+                ]
+            }
+            """, statusCode);
+
+        Assert.Equal(statusCode, result.StatusCode);
+        Assert.False(result.Body.Ok);
+        Assert.Equal("ERROR_SUNAT", result.Body.Estado);
+        Assert.Equal("ERROR_SUNAT", result.Body.Codigo);
+        Assert.Equal("SUNAT no pudo procesar el comprobante.", result.Body.Mensaje);
+        Assert.Contains(result.Body.Errores, error =>
+            error.Codigo == "ERROR_SUNAT" &&
+            error.Mensaje == "SUNAT no respondio dentro del tiempo esperado.");
+    }
+
+    [Fact]
+    public void Normaliza_http_400_con_data_rechazado_conservando_estado()
+    {
+        var result = Normalizar("""
+            {
+                "ok": false,
+                "mensaje": "SUNAT rechazó el comprobante.",
+                "data": {
+                    "ok": false,
+                    "estado": "RECHAZADO",
+                    "mensaje": "El comprobante fue rechazado.",
+                    "errores": [
+                        "El comprobante ya fue informado previamente."
+                    ]
+                },
+                "errores": []
+            }
+            """, statusCode: 400);
+
+        Assert.Equal(400, result.StatusCode);
+        Assert.False(result.Body.Ok);
+        Assert.Equal("RECHAZADO", result.Body.Estado);
+        Assert.Equal("RECHAZADO", result.Body.Codigo);
+        Assert.Equal("El comprobante fue rechazado.", result.Body.Mensaje);
+        Assert.Contains(result.Body.Errores, error =>
+            error.Codigo == "RECHAZADO" &&
+            error.Mensaje == "El comprobante ya fue informado previamente.");
     }
 
     [Fact]
@@ -242,6 +341,67 @@ public class EmitirCpeResponseNormalizerTests
         Assert.False(result.Body.Ok);
         Assert.Equal("ERROR_INTERNO", result.Body.Estado);
         Assert.Contains(result.Body.Errores, error => error.Mensaje == "Servicio SUNAT no disponible.");
+    }
+
+    [Fact]
+    public void Normaliza_http_500_error_interno_con_data_sin_exponer_datos_sensibles()
+    {
+        var result = Normalizar("""
+            {
+                "ok": false,
+                "mensaje": "Ocurrió un error interno al emitir el comprobante.",
+                "data": {
+                    "ok": false,
+                    "estado": "ERROR_INTERNO",
+                    "mensaje": "No se pudo emitir el comprobante.",
+                    "errores": [
+                        "No se pudo completar la emisión."
+                    ]
+                },
+                "errores": [],
+                "debug": "X-API-KEY: capitalpos-cpe-test-api-key /var/private/certificados/cert.pfx Password=secreto"
+            }
+            """, statusCode: 500);
+        var publicText = string.Join(
+            " ",
+            result.Body.Mensaje,
+            result.Body.Estado,
+            result.Body.Codigo,
+            string.Join(" ", result.Body.Errores.Select(error => error.Mensaje)));
+
+        Assert.Equal(500, result.StatusCode);
+        Assert.False(result.Body.Ok);
+        Assert.Equal("ERROR_INTERNO", result.Body.Estado);
+        Assert.Equal("ERROR_INTERNO", result.Body.Codigo);
+        Assert.Contains(result.Body.Errores, error =>
+            error.Codigo == "ERROR_INTERNO" &&
+            error.Mensaje == "No se pudo completar la emisión.");
+        Assert.DoesNotContain("capitalpos-cpe-test-api-key", publicText);
+        Assert.DoesNotContain("X-API-KEY", publicText);
+        Assert.DoesNotContain("/var/private", publicText);
+        Assert.DoesNotContain("Password=", publicText);
+    }
+
+    [Fact]
+    public void Normaliza_data_null_con_fallback_seguro_existente()
+    {
+        var result = Normalizar("""
+            {
+                "ok": false,
+                "mensaje": "El servicio CPE no pudo procesar la emision.",
+                "data": null,
+                "errores": []
+            }
+            """, statusCode: 400);
+
+        Assert.Equal(400, result.StatusCode);
+        Assert.False(result.Body.Ok);
+        Assert.Equal("ERROR_CPE", result.Body.Estado);
+        Assert.Equal("ERROR_CPE", result.Body.Codigo);
+        Assert.Equal("El servicio CPE no pudo procesar la emision.", result.Body.Mensaje);
+        Assert.Contains(result.Body.Errores, error =>
+            error.Codigo == "ERROR_CPE" &&
+            error.Mensaje == "El servicio CPE no pudo procesar la emision.");
     }
 
     [Fact]

@@ -54,18 +54,21 @@ public class EndToEndTests
             request.Headers.Add("X-Correlation-Id", escenario.CorrelationId);
 
             var response = await client.SendAsync(request);
-            var body = await response.Content.ReadFromJsonAsync<EmitirCpeResponse>();
+            var body = await response.Content.ReadFromJsonAsync<EmitirCpeApiResponse>();
+            var data = body?.Data;
             var logs = string.Join('\n', factory.Logs.Messages);
             var responseContent = JsonSerializer.Serialize(body);
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             Assert.NotNull(body);
             Assert.True(body.Ok);
-            Assert.Equal("ACEPTADO", body.Estado);
-            Assert.Equal("F001-1", body.Comprobante?.Numero);
-            Assert.Equal("hash-e2e", body.Hash);
-            Assert.Contains("xml-e2e.xml", body.NombreXml);
-            Assert.Contains("cdr-e2e.zip", body.NombreCdr);
+            Assert.NotNull(data);
+            Assert.True(data.Ok);
+            Assert.Equal("ACEPTADO", data.Estado);
+            Assert.Equal("F001-1", data.Comprobante);
+            Assert.Equal("hash-e2e", data.Hash);
+            Assert.Contains("xml-e2e.xml", data.NombreXml);
+            Assert.Contains("cdr-e2e.zip", data.NombreCdr);
             Assert.Contains("EmitirCpe", logs);
             Assert.Contains(escenario.UsuarioId.ToString(), logs);
             Assert.Contains(escenario.EmpresaId.ToString(), logs);
@@ -255,13 +258,16 @@ public class EndToEndTests
             using var client = CrearClienteAutenticado(factory, token.Token, escenario.EmpresaId);
 
             var response = await client.PostAsJsonAsync("/api/cpe/emitir", new { serie = "F001" });
-            var body = await response.Content.ReadFromJsonAsync<EmitirCpeResponse>();
+            var body = await response.Content.ReadFromJsonAsync<EmitirCpeApiResponse>();
+            var data = body?.Data;
 
             Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
             Assert.NotNull(body);
             Assert.False(body.Ok);
-            Assert.Equal("RECHAZADO", body.Estado);
-            Assert.Contains(body.Errores, error => error.Codigo == "SUNAT_2335");
+            Assert.NotNull(data);
+            Assert.False(data.Ok);
+            Assert.Equal("RECHAZADO", data.Estado);
+            Assert.Contains(data.Errores, error => error.Codigo == "SUNAT_2335");
             AssertSeguro(JsonSerializer.Serialize(body), string.Join('\n', factory.Logs.Messages), token.Token);
         }
         finally
@@ -282,13 +288,16 @@ public class EndToEndTests
             using var client = CrearClienteAutenticado(factory, token.Token, escenario.EmpresaId);
 
             var response = await client.PostAsJsonAsync("/api/cpe/emitir", new { serie = "F001" });
-            var body = await response.Content.ReadFromJsonAsync<EmitirCpeResponse>();
+            var body = await response.Content.ReadFromJsonAsync<EmitirCpeApiResponse>();
+            var data = body?.Data;
 
             Assert.Equal(HttpStatusCode.BadGateway, response.StatusCode);
             Assert.NotNull(body);
             Assert.False(body.Ok);
-            Assert.Equal("ERROR_CPE", body.Estado);
-            Assert.Contains(body.Errores, error => error.Mensaje.Contains("Servicio CPE no disponible", StringComparison.OrdinalIgnoreCase));
+            Assert.NotNull(data);
+            Assert.False(data.Ok);
+            Assert.Equal("ERROR_CPE", data.Estado);
+            Assert.Contains(data.Errores, error => error.Mensaje.Contains("Servicio CPE no disponible", StringComparison.OrdinalIgnoreCase));
             AssertSeguro(JsonSerializer.Serialize(body), string.Join('\n', factory.Logs.Messages), token.Token);
         }
         finally
@@ -310,14 +319,17 @@ public class EndToEndTests
 
             var response = await client.PostAsJsonAsync("/api/cpe/emitir", new { serie = "F001" });
             var content = await response.Content.ReadAsStringAsync();
-            var body = JsonSerializer.Deserialize<EmitirCpeResponse>(
+            var body = JsonSerializer.Deserialize<EmitirCpeApiResponse>(
                 content,
                 new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            var data = body?.Data;
 
             Assert.Equal(HttpStatusCode.BadGateway, response.StatusCode);
             Assert.NotNull(body);
             Assert.False(body.Ok);
-            Assert.Equal("RESPUESTA_CPE_INVALIDA", body.Estado);
+            Assert.NotNull(data);
+            Assert.False(data.Ok);
+            Assert.Equal("RESPUESTA_CPE_INVALIDA", data.Estado);
             Assert.DoesNotContain("json-invalido", content);
             AssertSeguro(content, string.Join('\n', factory.Logs.Messages), token.Token);
         }

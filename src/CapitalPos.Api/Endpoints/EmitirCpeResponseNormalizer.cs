@@ -52,17 +52,17 @@ public static class EmitirCpeResponseNormalizer
         }
 
         var dataOk = tieneData ? TryGetBoolean(data, "ok") : null;
-        var ok = dataOk ?? rootOk ?? false;
-        var estado = tieneData
-            ? TryGetString(data, "estado")
-            : null;
-        estado = string.IsNullOrWhiteSpace(estado)
-            ? ok ? "ACEPTADO" : "ERROR_CPE"
-            : estado;
-
         var mensaje = tieneData
             ? TryGetString(data, "mensaje") ?? rootMensaje
             : rootMensaje;
+        var ok = dataOk ?? rootOk ?? TieneEvidenciaAceptacion(mensaje);
+        var estado = tieneData
+            ? TryGetString(data, "estado") ??
+                TryGetString(data, "status") ??
+                TryGetString(data, "codigoEstado")
+            : null;
+        estado = NormalizarEstado(estado, ok, mensaje);
+
         var codigo = estado;
         var errores = new List<EmitirCpeErrorResponse>();
         errores.AddRange(rootErrores);
@@ -85,8 +85,8 @@ public static class EmitirCpeResponseNormalizer
             estado,
             mensaje,
             codigo,
-            CrearComprobante(tieneData ? data : default),
-            tieneData ? TryGetString(data, "hash") : null,
+            tieneData ? TryGetString(data, "comprobante") : null,
+            tieneData ? TryGetString(data, "hash") ?? TryGetString(data, "hashCpe") : null,
             tieneData ? TryGetString(data, "nombreXml") : null,
             tieneData ? TryGetString(data, "nombreZip") : null,
             tieneData ? TryGetString(data, "nombreCdr") : null,
@@ -117,17 +117,79 @@ public static class EmitirCpeResponseNormalizer
         return new EmitirCpeEndpointResponse(StatusCodes.Status502BadGateway, response);
     }
 
-    private static EmitirCpeComprobanteResponse? CrearComprobante(JsonElement data)
+    public static EmitirCpeResponseDiagnostics ObtenerDiagnosticoSeguro(CpeGatewayResponse gatewayResponse)
     {
-        if (data.ValueKind != JsonValueKind.Object)
+        if (string.IsNullOrWhiteSpace(gatewayResponse.Content))
         {
-            return null;
+            return new EmitirCpeResponseDiagnostics(
+                gatewayResponse.StatusCode,
+                TieneOk: false,
+                TieneDataEstado: false,
+                TieneMensaje: false);
         }
 
-        var comprobante = TryGetString(data, "comprobante");
-        return string.IsNullOrWhiteSpace(comprobante)
-            ? null
-            : new EmitirCpeComprobanteResponse(comprobante);
+        try
+        {
+            using var document = JsonDocument.Parse(gatewayResponse.Content);
+            var root = document.RootElement;
+            var tieneOk = root.ValueKind == JsonValueKind.Object &&
+                TryGetProperty(root, "ok", out _);
+            var tieneMensaje = root.ValueKind == JsonValueKind.Object &&
+                TryGetProperty(root, "mensaje", out var mensaje) &&
+                mensaje.ValueKind is not JsonValueKind.Null and not JsonValueKind.Undefined;
+            var tieneDataEstado = root.ValueKind == JsonValueKind.Object &&
+                TryGetProperty(root, "data", out var data) &&
+                data.ValueKind == JsonValueKind.Object &&
+                (TryGetProperty(data, "estado", out _) ||
+                    TryGetProperty(data, "status", out _) ||
+                    TryGetProperty(data, "codigoEstado", out _));
+
+            return new EmitirCpeResponseDiagnostics(
+                gatewayResponse.StatusCode,
+                tieneOk,
+                tieneDataEstado,
+                tieneMensaje);
+        }
+        catch (JsonException)
+        {
+            return new EmitirCpeResponseDiagnostics(
+                gatewayResponse.StatusCode,
+                TieneOk: false,
+                TieneDataEstado: false,
+                TieneMensaje: false);
+        }
+    }
+
+    private static string NormalizarEstado(
+        string? estado,
+        bool ok,
+        string? mensaje)
+    {
+        if (!string.IsNullOrWhiteSpace(estado))
+        {
+            return estado;
+        }
+
+        if (TieneEvidenciaSimulacionAceptada(mensaje))
+        {
+            return "SIMULADO";
+        }
+
+        return ok ? "ACEPTADO" : "ERROR_CPE";
+    }
+
+    private static bool TieneEvidenciaAceptacion(string? mensaje)
+    {
+        return TieneEvidenciaSimulacionAceptada(mensaje) ||
+            (!string.IsNullOrWhiteSpace(mensaje) &&
+                mensaje.Contains("aceptado", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool TieneEvidenciaSimulacionAceptada(string? mensaje)
+    {
+        return !string.IsNullOrWhiteSpace(mensaje) &&
+            mensaje.Contains("aceptado", StringComparison.OrdinalIgnoreCase) &&
+            mensaje.Contains("simulaci", StringComparison.OrdinalIgnoreCase);
     }
 
     private static IReadOnlyCollection<EmitirCpeErrorResponse> LeerErrores(
@@ -202,7 +264,8 @@ public static class EmitirCpeResponseNormalizer
     {
         foreach (var property in source.EnumerateObject())
         {
-            if (property.NameEquals(propertyName))
+            if (property.NameEquals(propertyName) ||
+                string.Equals(property.Name, propertyName, StringComparison.OrdinalIgnoreCase))
             {
                 value = property.Value;
                 return true;
@@ -217,3 +280,9 @@ public static class EmitirCpeResponseNormalizer
 public sealed record EmitirCpeEndpointResponse(
     int StatusCode,
     EmitirCpeResponse Body);
+
+public sealed record EmitirCpeResponseDiagnostics(
+    int StatusCode,
+    bool TieneOk,
+    bool TieneDataEstado,
+    bool TieneMensaje);

@@ -41,9 +41,9 @@ public class CpeEndpointStructureTests
         Assert.Contains("ICpeGateway gateway", source);
         Assert.Contains("gateway.EmitirAsync(request, cancellationToken)", source);
         Assert.Contains("EmitirCpeResponseNormalizer.Normalizar(response)", source);
+        Assert.Contains("EmitirCpeApiResponse.From(normalizedResponse.Body)", source);
         Assert.Contains("Results.Json(", source);
         Assert.DoesNotContain("Results.Content(", source);
-        Assert.DoesNotContain("ApiResponse", source);
     }
 
     private static string ResolverRutaRepo(string relativePath)

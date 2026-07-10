@@ -5,16 +5,30 @@ public sealed record EmitirCpeResponse(
     string Estado,
     string? Mensaje,
     string? Codigo,
-    EmitirCpeComprobanteResponse? Comprobante,
+    string? Comprobante,
     string? Hash,
     string? NombreXml,
     string? NombreZip,
     string? NombreCdr,
     IReadOnlyCollection<EmitirCpeErrorResponse> Errores);
 
-public sealed record EmitirCpeComprobanteResponse(string Numero);
-
 public sealed record EmitirCpeErrorResponse(
     string? Codigo,
     string? Campo,
     string Mensaje);
+
+public sealed record EmitirCpeApiResponse(
+    bool Ok,
+    string Mensaje,
+    EmitirCpeResponse? Data,
+    IReadOnlyCollection<string> Errores)
+{
+    public static EmitirCpeApiResponse From(EmitirCpeResponse response)
+    {
+        return new EmitirCpeApiResponse(
+            response.Ok,
+            response.Mensaje ?? "Emision CPE procesada.",
+            response,
+            response.Errores.Select(error => error.Mensaje).ToArray());
+    }
+}
