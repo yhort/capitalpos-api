@@ -2,6 +2,7 @@ using CapitalPos.Application.Empresas;
 using CapitalPos.Application.Clientes;
 using CapitalPos.Application.Productos;
 using CapitalPos.Application.Usuarios;
+using CapitalPos.Application.Ventas;
 using CapitalPos.Domain;
 
 namespace CapitalPos.Api.Endpoints;
@@ -185,6 +186,80 @@ public static class EndpointInputValidator
         if (request.Direccion is { Length: > 250 })
         {
             error = "La direccion del cliente no debe exceder 250 caracteres.";
+            return false;
+        }
+
+        error = string.Empty;
+        return true;
+    }
+
+    public static bool TryValidate(CrearVentaRequest request, out string error)
+    {
+        if (request.ClienteId == Guid.Empty)
+        {
+            error = "El identificador del cliente no puede estar vacio.";
+            return false;
+        }
+
+        if (request.Fecha == default(DateTimeOffset))
+        {
+            error = "La fecha de venta no es valida.";
+            return false;
+        }
+
+        if (request.Detalles is null || request.Detalles.Count == 0)
+        {
+            error = "La venta debe tener al menos un detalle.";
+            return false;
+        }
+
+        foreach (var detalle in request.Detalles)
+        {
+            if (!TryValidate(detalle, out error))
+            {
+                return false;
+            }
+        }
+
+        error = string.Empty;
+        return true;
+    }
+
+    private static bool TryValidate(CrearVentaDetalleRequest request, out string error)
+    {
+        if (request.ProductoId == Guid.Empty)
+        {
+            error = "El identificador del producto es obligatorio.";
+            return false;
+        }
+
+        if (request.ProductoVarianteId == Guid.Empty)
+        {
+            error = "El identificador de la variante no puede estar vacio.";
+            return false;
+        }
+
+        if (request.Cantidad <= 0)
+        {
+            error = "La cantidad debe ser mayor que cero.";
+            return false;
+        }
+
+        if (request.PrecioUnitario <= 0)
+        {
+            error = "El precio unitario debe ser mayor que cero.";
+            return false;
+        }
+
+        if (request.Igv < 0)
+        {
+            error = "El IGV no puede ser negativo.";
+            return false;
+        }
+
+        if (request.Total <= 0)
+        {
+            error = "El total del detalle debe ser mayor que cero.";
             return false;
         }
 

@@ -8,6 +8,7 @@ using CapitalPos.Application.Empresas;
 using CapitalPos.Application.Productos;
 using CapitalPos.Application.Seguridad;
 using CapitalPos.Application.Usuarios;
+using CapitalPos.Application.Ventas;
 using CapitalPos.Infrastructure;
 using Microsoft.AspNetCore.HttpOverrides;
 
@@ -55,6 +56,7 @@ builder.Services.AddScoped<DesactivarProductoUseCase>();
 builder.Services.AddScoped<CrearClienteUseCase>();
 builder.Services.AddScoped<ListarClientesUseCase>();
 builder.Services.AddScoped<ObtenerClientePorIdUseCase>();
+builder.Services.AddScoped<CrearVentaUseCase>();
 
 var app = builder.Build();
 
@@ -86,6 +88,7 @@ app.MapEmpresaEndpoints();
 app.MapUsuarioEndpoints();
 app.MapProductoEndpoints();
 app.MapClienteEndpoints();
+app.MapVentaEndpoints();
 app.MapCpeEndpoints();
 
 await app.SeedDemoDataAsync();

@@ -35,4 +35,16 @@ public sealed class EfProductoVarianteRepository : IProductoVarianteRepository
             .ThenBy(variante => variante.Color)
             .ToListAsync(cancellationToken);
     }
+
+    public Task<ProductoVariante?> ObtenerPorEmpresaAsync(
+        Guid empresaId,
+        Guid id,
+        CancellationToken cancellationToken = default)
+    {
+        return _dbContext.ProductosVariantes
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                variante => variante.EmpresaId == empresaId && variante.Id == id,
+                cancellationToken);
+    }
 }

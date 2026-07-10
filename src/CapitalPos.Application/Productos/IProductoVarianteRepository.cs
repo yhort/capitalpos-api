@@ -12,4 +12,9 @@ public interface IProductoVarianteRepository
         Guid empresaId,
         Guid productoId,
         CancellationToken cancellationToken = default);
+
+    Task<ProductoVariante?> ObtenerPorEmpresaAsync(
+        Guid empresaId,
+        Guid id,
+        CancellationToken cancellationToken = default);
 }

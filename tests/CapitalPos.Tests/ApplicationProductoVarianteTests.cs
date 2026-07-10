@@ -134,6 +134,17 @@ public class ApplicationProductoVarianteTests
 
             return Task.FromResult(variantes);
         }
+
+        public Task<ProductoVariante?> ObtenerPorEmpresaAsync(
+            Guid empresaId,
+            Guid id,
+            CancellationToken cancellationToken = default)
+        {
+            var variante = Variantes.SingleOrDefault(variante =>
+                variante.EmpresaId == empresaId && variante.Id == id);
+
+            return Task.FromResult(variante);
+        }
     }
 
     private sealed class EmpresaActivaContextFake : IEmpresaActivaContext
