@@ -5,6 +5,7 @@ using System.Net.Http.Json;
 using System.Security.Claims;
 using System.Text;
 using CapitalPos.Api.ActiveCompany;
+using CapitalPos.Application.Clientes;
 using CapitalPos.Application.Empresas;
 using CapitalPos.Application.Productos;
 using CapitalPos.Application.Seguridad;
@@ -340,6 +341,7 @@ public class HttpIntegrationTests
                 services.RemoveAll<IUsuarioCredencialRepository>();
                 services.RemoveAll<IProductoRepository>();
                 services.RemoveAll<IProductoVarianteRepository>();
+                services.RemoveAll<IClienteRepository>();
 
                 services.AddSingleton<IEmpresaRepository>(EmpresaRepository);
                 services.AddSingleton<IUsuarioRepository>(UsuarioRepository);
@@ -347,6 +349,7 @@ public class HttpIntegrationTests
                 services.AddSingleton<IUsuarioCredencialRepository, FakeUsuarioCredencialRepository>();
                 services.AddSingleton<IProductoRepository, FakeProductoRepository>();
                 services.AddSingleton<IProductoVarianteRepository, FakeProductoVarianteRepository>();
+                services.AddSingleton<IClienteRepository, FakeClienteRepository>();
             });
         }
     }
@@ -549,6 +552,36 @@ public class HttpIntegrationTests
             CancellationToken cancellationToken = default)
         {
             return Task.FromResult<IReadOnlyCollection<ProductoVariante>>([]);
+        }
+    }
+
+    private sealed class FakeClienteRepository : IClienteRepository
+    {
+        public Task AgregarAsync(Cliente cliente, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task<IReadOnlyCollection<Cliente>> ListarPorEmpresaAsync(
+            Guid empresaId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyCollection<Cliente>>([]);
+        }
+
+        public Task<Cliente?> ObtenerPorEmpresaAsync(
+            Guid empresaId,
+            Guid id,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<Cliente?>(null);
+        }
+
+        public Task ActualizarAsync(
+            Cliente cliente,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
         }
     }
 }

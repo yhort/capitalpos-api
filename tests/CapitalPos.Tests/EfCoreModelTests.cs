@@ -18,6 +18,7 @@ public class EfCoreModelTests
         Assert.NotNull(context.Model.FindEntityType(typeof(UsuarioEmpresa)));
         Assert.NotNull(context.Model.FindEntityType(typeof(Producto)));
         Assert.NotNull(context.Model.FindEntityType(typeof(ProductoVariante)));
+        Assert.NotNull(context.Model.FindEntityType(typeof(Cliente)));
     }
 
     [Fact]
@@ -208,6 +209,38 @@ public class EfCoreModelTests
                 nameof(Producto.Id),
                 nameof(Producto.EmpresaId)
             ]));
+    }
+
+    [Fact]
+    public void Cliente_tiene_empresa_obligatoria_indice_documento_y_relacion_restrictiva()
+    {
+        var entityType = ObtenerEntidad<Cliente>();
+
+        Assert.Equal("clientes", entityType.GetTableName());
+        Assert.Equal(nameof(Cliente.Id), entityType.FindPrimaryKey()?.Properties.Single().Name);
+        AssertPropiedad(entityType, nameof(Cliente.EmpresaId), nullable: false);
+        AssertPropiedad(entityType, nameof(Cliente.TipoDocumento), maxLength: 20, nullable: false);
+        AssertPropiedad(entityType, nameof(Cliente.NumeroDocumento), maxLength: 20, nullable: false);
+        AssertPropiedad(entityType, nameof(Cliente.NombreRazonSocial), maxLength: 200, nullable: false);
+        AssertPropiedad(entityType, nameof(Cliente.Direccion), maxLength: 250, nullable: false);
+        AssertPropiedad(entityType, nameof(Cliente.Activo), nullable: false);
+        AssertPropiedad(entityType, nameof(Cliente.FechaCreacion), nullable: false);
+
+        Assert.Contains(entityType.GetIndexes(), index =>
+            index.Properties.Select(property => property.Name).SequenceEqual([nameof(Cliente.EmpresaId)]));
+        Assert.Contains(entityType.GetIndexes(), index =>
+            index.IsUnique &&
+            index.GetFilter() == "\"NumeroDocumento\" <> ''" &&
+            index.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(Cliente.EmpresaId),
+                nameof(Cliente.TipoDocumento),
+                nameof(Cliente.NumeroDocumento)
+            ]));
+
+        Assert.Contains(entityType.GetForeignKeys(), foreignKey =>
+            foreignKey.PrincipalEntityType.ClrType == typeof(Empresa) &&
+            foreignKey.DeleteBehavior == DeleteBehavior.Restrict &&
+            foreignKey.Properties.Select(property => property.Name).SequenceEqual([nameof(Cliente.EmpresaId)]));
     }
 
     private static IEntityType ObtenerEntidad<TEntity>()

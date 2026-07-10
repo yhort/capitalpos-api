@@ -3,6 +3,7 @@ using CapitalPos.Api.Endpoints;
 using CapitalPos.Api.Authentication;
 using CapitalPos.Api.Development;
 using CapitalPos.Api.Middleware;
+using CapitalPos.Application.Clientes;
 using CapitalPos.Application.Empresas;
 using CapitalPos.Application.Productos;
 using CapitalPos.Application.Seguridad;
@@ -51,6 +52,9 @@ builder.Services.AddScoped<ListarProductosUseCase>();
 builder.Services.AddScoped<ObtenerProductoPorIdUseCase>();
 builder.Services.AddScoped<ActivarProductoUseCase>();
 builder.Services.AddScoped<DesactivarProductoUseCase>();
+builder.Services.AddScoped<CrearClienteUseCase>();
+builder.Services.AddScoped<ListarClientesUseCase>();
+builder.Services.AddScoped<ObtenerClientePorIdUseCase>();
 
 var app = builder.Build();
 
@@ -81,6 +85,7 @@ app.MapAuthEndpoints();
 app.MapEmpresaEndpoints();
 app.MapUsuarioEndpoints();
 app.MapProductoEndpoints();
+app.MapClienteEndpoints();
 app.MapCpeEndpoints();
 
 await app.SeedDemoDataAsync();

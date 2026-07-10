@@ -1,4 +1,5 @@
 using CapitalPos.Application.Empresas;
+using CapitalPos.Application.Clientes;
 using CapitalPos.Application.Productos;
 using CapitalPos.Application.Usuarios;
 using CapitalPos.Domain;
@@ -142,6 +143,48 @@ public static class EndpointInputValidator
         if (request.Costo < 0)
         {
             error = "El costo no puede ser negativo.";
+            return false;
+        }
+
+        error = string.Empty;
+        return true;
+    }
+
+    public static bool TryValidate(CrearClienteRequest request, out string error)
+    {
+        if (string.IsNullOrWhiteSpace(request.TipoDocumento))
+        {
+            error = "El tipo de documento del cliente es obligatorio.";
+            return false;
+        }
+
+        if (request.TipoDocumento.Length > 20)
+        {
+            error = "El tipo de documento del cliente no debe exceder 20 caracteres.";
+            return false;
+        }
+
+        if (request.NumeroDocumento is { Length: > 20 })
+        {
+            error = "El numero de documento del cliente no debe exceder 20 caracteres.";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(request.NombreRazonSocial))
+        {
+            error = "El nombre o razon social del cliente es obligatorio.";
+            return false;
+        }
+
+        if (request.NombreRazonSocial.Length > 200)
+        {
+            error = "El nombre o razon social del cliente no debe exceder 200 caracteres.";
+            return false;
+        }
+
+        if (request.Direccion is { Length: > 250 })
+        {
+            error = "La direccion del cliente no debe exceder 250 caracteres.";
             return false;
         }
 

@@ -1,4 +1,5 @@
 using CapitalPos.Application.Auditoria;
+using CapitalPos.Application.Clientes;
 using CapitalPos.Application.Cpe;
 using CapitalPos.Application.Empresas;
 using CapitalPos.Application.Productos;
@@ -37,6 +38,7 @@ public static class DependencyInjection
         services.AddScoped<IUsuarioCredencialRepository, EfUsuarioCredencialRepository>();
         services.AddScoped<IProductoRepository, EfProductoRepository>();
         services.AddScoped<IProductoVarianteRepository, EfProductoVarianteRepository>();
+        services.AddScoped<IClienteRepository, EfClienteRepository>();
         services.AddScoped<IAuditoriaOperaciones, LoggerAuditoriaOperaciones>();
         services.AddScoped<IPasswordHasher, AspNetCoreIdentityPasswordHasher>();
         services.Configure<JwtTokenOptions>(configuration.GetSection(JwtTokenOptions.SectionName));
