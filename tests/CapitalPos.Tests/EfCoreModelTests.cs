@@ -16,6 +16,8 @@ public class EfCoreModelTests
         Assert.NotNull(context.Model.FindEntityType(typeof(Usuario)));
         Assert.NotNull(context.Model.FindEntityType(typeof(UsuarioCredencial)));
         Assert.NotNull(context.Model.FindEntityType(typeof(UsuarioEmpresa)));
+        Assert.NotNull(context.Model.FindEntityType(typeof(Producto)));
+        Assert.NotNull(context.Model.FindEntityType(typeof(ProductoVariante)));
     }
 
     [Fact]
@@ -111,6 +113,101 @@ public class EfCoreModelTests
             foreignKey.PrincipalEntityType.ClrType == typeof(Empresa) &&
             foreignKey.DeleteBehavior == DeleteBehavior.Restrict &&
             foreignKey.Properties.Select(property => property.Name).SequenceEqual([nameof(UsuarioEmpresa.EmpresaId)]));
+    }
+
+    [Fact]
+    public void Producto_tiene_empresa_obligatoria_indices_y_relacion_restrictiva()
+    {
+        var entityType = ObtenerEntidad<Producto>();
+
+        Assert.Equal("productos", entityType.GetTableName());
+        Assert.Equal(nameof(Producto.Id), entityType.FindPrimaryKey()?.Properties.Single().Name);
+        AssertPropiedad(entityType, nameof(Producto.EmpresaId), nullable: false);
+        AssertPropiedad(entityType, nameof(Producto.Nombre), maxLength: 200, nullable: false);
+        AssertPropiedad(entityType, nameof(Producto.CodigoSku), maxLength: 80, nullable: false);
+        AssertPropiedad(entityType, nameof(Producto.CodigoBarras), maxLength: 80, nullable: false);
+        AssertPropiedad(entityType, nameof(Producto.PrecioVenta), nullable: false);
+        AssertPropiedad(entityType, nameof(Producto.Costo));
+        AssertPropiedad(entityType, nameof(Producto.Activo), nullable: false);
+        AssertPropiedad(entityType, nameof(Producto.FechaCreacion), nullable: false);
+
+        Assert.Contains(entityType.GetIndexes(), index =>
+            index.Properties.Select(property => property.Name).SequenceEqual([nameof(Producto.EmpresaId)]));
+        Assert.Contains(entityType.GetIndexes(), index =>
+            index.IsUnique &&
+            index.GetFilter() == "\"CodigoSku\" <> ''" &&
+            index.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(Producto.EmpresaId),
+                nameof(Producto.CodigoSku)
+            ]));
+        Assert.Contains(entityType.GetIndexes(), index =>
+            index.IsUnique &&
+            index.GetFilter() == "\"CodigoBarras\" <> ''" &&
+            index.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(Producto.EmpresaId),
+                nameof(Producto.CodigoBarras)
+            ]));
+
+        Assert.Contains(entityType.GetForeignKeys(), foreignKey =>
+            foreignKey.PrincipalEntityType.ClrType == typeof(Empresa) &&
+            foreignKey.DeleteBehavior == DeleteBehavior.Restrict &&
+            foreignKey.Properties.Select(property => property.Name).SequenceEqual([nameof(Producto.EmpresaId)]));
+    }
+
+    [Fact]
+    public void Producto_variante_tiene_empresa_producto_indices_y_relaciones_restrictivas()
+    {
+        var entityType = ObtenerEntidad<ProductoVariante>();
+
+        Assert.Equal("productos_variantes", entityType.GetTableName());
+        Assert.Equal(nameof(ProductoVariante.Id), entityType.FindPrimaryKey()?.Properties.Single().Name);
+        AssertPropiedad(entityType, nameof(ProductoVariante.EmpresaId), nullable: false);
+        AssertPropiedad(entityType, nameof(ProductoVariante.ProductoId), nullable: false);
+        AssertPropiedad(entityType, nameof(ProductoVariante.Talla), maxLength: 50, nullable: false);
+        AssertPropiedad(entityType, nameof(ProductoVariante.Color), maxLength: 80, nullable: false);
+        AssertPropiedad(entityType, nameof(ProductoVariante.CodigoSku), maxLength: 80, nullable: false);
+        AssertPropiedad(entityType, nameof(ProductoVariante.CodigoBarras), maxLength: 80, nullable: false);
+        AssertPropiedad(entityType, nameof(ProductoVariante.StockActual), nullable: false);
+        AssertPropiedad(entityType, nameof(ProductoVariante.Activo), nullable: false);
+        AssertPropiedad(entityType, nameof(ProductoVariante.FechaCreacion), nullable: false);
+
+        Assert.Contains(entityType.GetIndexes(), index =>
+            index.Properties.Select(property => property.Name).SequenceEqual([nameof(ProductoVariante.EmpresaId)]));
+        Assert.Contains(entityType.GetIndexes(), index =>
+            index.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(ProductoVariante.EmpresaId),
+                nameof(ProductoVariante.ProductoId)
+            ]));
+        Assert.Contains(entityType.GetIndexes(), index =>
+            index.IsUnique &&
+            index.GetFilter() == "\"CodigoSku\" <> ''" &&
+            index.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(ProductoVariante.EmpresaId),
+                nameof(ProductoVariante.CodigoSku)
+            ]));
+        Assert.Contains(entityType.GetIndexes(), index =>
+            index.IsUnique &&
+            index.GetFilter() == "\"CodigoBarras\" <> ''" &&
+            index.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(ProductoVariante.EmpresaId),
+                nameof(ProductoVariante.CodigoBarras)
+            ]));
+
+        Assert.Contains(entityType.GetForeignKeys(), foreignKey =>
+            foreignKey.PrincipalEntityType.ClrType == typeof(Empresa) &&
+            foreignKey.DeleteBehavior == DeleteBehavior.Restrict &&
+            foreignKey.Properties.Select(property => property.Name).SequenceEqual([nameof(ProductoVariante.EmpresaId)]));
+        Assert.Contains(entityType.GetForeignKeys(), foreignKey =>
+            foreignKey.PrincipalEntityType.ClrType == typeof(Producto) &&
+            foreignKey.DeleteBehavior == DeleteBehavior.Restrict &&
+            foreignKey.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(ProductoVariante.ProductoId),
+                nameof(ProductoVariante.EmpresaId)
+            ]) &&
+            foreignKey.PrincipalKey.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(Producto.Id),
+                nameof(Producto.EmpresaId)
+            ]));
     }
 
     private static IEntityType ObtenerEntidad<TEntity>()

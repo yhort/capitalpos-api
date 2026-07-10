@@ -1,6 +1,7 @@
 using CapitalPos.Application.Auditoria;
 using CapitalPos.Application.Cpe;
 using CapitalPos.Application.Empresas;
+using CapitalPos.Application.Productos;
 using CapitalPos.Application.Seguridad;
 using CapitalPos.Application.Usuarios;
 using CapitalPos.Infrastructure.Auditing;
@@ -34,6 +35,8 @@ public static class DependencyInjection
         services.AddScoped<IUsuarioRepository, EfUsuarioRepository>();
         services.AddScoped<IUsuarioEmpresaRepository, EfUsuarioEmpresaRepository>();
         services.AddScoped<IUsuarioCredencialRepository, EfUsuarioCredencialRepository>();
+        services.AddScoped<IProductoRepository, EfProductoRepository>();
+        services.AddScoped<IProductoVarianteRepository, EfProductoVarianteRepository>();
         services.AddScoped<IAuditoriaOperaciones, LoggerAuditoriaOperaciones>();
         services.AddScoped<IPasswordHasher, AspNetCoreIdentityPasswordHasher>();
         services.Configure<JwtTokenOptions>(configuration.GetSection(JwtTokenOptions.SectionName));

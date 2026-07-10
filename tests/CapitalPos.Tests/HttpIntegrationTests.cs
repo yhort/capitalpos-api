@@ -6,6 +6,7 @@ using System.Security.Claims;
 using System.Text;
 using CapitalPos.Api.ActiveCompany;
 using CapitalPos.Application.Empresas;
+using CapitalPos.Application.Productos;
 using CapitalPos.Application.Seguridad;
 using CapitalPos.Application.Usuarios;
 using CapitalPos.Domain;
@@ -337,11 +338,15 @@ public class HttpIntegrationTests
                 services.RemoveAll<IUsuarioRepository>();
                 services.RemoveAll<IUsuarioEmpresaRepository>();
                 services.RemoveAll<IUsuarioCredencialRepository>();
+                services.RemoveAll<IProductoRepository>();
+                services.RemoveAll<IProductoVarianteRepository>();
 
                 services.AddSingleton<IEmpresaRepository>(EmpresaRepository);
                 services.AddSingleton<IUsuarioRepository>(UsuarioRepository);
                 services.AddSingleton<IUsuarioEmpresaRepository>(UsuarioEmpresaRepository);
                 services.AddSingleton<IUsuarioCredencialRepository, FakeUsuarioCredencialRepository>();
+                services.AddSingleton<IProductoRepository, FakeProductoRepository>();
+                services.AddSingleton<IProductoVarianteRepository, FakeProductoVarianteRepository>();
             });
         }
     }
@@ -496,6 +501,39 @@ public class HttpIntegrationTests
             CancellationToken cancellationToken = default)
         {
             return Task.FromResult<UsuarioCredencial?>(null);
+        }
+    }
+
+    private sealed class FakeProductoRepository : IProductoRepository
+    {
+        public Task AgregarAsync(Producto producto, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task<IReadOnlyCollection<Producto>> ListarPorEmpresaAsync(
+            Guid empresaId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyCollection<Producto>>([]);
+        }
+    }
+
+    private sealed class FakeProductoVarianteRepository : IProductoVarianteRepository
+    {
+        public Task AgregarAsync(
+            ProductoVariante variante,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task<IReadOnlyCollection<ProductoVariante>> ListarPorProductoAsync(
+            Guid empresaId,
+            Guid productoId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyCollection<ProductoVariante>>([]);
         }
     }
 }
