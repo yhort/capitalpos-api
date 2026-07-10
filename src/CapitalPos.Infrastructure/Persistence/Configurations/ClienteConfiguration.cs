@@ -42,6 +42,12 @@ public sealed class ClienteConfiguration : IEntityTypeConfiguration<Cliente>
 
         builder.HasIndex(cliente => cliente.EmpresaId);
 
+        builder.HasAlternateKey(cliente => new
+        {
+            cliente.Id,
+            cliente.EmpresaId
+        });
+
         builder.HasIndex(cliente => new
             {
                 cliente.EmpresaId,

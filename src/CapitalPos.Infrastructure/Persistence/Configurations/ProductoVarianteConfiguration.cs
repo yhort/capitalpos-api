@@ -49,6 +49,12 @@ public sealed class ProductoVarianteConfiguration : IEntityTypeConfiguration<Pro
 
         builder.HasIndex(variante => variante.EmpresaId);
 
+        builder.HasAlternateKey(variante => new
+        {
+            variante.Id,
+            variante.EmpresaId
+        });
+
         builder.HasIndex(variante => new
             {
                 variante.EmpresaId,

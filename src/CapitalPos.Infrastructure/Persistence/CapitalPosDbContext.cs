@@ -24,6 +24,10 @@ public sealed class CapitalPosDbContext : DbContext
 
     public DbSet<Cliente> Clientes => Set<Cliente>();
 
+    public DbSet<Venta> Ventas => Set<Venta>();
+
+    public DbSet<VentaDetalle> VentasDetalles => Set<VentaDetalle>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(CapitalPosDbContext).Assembly);

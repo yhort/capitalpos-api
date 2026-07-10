@@ -1,0 +1,47 @@
+using CapitalPos.Application.Ventas;
+using CapitalPos.Domain;
+using Microsoft.EntityFrameworkCore;
+
+namespace CapitalPos.Infrastructure.Persistence.Repositories;
+
+public sealed class EfVentaRepository : IVentaRepository
+{
+    private readonly CapitalPosDbContext _dbContext;
+
+    public EfVentaRepository(CapitalPosDbContext dbContext)
+    {
+        _dbContext = dbContext;
+    }
+
+    public async Task AgregarAsync(Venta venta, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(venta);
+
+        await _dbContext.Ventas.AddAsync(venta, cancellationToken);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyCollection<Venta>> ListarPorEmpresaAsync(
+        Guid empresaId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.Ventas
+            .AsNoTracking()
+            .Include(venta => venta.Detalles)
+            .Where(venta => venta.EmpresaId == empresaId)
+            .OrderByDescending(venta => venta.Fecha)
+            .ToListAsync(cancellationToken);
+    }
+
+    public Task<Venta?> ObtenerPorEmpresaAsync(
+        Guid empresaId,
+        Guid id,
+        CancellationToken cancellationToken = default)
+    {
+        return _dbContext.Ventas
+            .Include(venta => venta.Detalles)
+            .SingleOrDefaultAsync(
+                venta => venta.EmpresaId == empresaId && venta.Id == id,
+                cancellationToken);
+    }
+}

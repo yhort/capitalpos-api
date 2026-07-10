@@ -10,6 +10,7 @@ using CapitalPos.Application.Empresas;
 using CapitalPos.Application.Productos;
 using CapitalPos.Application.Seguridad;
 using CapitalPos.Application.Usuarios;
+using CapitalPos.Application.Ventas;
 using CapitalPos.Domain;
 using CapitalPos.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Hosting;
@@ -342,6 +343,7 @@ public class HttpIntegrationTests
                 services.RemoveAll<IProductoRepository>();
                 services.RemoveAll<IProductoVarianteRepository>();
                 services.RemoveAll<IClienteRepository>();
+                services.RemoveAll<IVentaRepository>();
 
                 services.AddSingleton<IEmpresaRepository>(EmpresaRepository);
                 services.AddSingleton<IUsuarioRepository>(UsuarioRepository);
@@ -350,6 +352,7 @@ public class HttpIntegrationTests
                 services.AddSingleton<IProductoRepository, FakeProductoRepository>();
                 services.AddSingleton<IProductoVarianteRepository, FakeProductoVarianteRepository>();
                 services.AddSingleton<IClienteRepository, FakeClienteRepository>();
+                services.AddSingleton<IVentaRepository, FakeVentaRepository>();
             });
         }
     }
@@ -582,6 +585,29 @@ public class HttpIntegrationTests
             CancellationToken cancellationToken = default)
         {
             return Task.CompletedTask;
+        }
+    }
+
+    private sealed class FakeVentaRepository : IVentaRepository
+    {
+        public Task AgregarAsync(Venta venta, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task<IReadOnlyCollection<Venta>> ListarPorEmpresaAsync(
+            Guid empresaId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyCollection<Venta>>([]);
+        }
+
+        public Task<Venta?> ObtenerPorEmpresaAsync(
+            Guid empresaId,
+            Guid id,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<Venta?>(null);
         }
     }
 }
