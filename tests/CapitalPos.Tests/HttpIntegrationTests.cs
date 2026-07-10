@@ -517,6 +517,21 @@ public class HttpIntegrationTests
         {
             return Task.FromResult<IReadOnlyCollection<Producto>>([]);
         }
+
+        public Task<Producto?> ObtenerPorEmpresaAsync(
+            Guid empresaId,
+            Guid id,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<Producto?>(null);
+        }
+
+        public Task ActualizarAsync(
+            Producto producto,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class FakeProductoVarianteRepository : IProductoVarianteRepository

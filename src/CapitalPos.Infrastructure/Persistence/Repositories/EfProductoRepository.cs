@@ -31,4 +31,25 @@ public sealed class EfProductoRepository : IProductoRepository
             .OrderBy(producto => producto.Nombre)
             .ToListAsync(cancellationToken);
     }
+
+    public Task<Producto?> ObtenerPorEmpresaAsync(
+        Guid empresaId,
+        Guid id,
+        CancellationToken cancellationToken = default)
+    {
+        return _dbContext.Productos
+            .SingleOrDefaultAsync(
+                producto => producto.EmpresaId == empresaId && producto.Id == id,
+                cancellationToken);
+    }
+
+    public async Task ActualizarAsync(
+        Producto producto,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(producto);
+
+        _dbContext.Productos.Update(producto);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
 }

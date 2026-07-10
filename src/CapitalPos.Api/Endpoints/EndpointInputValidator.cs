@@ -1,4 +1,5 @@
 using CapitalPos.Application.Empresas;
+using CapitalPos.Application.Productos;
 using CapitalPos.Application.Usuarios;
 using CapitalPos.Domain;
 
@@ -104,6 +105,48 @@ public static class EndpointInputValidator
     public static bool TryValidate(CambiarRolUsuarioEmpresaRequest request, out string error)
     {
         return TryValidateRol(request.Rol, out error);
+    }
+
+    public static bool TryValidate(CrearProductoRequest request, out string error)
+    {
+        if (string.IsNullOrWhiteSpace(request.Nombre))
+        {
+            error = "El nombre del producto es obligatorio.";
+            return false;
+        }
+
+        if (request.Nombre.Length > 200)
+        {
+            error = "El nombre del producto no debe exceder 200 caracteres.";
+            return false;
+        }
+
+        if (request.CodigoSku is { Length: > 80 })
+        {
+            error = "El SKU del producto no debe exceder 80 caracteres.";
+            return false;
+        }
+
+        if (request.CodigoBarras is { Length: > 80 })
+        {
+            error = "El codigo de barras del producto no debe exceder 80 caracteres.";
+            return false;
+        }
+
+        if (request.PrecioVenta <= 0)
+        {
+            error = "El precio de venta debe ser mayor que cero.";
+            return false;
+        }
+
+        if (request.Costo < 0)
+        {
+            error = "El costo no puede ser negativo.";
+            return false;
+        }
+
+        error = string.Empty;
+        return true;
     }
 
     private static bool TryValidateRol(RolEmpresa rol, out string error)

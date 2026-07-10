@@ -5,6 +5,7 @@ public class EndpointProtectionStructureTests
     [Theory]
     [InlineData("src/CapitalPos.Api/Endpoints/EmpresaEndpoints.cs")]
     [InlineData("src/CapitalPos.Api/Endpoints/UsuarioEndpoints.cs")]
+    [InlineData("src/CapitalPos.Api/Endpoints/ProductoEndpoints.cs")]
     public void Grupos_de_endpoints_de_negocio_requieren_autorizacion(string relativePath)
     {
         var source = File.ReadAllText(ResolverRutaRepo(relativePath));
@@ -15,6 +16,7 @@ public class EndpointProtectionStructureTests
     [Theory]
     [InlineData("src/CapitalPos.Api/Endpoints/EmpresaEndpoints.cs")]
     [InlineData("src/CapitalPos.Api/Endpoints/UsuarioEndpoints.cs")]
+    [InlineData("src/CapitalPos.Api/Endpoints/ProductoEndpoints.cs")]
     public void Grupos_de_endpoints_de_negocio_requieren_empresa_activa(string relativePath)
     {
         var source = File.ReadAllText(ResolverRutaRepo(relativePath));
@@ -25,6 +27,7 @@ public class EndpointProtectionStructureTests
     [Theory]
     [InlineData("src/CapitalPos.Api/Endpoints/EmpresaEndpoints.cs")]
     [InlineData("src/CapitalPos.Api/Endpoints/UsuarioEndpoints.cs")]
+    [InlineData("src/CapitalPos.Api/Endpoints/ProductoEndpoints.cs")]
     public void Endpoints_de_negocio_requieren_permisos_empresariales(string relativePath)
     {
         var source = File.ReadAllText(ResolverRutaRepo(relativePath));

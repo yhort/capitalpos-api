@@ -4,6 +4,7 @@ using CapitalPos.Api.Authentication;
 using CapitalPos.Api.Development;
 using CapitalPos.Api.Middleware;
 using CapitalPos.Application.Empresas;
+using CapitalPos.Application.Productos;
 using CapitalPos.Application.Seguridad;
 using CapitalPos.Application.Usuarios;
 using CapitalPos.Infrastructure;
@@ -45,6 +46,11 @@ builder.Services.AddScoped<DesactivarUsuarioUseCase>();
 builder.Services.AddScoped<ActivarUsuarioEmpresaUseCase>();
 builder.Services.AddScoped<DesactivarUsuarioEmpresaUseCase>();
 builder.Services.AddScoped<CambiarRolUsuarioEmpresaUseCase>();
+builder.Services.AddScoped<CrearProductoUseCase>();
+builder.Services.AddScoped<ListarProductosUseCase>();
+builder.Services.AddScoped<ObtenerProductoPorIdUseCase>();
+builder.Services.AddScoped<ActivarProductoUseCase>();
+builder.Services.AddScoped<DesactivarProductoUseCase>();
 
 var app = builder.Build();
 
@@ -74,6 +80,7 @@ app.MapGet("/api/health", () =>
 app.MapAuthEndpoints();
 app.MapEmpresaEndpoints();
 app.MapUsuarioEndpoints();
+app.MapProductoEndpoints();
 app.MapCpeEndpoints();
 
 await app.SeedDemoDataAsync();

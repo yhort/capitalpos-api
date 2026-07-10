@@ -94,9 +94,77 @@ public class ApplicationProductoTests
         await Assert.ThrowsAsync<InvalidOperationException>(() => useCase.EjecutarAsync());
     }
 
+    [Fact]
+    public async Task Obtener_producto_por_id_use_case_no_devuelve_producto_de_otra_empresa()
+    {
+        var empresaAId = Guid.NewGuid();
+        var empresaBId = Guid.NewGuid();
+        var productoId = Guid.NewGuid();
+        var repository = new ProductoRepositoryFake();
+        await repository.AgregarAsync(new Producto(
+            productoId,
+            empresaBId,
+            "Te Helado",
+            7.00m));
+        var useCase = new ObtenerProductoPorIdUseCase(
+            repository,
+            new EmpresaActivaContextFake(empresaAId));
+
+        var producto = await useCase.EjecutarAsync(productoId);
+
+        Assert.Null(producto);
+    }
+
+    [Fact]
+    public async Task Activar_producto_use_case_respeta_empresa_activa()
+    {
+        var empresaId = Guid.NewGuid();
+        var producto = new Producto(
+            Guid.NewGuid(),
+            empresaId,
+            "Cafe Americano",
+            8.50m,
+            activo: false);
+        var repository = new ProductoRepositoryFake();
+        await repository.AgregarAsync(producto);
+        var useCase = new ActivarProductoUseCase(
+            repository,
+            new EmpresaActivaContextFake(empresaId));
+
+        var result = await useCase.EjecutarAsync(producto.Id);
+
+        Assert.Same(producto, result);
+        Assert.True(producto.Activo);
+        Assert.Same(producto, repository.ProductosActualizados.Single());
+    }
+
+    [Fact]
+    public async Task Desactivar_producto_use_case_respeta_empresa_activa()
+    {
+        var empresaId = Guid.NewGuid();
+        var producto = new Producto(
+            Guid.NewGuid(),
+            empresaId,
+            "Cafe Americano",
+            8.50m);
+        var repository = new ProductoRepositoryFake();
+        await repository.AgregarAsync(producto);
+        var useCase = new DesactivarProductoUseCase(
+            repository,
+            new EmpresaActivaContextFake(empresaId));
+
+        var result = await useCase.EjecutarAsync(producto.Id);
+
+        Assert.Same(producto, result);
+        Assert.False(producto.Activo);
+        Assert.Same(producto, repository.ProductosActualizados.Single());
+    }
+
     private sealed class ProductoRepositoryFake : IProductoRepository
     {
         public List<Producto> Productos { get; } = new();
+
+        public List<Producto> ProductosActualizados { get; } = new();
 
         public Task AgregarAsync(Producto producto, CancellationToken cancellationToken = default)
         {
@@ -114,6 +182,26 @@ public class ApplicationProductoTests
                 .ToArray();
 
             return Task.FromResult(productos);
+        }
+
+        public Task<Producto?> ObtenerPorEmpresaAsync(
+            Guid empresaId,
+            Guid id,
+            CancellationToken cancellationToken = default)
+        {
+            var producto = Productos.SingleOrDefault(producto =>
+                producto.EmpresaId == empresaId && producto.Id == id);
+
+            return Task.FromResult(producto);
+        }
+
+        public Task ActualizarAsync(
+            Producto producto,
+            CancellationToken cancellationToken = default)
+        {
+            ProductosActualizados.Add(producto);
+
+            return Task.CompletedTask;
         }
     }
 

@@ -5,6 +5,7 @@ public class EndpointPermissionStructureTests
     [Theory]
     [InlineData("src/CapitalPos.Api/Endpoints/EmpresaEndpoints.cs")]
     [InlineData("src/CapitalPos.Api/Endpoints/UsuarioEndpoints.cs")]
+    [InlineData("src/CapitalPos.Api/Endpoints/ProductoEndpoints.cs")]
     public void Endpoints_piden_permisos_explicitamente(string relativePath)
     {
         var source = File.ReadAllText(ResolverRutaRepo(relativePath));
@@ -15,6 +16,7 @@ public class EndpointPermissionStructureTests
     [Theory]
     [InlineData("src/CapitalPos.Api/Endpoints/EmpresaEndpoints.cs")]
     [InlineData("src/CapitalPos.Api/Endpoints/UsuarioEndpoints.cs")]
+    [InlineData("src/CapitalPos.Api/Endpoints/ProductoEndpoints.cs")]
     public void Endpoints_no_comparan_roles_directamente_para_autorizar(string relativePath)
     {
         var source = File.ReadAllText(ResolverRutaRepo(relativePath));
