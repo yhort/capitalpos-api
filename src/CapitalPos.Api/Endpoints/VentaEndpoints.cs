@@ -1,6 +1,7 @@
 using CapitalPos.Api.ActiveCompany;
 using CapitalPos.Api.Authorization;
 using CapitalPos.Application.Auditoria;
+using CapitalPos.Application.Cpe;
 using CapitalPos.Application.Seguridad;
 using CapitalPos.Application.Ventas;
 using CapitalPos.Domain;
@@ -19,6 +20,10 @@ public static class VentaEndpoints
         group.MapPost("/", CrearVentaAsync)
             .WithName("CrearVenta")
             .RequirePermisoEmpresa(PermisoEmpresa.OperarVentas);
+
+        group.MapPost("/{id:guid}/emitir-cpe", EmitirCpeDesdeVentaAsync)
+            .WithName("EmitirCpeDesdeVenta")
+            .RequirePermisoEmpresa(PermisoEmpresa.EmitirCpe);
 
         return app;
     }
@@ -114,6 +119,105 @@ public static class VentaEndpoints
             resultado,
             detalle,
             cancellationToken);
+    }
+
+    private static async Task<IResult> EmitirCpeDesdeVentaAsync(
+        Guid id,
+        EmitirCpeDesdeVentaRequest request,
+        EmitirCpeDesdeVentaUseCase useCase,
+        IAuditoriaOperaciones auditoria,
+        IEmpresaActivaContext empresaActiva,
+        ILoggerFactory loggerFactory,
+        HttpContext httpContext,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (!EndpointInputValidator.TryValidate(request, out var error))
+            {
+                await AuditoriaEndpointHelper.AuditarAsync(
+                    auditoria,
+                    empresaActiva,
+                    httpContext,
+                    "EmitirCpeDesdeVenta",
+                    "Venta",
+                    "EmitirCpe",
+                    AuditoriaResultados.Rechazado,
+                    "ValidacionDeEntrada",
+                    cancellationToken);
+
+                return Results.BadRequest(ErrorResponse.From(error));
+            }
+
+            var response = await useCase.EjecutarAsync(id, request, cancellationToken);
+            if (response is null)
+            {
+                await AuditoriaEndpointHelper.AuditarAsync(
+                    auditoria,
+                    empresaActiva,
+                    httpContext,
+                    "EmitirCpeDesdeVenta",
+                    "Venta",
+                    "EmitirCpe",
+                    AuditoriaResultados.Rechazado,
+                    $"VentaId={id}",
+                    cancellationToken);
+
+                return Results.NotFound();
+            }
+
+            LogDiagnosticoEmisionCpe(loggerFactory, response);
+            var normalizedResponse = EmitirCpeResponseNormalizer.Normalizar(response);
+            var publicResponse = EmitirCpeApiResponse.From(normalizedResponse.Body);
+            var resultado = normalizedResponse.Body.Ok
+                ? AuditoriaResultados.Exitoso
+                : normalizedResponse.StatusCode >= StatusCodes.Status500InternalServerError
+                    ? AuditoriaResultados.Error
+                    : AuditoriaResultados.Rechazado;
+
+            await AuditoriaEndpointHelper.AuditarAsync(
+                auditoria,
+                empresaActiva,
+                httpContext,
+                "EmitirCpeDesdeVenta",
+                "Venta",
+                "EmitirCpe",
+                resultado,
+                $"VentaId={id};Estado={normalizedResponse.Body.Estado};Codigo={normalizedResponse.Body.Codigo}",
+                cancellationToken);
+
+            return Results.Json(
+                publicResponse,
+                statusCode: normalizedResponse.StatusCode);
+        }
+        catch
+        {
+            await AuditoriaEndpointHelper.AuditarAsync(
+                auditoria,
+                empresaActiva,
+                httpContext,
+                "EmitirCpeDesdeVenta",
+                "Venta",
+                "EmitirCpe",
+                AuditoriaResultados.Error,
+                $"VentaId={id}",
+                cancellationToken);
+            throw;
+        }
+    }
+
+    private static void LogDiagnosticoEmisionCpe(
+        ILoggerFactory loggerFactory,
+        CpeGatewayResponse response)
+    {
+        var diagnostics = EmitirCpeResponseNormalizer.ObtenerDiagnosticoSeguro(response);
+        var logger = loggerFactory.CreateLogger("CapitalPos.Api.Cpe.EmisionVenta");
+        logger.LogInformation(
+            "Respuesta CPE de venta recibida. StatusCode={StatusCode}; TieneOk={TieneOk}; TieneDataEstado={TieneDataEstado}; TieneMensaje={TieneMensaje}",
+            diagnostics.StatusCode,
+            diagnostics.TieneOk,
+            diagnostics.TieneDataEstado,
+            diagnostics.TieneMensaje);
     }
 }
 

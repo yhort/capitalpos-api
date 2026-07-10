@@ -1,3 +1,5 @@
+using System.Text.Json;
+using CapitalPos.Application.Cpe;
 using CapitalPos.Application.Clientes;
 using CapitalPos.Application.Productos;
 using CapitalPos.Application.Seguridad;
@@ -140,6 +142,91 @@ public class ApplicationVentaTests
             [new CrearVentaDetalleRequest(productoId, varianteId, 1m, 10m, 0m, 10m)]);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => useCase.EjecutarAsync(request));
+    }
+
+    [Fact]
+    public async Task Emitir_cpe_desde_venta_use_case_construye_payload_desde_venta_activa()
+    {
+        var empresaId = Guid.NewGuid();
+        var ventaId = Guid.NewGuid();
+        var productoId = Guid.NewGuid();
+        var ventaRepository = new VentaRepositoryFake();
+        var gateway = new CpeGatewayFake();
+        var detalle = new VentaDetalle(
+            Guid.NewGuid(),
+            empresaId,
+            ventaId,
+            productoId,
+            2m,
+            50m,
+            18m,
+            118m);
+        var venta = new Venta(
+            ventaId,
+            empresaId,
+            DateTimeOffset.UtcNow,
+            100m,
+            18m,
+            118m,
+            [detalle]);
+        await ventaRepository.AgregarAsync(venta);
+        var useCase = new EmitirCpeDesdeVentaUseCase(
+            ventaRepository,
+            gateway,
+            new EmpresaActivaContextFake(empresaId));
+        var request = new EmitirCpeDesdeVentaRequest("03", "B001", 7, "20601234567");
+
+        var response = await useCase.EjecutarAsync(ventaId, request);
+
+        Assert.NotNull(response);
+        Assert.NotNull(gateway.UltimoRequest);
+        Assert.Equal("03", gateway.UltimoRequest.Value.GetProperty("tipoDocumento").GetString());
+        Assert.Equal("03", gateway.UltimoRequest.Value.GetProperty("tipoComprobante").GetString());
+        Assert.Equal("B001", gateway.UltimoRequest.Value.GetProperty("serie").GetString());
+        Assert.Equal(7, gateway.UltimoRequest.Value.GetProperty("correlativo").GetInt32());
+        Assert.Equal("20601234567", gateway.UltimoRequest.Value.GetProperty("rucEmisor").GetString());
+        Assert.Equal(ventaId, gateway.UltimoRequest.Value.GetProperty("ventaId").GetGuid());
+        Assert.Equal(empresaId, gateway.UltimoRequest.Value.GetProperty("empresaId").GetGuid());
+        Assert.Equal(118m, gateway.UltimoRequest.Value.GetProperty("total").GetDecimal());
+        Assert.Single(gateway.UltimoRequest.Value.GetProperty("detalles").EnumerateArray());
+    }
+
+    [Fact]
+    public async Task Emitir_cpe_desde_venta_use_case_no_llama_gateway_si_venta_es_de_otra_empresa()
+    {
+        var empresaAId = Guid.NewGuid();
+        var empresaBId = Guid.NewGuid();
+        var ventaId = Guid.NewGuid();
+        var ventaRepository = new VentaRepositoryFake();
+        var gateway = new CpeGatewayFake();
+        var detalle = new VentaDetalle(
+            Guid.NewGuid(),
+            empresaBId,
+            ventaId,
+            Guid.NewGuid(),
+            1m,
+            10m,
+            0m,
+            10m);
+        await ventaRepository.AgregarAsync(new Venta(
+            ventaId,
+            empresaBId,
+            DateTimeOffset.UtcNow,
+            10m,
+            0m,
+            10m,
+            [detalle]));
+        var useCase = new EmitirCpeDesdeVentaUseCase(
+            ventaRepository,
+            gateway,
+            new EmpresaActivaContextFake(empresaAId));
+
+        var response = await useCase.EjecutarAsync(
+            ventaId,
+            new EmitirCpeDesdeVentaRequest("03", "B001", 7, "20601234567"));
+
+        Assert.Null(response);
+        Assert.Null(gateway.UltimoRequest);
     }
 
     private static CrearVentaUseCase CrearUseCase(
@@ -327,5 +414,41 @@ public class ApplicationVentaTests
         public Guid EmpresaId { get; }
 
         public RolEmpresa Rol { get; }
+    }
+
+    private sealed class CpeGatewayFake : ICpeGateway
+    {
+        public JsonElement? UltimoRequest { get; private set; }
+
+        public Task<CpeGatewayResponse> ObtenerEstadoAsync(CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(new CpeGatewayResponse(
+                200,
+                true,
+                """{"ok":true}""",
+                "application/json"));
+        }
+
+        public Task<CpeGatewayResponse> EmitirAsync(
+            JsonElement request,
+            CancellationToken cancellationToken = default)
+        {
+            UltimoRequest = request.Clone();
+
+            return Task.FromResult(new CpeGatewayResponse(
+                200,
+                true,
+                """
+                {
+                  "ok": true,
+                  "data": {
+                    "ok": true,
+                    "estado": "SIMULADO",
+                    "mensaje": "Comprobante aceptado en modo simulacion."
+                  }
+                }
+                """,
+                "application/json"));
+        }
     }
 }
