@@ -1,6 +1,7 @@
 using System.Text.Json;
 using CapitalPos.Application.Cpe;
 using CapitalPos.Application.Clientes;
+using CapitalPos.Application.Empresas;
 using CapitalPos.Application.Productos;
 using CapitalPos.Application.Seguridad;
 using CapitalPos.Application.Ventas;
@@ -149,9 +150,17 @@ public class ApplicationVentaTests
     {
         var empresaId = Guid.NewGuid();
         var ventaId = Guid.NewGuid();
+        var clienteId = Guid.NewGuid();
         var productoId = Guid.NewGuid();
         var ventaRepository = new VentaRepositoryFake();
+        var empresaRepository = new EmpresaRepositoryFake();
+        var clienteRepository = new ClienteRepositoryFake();
+        var productoRepository = new ProductoRepositoryFake();
+        var varianteRepository = new ProductoVarianteRepositoryFake();
         var gateway = new CpeGatewayFake();
+        await empresaRepository.AgregarAsync(new Empresa(empresaId, "20601234567", "CapitalPOS Demo SAC", "CapitalPOS"));
+        await clienteRepository.AgregarAsync(new Cliente(clienteId, empresaId, "DNI", "12345678", "Cliente Demo"));
+        await productoRepository.AgregarAsync(new Producto(productoId, empresaId, "Producto gravado", 59m, "SKU-001"));
         var detalle = new VentaDetalle(
             Guid.NewGuid(),
             empresaId,
@@ -164,14 +173,19 @@ public class ApplicationVentaTests
         var venta = new Venta(
             ventaId,
             empresaId,
-            DateTimeOffset.UtcNow,
+            new DateTimeOffset(2026, 7, 11, 5, 0, 0, TimeSpan.Zero),
             100m,
             18m,
             118m,
-            [detalle]);
+            [detalle],
+            clienteId);
         await ventaRepository.AgregarAsync(venta);
         var useCase = new EmitirCpeDesdeVentaUseCase(
             ventaRepository,
+            empresaRepository,
+            clienteRepository,
+            productoRepository,
+            varianteRepository,
             gateway,
             new EmpresaActivaContextFake(empresaId));
         var request = new EmitirCpeDesdeVentaRequest("03", "B001", 7, "20601234567");
@@ -180,15 +194,44 @@ public class ApplicationVentaTests
 
         Assert.NotNull(response);
         Assert.NotNull(gateway.UltimoRequest);
-        Assert.Equal("03", gateway.UltimoRequest.Value.GetProperty("tipoDocumento").GetString());
         Assert.Equal("03", gateway.UltimoRequest.Value.GetProperty("tipoComprobante").GetString());
         Assert.Equal("B001", gateway.UltimoRequest.Value.GetProperty("serie").GetString());
         Assert.Equal(7, gateway.UltimoRequest.Value.GetProperty("correlativo").GetInt32());
         Assert.Equal("20601234567", gateway.UltimoRequest.Value.GetProperty("rucEmisor").GetString());
+        Assert.Equal("PEN", gateway.UltimoRequest.Value.GetProperty("moneda").GetString());
+        Assert.Equal("0101", gateway.UltimoRequest.Value.GetProperty("tipoOperacion").GetString());
+        Assert.Equal("CONTADO", gateway.UltimoRequest.Value.GetProperty("formaPago").GetString());
         Assert.Equal(ventaId, gateway.UltimoRequest.Value.GetProperty("ventaId").GetGuid());
         Assert.Equal(empresaId, gateway.UltimoRequest.Value.GetProperty("empresaId").GetGuid());
+        Assert.Equal(100m, gateway.UltimoRequest.Value.GetProperty("totalGravada").GetDecimal());
+        Assert.Equal(0m, gateway.UltimoRequest.Value.GetProperty("totalExonerada").GetDecimal());
+        Assert.Equal(0m, gateway.UltimoRequest.Value.GetProperty("totalInafecta").GetDecimal());
+        Assert.Equal(18m, gateway.UltimoRequest.Value.GetProperty("totalIgv").GetDecimal());
         Assert.Equal(118m, gateway.UltimoRequest.Value.GetProperty("total").GetDecimal());
-        Assert.Single(gateway.UltimoRequest.Value.GetProperty("detalles").EnumerateArray());
+
+        var emisor = gateway.UltimoRequest.Value.GetProperty("emisor");
+        Assert.Equal("20601234567", emisor.GetProperty("ruc").GetString());
+        Assert.Equal("CapitalPOS Demo SAC", emisor.GetProperty("razonSocial").GetString());
+        Assert.Equal("CapitalPOS", emisor.GetProperty("nombreComercial").GetString());
+        Assert.Equal("150101", emisor.GetProperty("ubigeo").GetString());
+        Assert.Equal("AV. DEMO 123", emisor.GetProperty("direccion").GetString());
+
+        var cliente = gateway.UltimoRequest.Value.GetProperty("cliente");
+        Assert.Equal("1", cliente.GetProperty("tipoDocumento").GetString());
+        Assert.Equal("12345678", cliente.GetProperty("numeroDocumento").GetString());
+        Assert.Equal("Cliente Demo", cliente.GetProperty("razonSocial").GetString());
+
+        var item = Assert.Single(gateway.UltimoRequest.Value.GetProperty("items").EnumerateArray());
+        Assert.Equal("SKU-001", item.GetProperty("codigo").GetString());
+        Assert.Equal("Producto gravado", item.GetProperty("descripcion").GetString());
+        Assert.Equal("NIU", item.GetProperty("unidadMedida").GetString());
+        Assert.Equal(2m, item.GetProperty("cantidad").GetDecimal());
+        Assert.Equal(50m, item.GetProperty("valorUnitario").GetDecimal());
+        Assert.Equal(59m, item.GetProperty("precioUnitario").GetDecimal());
+        Assert.Equal(100m, item.GetProperty("subtotal").GetDecimal());
+        Assert.Equal(18m, item.GetProperty("igv").GetDecimal());
+        Assert.Equal(118m, item.GetProperty("total").GetDecimal());
+        Assert.Equal("10", item.GetProperty("codigoAfectacionIgv").GetString());
     }
 
     [Fact]
@@ -198,6 +241,10 @@ public class ApplicationVentaTests
         var empresaBId = Guid.NewGuid();
         var ventaId = Guid.NewGuid();
         var ventaRepository = new VentaRepositoryFake();
+        var empresaRepository = new EmpresaRepositoryFake();
+        var clienteRepository = new ClienteRepositoryFake();
+        var productoRepository = new ProductoRepositoryFake();
+        var varianteRepository = new ProductoVarianteRepositoryFake();
         var gateway = new CpeGatewayFake();
         var detalle = new VentaDetalle(
             Guid.NewGuid(),
@@ -218,6 +265,10 @@ public class ApplicationVentaTests
             [detalle]));
         var useCase = new EmitirCpeDesdeVentaUseCase(
             ventaRepository,
+            empresaRepository,
+            clienteRepository,
+            productoRepository,
+            varianteRepository,
             gateway,
             new EmpresaActivaContextFake(empresaAId));
 
@@ -260,6 +311,38 @@ public class ApplicationVentaTests
         Assert.Equal(ventaId, comprobante.VentaId);
         Assert.Equal("SIMULADO", comprobante.EstadoCpe);
         Assert.Equal("hash", comprobante.Hash);
+        Assert.Same(comprobante, comprobanteRepository.Comprobantes.Single());
+    }
+
+    [Fact]
+    public async Task Registrar_comprobante_cpe_use_case_guarda_resultado_fallido_para_venta_de_empresa_activa()
+    {
+        var empresaId = Guid.NewGuid();
+        var ventaId = Guid.NewGuid();
+        var ventaRepository = new VentaRepositoryFake();
+        var comprobanteRepository = new ComprobanteRepositoryFake();
+        await ventaRepository.AgregarAsync(CrearVenta(ventaId, empresaId));
+        var useCase = new RegistrarComprobanteCpeUseCase(
+            comprobanteRepository,
+            ventaRepository,
+            new EmpresaActivaContextFake(empresaId));
+        var request = new RegistrarComprobanteCpeRequest(
+            ventaId,
+            "03",
+            "B001",
+            8,
+            "ERROR_VALIDACION",
+            "No se puede emitir el comprobante porque tiene errores de validacion.");
+
+        var comprobante = await useCase.EjecutarAsync(request);
+
+        Assert.NotNull(comprobante);
+        Assert.Equal(empresaId, comprobante.EmpresaId);
+        Assert.Equal(ventaId, comprobante.VentaId);
+        Assert.Equal("ERROR_VALIDACION", comprobante.EstadoCpe);
+        Assert.Equal("No se puede emitir el comprobante porque tiene errores de validacion.", comprobante.Mensaje);
+        Assert.True(string.IsNullOrWhiteSpace(comprobante.Hash));
+        Assert.True(string.IsNullOrWhiteSpace(comprobante.NombreXml));
         Assert.Same(comprobante, comprobanteRepository.Comprobantes.Single());
     }
 
@@ -358,6 +441,40 @@ public class ApplicationVentaTests
                 venta.EmpresaId == empresaId && venta.Id == id);
 
             return Task.FromResult(venta);
+        }
+    }
+
+    private sealed class EmpresaRepositoryFake : IEmpresaRepository
+    {
+        private readonly List<Empresa> _empresas = new();
+
+        public Task AgregarAsync(Empresa empresa, CancellationToken cancellationToken = default)
+        {
+            _empresas.Add(empresa);
+
+            return Task.CompletedTask;
+        }
+
+        public Task<IReadOnlyCollection<Empresa>> ListarAsync(CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyCollection<Empresa>>(_empresas.ToArray());
+        }
+
+        public Task<Empresa?> ObtenerPorIdAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            var empresa = _empresas.SingleOrDefault(empresa => empresa.Id == id);
+
+            return Task.FromResult(empresa);
+        }
+
+        public Task ActualizarAsync(Empresa empresa, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task<bool> ExisteRucAsync(string ruc, CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(_empresas.Any(empresa => empresa.Ruc == ruc));
         }
     }
 
