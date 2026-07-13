@@ -10,6 +10,8 @@ namespace CapitalPos.Application.Ventas;
 
 public sealed class EmitirCpeDesdeVentaUseCase
 {
+    private static readonly TimeZoneInfo ZonaHorariaPeru = ObtenerZonaHorariaPeru();
+
     private readonly IClienteRepository _clienteRepository;
     private readonly IConfiguracionFiscalEmpresaRepository _configuracionFiscalRepository;
     private readonly ICpeGateway _cpeGateway;
@@ -181,7 +183,7 @@ public sealed class EmitirCpeDesdeVentaUseCase
             tipoComprobante = request.TipoComprobante,
             serie = request.Serie,
             correlativo = request.Correlativo,
-            fechaEmision = venta.Fecha.UtcDateTime,
+            fechaEmision = ConvertirFechaEmisionPeru(venta.Fecha),
             moneda = "PEN",
             tipoOperacion = "0101",
             formaPago = "CONTADO",
@@ -216,6 +218,29 @@ public sealed class EmitirCpeDesdeVentaUseCase
             empresaId = venta.EmpresaId,
             clienteId = venta.ClienteId
         });
+    }
+
+    private static DateTime ConvertirFechaEmisionPeru(DateTimeOffset fecha)
+    {
+        var fechaPeru = TimeZoneInfo.ConvertTime(fecha, ZonaHorariaPeru);
+
+        return DateTime.SpecifyKind(fechaPeru.DateTime, DateTimeKind.Unspecified);
+    }
+
+    private static TimeZoneInfo ObtenerZonaHorariaPeru()
+    {
+        try
+        {
+            return TimeZoneInfo.FindSystemTimeZoneById("America/Lima");
+        }
+        catch (TimeZoneNotFoundException)
+        {
+            return TimeZoneInfo.FindSystemTimeZoneById("SA Pacific Standard Time");
+        }
+        catch (InvalidTimeZoneException)
+        {
+            return TimeZoneInfo.FindSystemTimeZoneById("SA Pacific Standard Time");
+        }
     }
 
     private static string MapearTipoDocumentoCliente(string tipoDocumento)

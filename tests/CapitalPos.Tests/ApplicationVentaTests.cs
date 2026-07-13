@@ -217,6 +217,9 @@ public class ApplicationVentaTests
         Assert.Equal(0m, gateway.UltimoRequest.Value.GetProperty("totalInafecta").GetDecimal());
         Assert.Equal(18m, gateway.UltimoRequest.Value.GetProperty("totalIgv").GetDecimal());
         Assert.Equal(118m, gateway.UltimoRequest.Value.GetProperty("total").GetDecimal());
+        Assert.Equal(
+            "2026-07-11T00:00:00",
+            gateway.UltimoRequest.Value.GetProperty("fechaEmision").GetString());
 
         var emisor = gateway.UltimoRequest.Value.GetProperty("emisor");
         Assert.Equal("20601234567", emisor.GetProperty("ruc").GetString());
@@ -246,6 +249,51 @@ public class ApplicationVentaTests
         Assert.Equal(18m, item.GetProperty("igv").GetDecimal());
         Assert.Equal(118m, item.GetProperty("total").GetDecimal());
         Assert.Equal("10", item.GetProperty("codigoAfectacionIgv").GetString());
+    }
+
+    [Fact]
+    public async Task Emitir_cpe_desde_venta_use_case_convierte_fecha_emision_a_zona_lima()
+    {
+        var escenario = await CrearEscenarioEmisionAsync(
+            new DateTimeOffset(2026, 7, 13, 1, 30, 0, TimeSpan.Zero));
+        var configuracionFiscalRepository = new ConfiguracionFiscalEmpresaRepositoryFake();
+        await GuardarConfiguracionFiscalAsync(configuracionFiscalRepository, escenario.EmpresaId);
+        var useCase = CrearUseCaseEmision(
+            escenario,
+            configuracionFiscalRepository);
+
+        await useCase.EjecutarAsync(
+            escenario.VentaId,
+            new EmitirCpeDesdeVentaRequest("03", "B001", 7, "20601234567"));
+
+        Assert.NotNull(escenario.Gateway.UltimoRequest);
+        Assert.Equal(
+            "2026-07-12T20:30:00",
+            escenario.Gateway.UltimoRequest.Value.GetProperty("fechaEmision").GetString());
+    }
+
+    [Fact]
+    public async Task Emitir_cpe_desde_venta_use_case_no_envia_fecha_futura_cuando_utc_ya_es_dia_siguiente()
+    {
+        var escenario = await CrearEscenarioEmisionAsync(
+            new DateTimeOffset(2026, 7, 13, 4, 59, 0, TimeSpan.Zero));
+        var configuracionFiscalRepository = new ConfiguracionFiscalEmpresaRepositoryFake();
+        await GuardarConfiguracionFiscalAsync(configuracionFiscalRepository, escenario.EmpresaId);
+        var useCase = CrearUseCaseEmision(
+            escenario,
+            configuracionFiscalRepository);
+
+        await useCase.EjecutarAsync(
+            escenario.VentaId,
+            new EmitirCpeDesdeVentaRequest("03", "B001", 7, "20601234567"));
+
+        Assert.NotNull(escenario.Gateway.UltimoRequest);
+        var fechaEmision = escenario.Gateway.UltimoRequest.Value
+            .GetProperty("fechaEmision")
+            .GetDateTime();
+
+        Assert.Equal(new DateTime(2026, 7, 12), fechaEmision.Date);
+        Assert.Equal(new TimeSpan(23, 59, 0), fechaEmision.TimeOfDay);
     }
 
     [Fact]
@@ -506,7 +554,8 @@ public class ApplicationVentaTests
             ]);
     }
 
-    private static async Task<EscenarioEmisionCpe> CrearEscenarioEmisionAsync()
+    private static async Task<EscenarioEmisionCpe> CrearEscenarioEmisionAsync(
+        DateTimeOffset? fechaVenta = null)
     {
         var empresaId = Guid.NewGuid();
         var ventaId = Guid.NewGuid();
@@ -543,7 +592,7 @@ public class ApplicationVentaTests
         await ventaRepository.AgregarAsync(new Venta(
             ventaId,
             empresaId,
-            new DateTimeOffset(2026, 7, 11, 5, 0, 0, TimeSpan.Zero),
+            fechaVenta ?? new DateTimeOffset(2026, 7, 11, 5, 0, 0, TimeSpan.Zero),
             100m,
             18m,
             118m,
@@ -558,6 +607,36 @@ public class ApplicationVentaTests
             productoRepository,
             varianteRepository,
             gateway);
+    }
+
+    private static async Task GuardarConfiguracionFiscalAsync(
+        ConfiguracionFiscalEmpresaRepositoryFake configuracionFiscalRepository,
+        Guid empresaId)
+    {
+        await configuracionFiscalRepository.GuardarAsync(new ConfiguracionFiscalEmpresa(
+            empresaId,
+            "20601234567",
+            "CapitalPOS Fiscal SAC",
+            "CapitalPOS Fiscal",
+            "150102",
+            "Calle Fiscal 456",
+            "LIMA",
+            "LIMA",
+            "ANCON"));
+    }
+
+    private static EmitirCpeDesdeVentaUseCase CrearUseCaseEmision(
+        EscenarioEmisionCpe escenario,
+        ConfiguracionFiscalEmpresaRepositoryFake configuracionFiscalRepository)
+    {
+        return new EmitirCpeDesdeVentaUseCase(
+            escenario.VentaRepository,
+            configuracionFiscalRepository,
+            escenario.ClienteRepository,
+            escenario.ProductoRepository,
+            escenario.VarianteRepository,
+            escenario.Gateway,
+            new EmpresaActivaContextFake(escenario.EmpresaId));
     }
 
     private sealed record EscenarioEmisionCpe(
