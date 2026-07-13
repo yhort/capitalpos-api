@@ -8,6 +8,7 @@ public class EndpointProtectionStructureTests
     [InlineData("src/CapitalPos.Api/Endpoints/ProductoEndpoints.cs")]
     [InlineData("src/CapitalPos.Api/Endpoints/ClienteEndpoints.cs")]
     [InlineData("src/CapitalPos.Api/Endpoints/VentaEndpoints.cs")]
+    [InlineData("src/CapitalPos.Api/Endpoints/ConfiguracionFiscalEndpoints.cs")]
     public void Grupos_de_endpoints_de_negocio_requieren_autorizacion(string relativePath)
     {
         var source = File.ReadAllText(ResolverRutaRepo(relativePath));
@@ -21,6 +22,7 @@ public class EndpointProtectionStructureTests
     [InlineData("src/CapitalPos.Api/Endpoints/ProductoEndpoints.cs")]
     [InlineData("src/CapitalPos.Api/Endpoints/ClienteEndpoints.cs")]
     [InlineData("src/CapitalPos.Api/Endpoints/VentaEndpoints.cs")]
+    [InlineData("src/CapitalPos.Api/Endpoints/ConfiguracionFiscalEndpoints.cs")]
     public void Grupos_de_endpoints_de_negocio_requieren_empresa_activa(string relativePath)
     {
         var source = File.ReadAllText(ResolverRutaRepo(relativePath));
@@ -34,12 +36,14 @@ public class EndpointProtectionStructureTests
     [InlineData("src/CapitalPos.Api/Endpoints/ProductoEndpoints.cs")]
     [InlineData("src/CapitalPos.Api/Endpoints/ClienteEndpoints.cs")]
     [InlineData("src/CapitalPos.Api/Endpoints/VentaEndpoints.cs")]
+    [InlineData("src/CapitalPos.Api/Endpoints/ConfiguracionFiscalEndpoints.cs")]
     public void Endpoints_de_negocio_requieren_permisos_empresariales(string relativePath)
     {
         var source = File.ReadAllText(ResolverRutaRepo(relativePath));
         var endpointCount =
             Contar(source, ".MapGet(") +
             Contar(source, ".MapPost(") +
+            Contar(source, ".MapPut(") +
             Contar(source, ".MapPatch(") +
             Contar(source, ".MapDelete(");
         var permissionCount = Contar(source, ".RequirePermisoEmpresa(PermisoEmpresa.");

@@ -1,3 +1,4 @@
+using CapitalPos.Application.ConfiguracionFiscal;
 using CapitalPos.Application.Empresas;
 using CapitalPos.Application.Seguridad;
 using CapitalPos.Application.Usuarios;
@@ -29,6 +30,12 @@ public class EfRepositoryStructureTests
     public void Ef_usuario_credencial_repository_implementa_puerto_de_aplicacion()
     {
         Assert.True(typeof(IUsuarioCredencialRepository).IsAssignableFrom(typeof(EfUsuarioCredencialRepository)));
+    }
+
+    [Fact]
+    public void Ef_configuracion_fiscal_empresa_repository_implementa_puerto_de_aplicacion()
+    {
+        Assert.True(typeof(IConfiguracionFiscalEmpresaRepository).IsAssignableFrom(typeof(EfConfiguracionFiscalEmpresaRepository)));
     }
 
     [Fact]

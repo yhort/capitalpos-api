@@ -1,7 +1,7 @@
 using System.Text.Json;
 using CapitalPos.Application.Clientes;
+using CapitalPos.Application.ConfiguracionFiscal;
 using CapitalPos.Application.Cpe;
-using CapitalPos.Application.Empresas;
 using CapitalPos.Application.Productos;
 using CapitalPos.Application.Seguridad;
 using CapitalPos.Domain;
@@ -10,23 +10,17 @@ namespace CapitalPos.Application.Ventas;
 
 public sealed class EmitirCpeDesdeVentaUseCase
 {
-    private const string UbigeoTemporalEmisor = "150101";
-    private const string DireccionTemporalEmisor = "AV. DEMO 123";
-    private const string DepartamentoTemporalEmisor = "LIMA";
-    private const string ProvinciaTemporalEmisor = "LIMA";
-    private const string DistritoTemporalEmisor = "LIMA";
-
     private readonly IClienteRepository _clienteRepository;
+    private readonly IConfiguracionFiscalEmpresaRepository _configuracionFiscalRepository;
     private readonly ICpeGateway _cpeGateway;
     private readonly IEmpresaActivaContext _empresaActiva;
-    private readonly IEmpresaRepository _empresaRepository;
     private readonly IProductoRepository _productoRepository;
     private readonly IProductoVarianteRepository _productoVarianteRepository;
     private readonly IVentaRepository _ventaRepository;
 
     public EmitirCpeDesdeVentaUseCase(
         IVentaRepository ventaRepository,
-        IEmpresaRepository empresaRepository,
+        IConfiguracionFiscalEmpresaRepository configuracionFiscalRepository,
         IClienteRepository clienteRepository,
         IProductoRepository productoRepository,
         IProductoVarianteRepository productoVarianteRepository,
@@ -34,7 +28,7 @@ public sealed class EmitirCpeDesdeVentaUseCase
         IEmpresaActivaContext empresaActiva)
     {
         _ventaRepository = ventaRepository;
-        _empresaRepository = empresaRepository;
+        _configuracionFiscalRepository = configuracionFiscalRepository;
         _clienteRepository = clienteRepository;
         _productoRepository = productoRepository;
         _productoVarianteRepository = productoVarianteRepository;
@@ -59,14 +53,40 @@ public sealed class EmitirCpeDesdeVentaUseCase
             return null;
         }
 
-        var empresa = await _empresaRepository.ObtenerPorIdAsync(
-            _empresaActiva.EmpresaId,
-            cancellationToken);
+        var configuracionFiscal = await ObtenerConfiguracionFiscalAsync(request, cancellationToken);
         var cliente = await ObtenerClienteAsync(venta, cancellationToken);
         var items = await CrearItemsAsync(venta, cancellationToken);
-        var payload = CrearPayload(venta, request, empresa, cliente, items);
+        var payload = CrearPayload(venta, request, configuracionFiscal, cliente, items);
 
         return await _cpeGateway.EmitirAsync(payload, cancellationToken);
+    }
+
+    private async Task<ConfiguracionFiscalEmpresa> ObtenerConfiguracionFiscalAsync(
+        EmitirCpeDesdeVentaRequest request,
+        CancellationToken cancellationToken)
+    {
+        var configuracion = await _configuracionFiscalRepository.ObtenerPorEmpresaAsync(
+            _empresaActiva.EmpresaId,
+            cancellationToken);
+        if (configuracion is null)
+        {
+            throw new InvalidOperationException("La empresa activa no tiene configuracion fiscal para emitir CPE.");
+        }
+
+        if (!configuracion.Activa)
+        {
+            throw new InvalidOperationException("La configuracion fiscal de la empresa activa esta inactiva.");
+        }
+
+        if (!string.Equals(
+            request.RucEmisor.Trim(),
+            configuracion.Ruc,
+            StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException("El RUC emisor del request no coincide con la configuracion fiscal de la empresa activa.");
+        }
+
+        return configuracion;
     }
 
     private async Task<Cliente> ObtenerClienteAsync(
@@ -136,31 +156,27 @@ public sealed class EmitirCpeDesdeVentaUseCase
     private static JsonElement CrearPayload(
         Venta venta,
         EmitirCpeDesdeVentaRequest request,
-        Empresa? empresa,
+        ConfiguracionFiscalEmpresa configuracionFiscal,
         Cliente cliente,
         IReadOnlyCollection<CpeItemPayload> items)
     {
-        var razonSocialEmisor = string.IsNullOrWhiteSpace(empresa?.RazonSocial)
-            ? $"EMISOR {request.RucEmisor}"
-            : empresa.RazonSocial;
-        var nombreComercialEmisor = string.IsNullOrWhiteSpace(empresa?.NombreComercial)
-            ? razonSocialEmisor
-            : empresa.NombreComercial;
+        var nombreComercialEmisor = string.IsNullOrWhiteSpace(configuracionFiscal.NombreComercial)
+            ? configuracionFiscal.RazonSocial
+            : configuracionFiscal.NombreComercial;
 
         return JsonSerializer.SerializeToElement(new
         {
-            rucEmisor = request.RucEmisor,
+            rucEmisor = configuracionFiscal.Ruc,
             emisor = new
             {
-                ruc = request.RucEmisor,
-                razonSocial = razonSocialEmisor,
+                ruc = configuracionFiscal.Ruc,
+                razonSocial = configuracionFiscal.RazonSocial,
                 nombreComercial = nombreComercialEmisor,
-                // Temporal hasta API-013/configuracion fiscal por empresa.
-                ubigeo = UbigeoTemporalEmisor,
-                direccion = DireccionTemporalEmisor,
-                departamento = DepartamentoTemporalEmisor,
-                provincia = ProvinciaTemporalEmisor,
-                distrito = DistritoTemporalEmisor
+                ubigeo = configuracionFiscal.Ubigeo,
+                direccion = configuracionFiscal.Direccion,
+                departamento = configuracionFiscal.Departamento,
+                provincia = configuracionFiscal.Provincia,
+                distrito = configuracionFiscal.Distrito
             },
             tipoComprobante = request.TipoComprobante,
             serie = request.Serie,

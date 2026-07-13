@@ -30,6 +30,8 @@ public sealed class CapitalPosDbContext : DbContext
 
     public DbSet<Comprobante> Comprobantes => Set<Comprobante>();
 
+    public DbSet<ConfiguracionFiscalEmpresa> ConfiguracionesFiscalesEmpresas => Set<ConfiguracionFiscalEmpresa>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(CapitalPosDbContext).Assembly);

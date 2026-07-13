@@ -5,7 +5,9 @@ using System.Net.Http.Json;
 using System.Security.Claims;
 using System.Text;
 using CapitalPos.Api.ActiveCompany;
+using CapitalPos.Api.Endpoints;
 using CapitalPos.Application.Clientes;
+using CapitalPos.Application.ConfiguracionFiscal;
 using CapitalPos.Application.Empresas;
 using CapitalPos.Application.Productos;
 using CapitalPos.Application.Seguridad;
@@ -154,6 +156,172 @@ public class HttpIntegrationTests
     }
 
     [Fact]
+    public async Task Configuracion_fiscal_sin_jwt_devuelve_unauthorized()
+    {
+        await using var factory = new CapitalPosHttpFactory();
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync("/api/configuracion-fiscal");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Configuracion_fiscal_con_jwt_sin_empresa_activa_devuelve_bad_request()
+    {
+        await using var factory = new CapitalPosHttpFactory();
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = CrearAuthorizationHeader(UsuarioId);
+
+        var response = await client.GetAsync("/api/configuracion-fiscal");
+        var content = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains(EmpresaActivaHeaders.HeaderName, content);
+        AssertSeguro(content);
+    }
+
+    [Fact]
+    public async Task Configuracion_fiscal_usuario_sin_permiso_devuelve_forbidden()
+    {
+        await using var factory = new CapitalPosHttpFactory
+        {
+            UsuarioEmpresa = CrearUsuarioEmpresa(RolEmpresa.Vendedor)
+        };
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+
+        var response = await client.GetAsync("/api/configuracion-fiscal");
+        var content = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Contains("permiso requerido", content);
+        AssertSeguro(content);
+    }
+
+    [Fact]
+    public async Task Obtener_configuracion_fiscal_no_expone_configuracion_de_otra_empresa()
+    {
+        var otraEmpresaId = Guid.Parse("44444444-4444-4444-4444-444444444444");
+        await using var factory = new CapitalPosHttpFactory();
+        factory.ConfiguracionFiscalRepository.Configuraciones.Add(
+            CrearConfiguracionFiscal(otraEmpresaId, "20609999999"));
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+
+        var response = await client.GetAsync("/api/configuracion-fiscal");
+        var content = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.DoesNotContain("20609999999", content);
+        AssertSeguro(content);
+    }
+
+    [Fact]
+    public async Task Obtener_configuracion_fiscal_devuelve_configuracion_de_empresa_activa()
+    {
+        await using var factory = new CapitalPosHttpFactory();
+        factory.ConfiguracionFiscalRepository.Configuraciones.Add(
+            CrearConfiguracionFiscal(EmpresaId));
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+
+        var response = await client.GetAsync("/api/configuracion-fiscal");
+        var content = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadFromJsonAsync<ConfiguracionFiscalEmpresaResponse>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(body);
+        Assert.Equal(EmpresaId, body.EmpresaId);
+        Assert.Equal("20601234567", body.Ruc);
+        Assert.Equal("CapitalPOS SAC", body.RazonSocial);
+        Assert.Equal("150101", body.Ubigeo);
+        Assert.True(body.Activa);
+        AssertSeguro(content);
+    }
+
+    [Fact]
+    public async Task Guardar_configuracion_fiscal_crea_para_empresa_activa()
+    {
+        await using var factory = new CapitalPosHttpFactory();
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+        var request = CrearConfiguracionFiscalRequest();
+
+        var response = await client.PutAsJsonAsync("/api/configuracion-fiscal", request);
+        var content = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadFromJsonAsync<ConfiguracionFiscalEmpresaResponse>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(body);
+        Assert.Equal(EmpresaId, body.EmpresaId);
+        Assert.Equal("20601234567", body.Ruc);
+        Assert.Contains("20601234567", content);
+        Assert.Contains(factory.ConfiguracionFiscalRepository.Configuraciones, configuracion =>
+            configuracion.EmpresaId == EmpresaId &&
+            configuracion.Ruc == "20601234567");
+        AssertSeguro(content);
+    }
+
+    [Fact]
+    public async Task Guardar_configuracion_fiscal_ignora_empresa_id_libre_del_body()
+    {
+        var otraEmpresaId = Guid.Parse("44444444-4444-4444-4444-444444444444");
+        await using var factory = new CapitalPosHttpFactory();
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+        var request = new
+        {
+            EmpresaId = otraEmpresaId,
+            Ruc = "20601234567",
+            RazonSocial = "CapitalPOS SAC",
+            NombreComercial = "CapitalPOS",
+            Ubigeo = "150101",
+            Direccion = "AV. AREQUIPA 123",
+            Departamento = "LIMA",
+            Provincia = "LIMA",
+            Distrito = "LIMA",
+            Activa = true
+        };
+
+        var response = await client.PutAsJsonAsync("/api/configuracion-fiscal", request);
+        var content = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadFromJsonAsync<ConfiguracionFiscalEmpresaResponse>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(body);
+        Assert.Equal(EmpresaId, body.EmpresaId);
+        Assert.DoesNotContain(otraEmpresaId.ToString(), content);
+        Assert.DoesNotContain(factory.ConfiguracionFiscalRepository.Configuraciones, configuracion =>
+            configuracion.EmpresaId == otraEmpresaId);
+        AssertSeguro(content);
+    }
+
+    [Theory]
+    [InlineData("123", "150101", "CapitalPOS SAC", "AV. AREQUIPA 123", "RUC")]
+    [InlineData("20601234567", "15010A", "CapitalPOS SAC", "AV. AREQUIPA 123", "ubigeo")]
+    [InlineData("20601234567", "150101", "", "AV. AREQUIPA 123", "razon social")]
+    [InlineData("20601234567", "150101", "CapitalPOS SAC", "", "direccion")]
+    public async Task Guardar_configuracion_fiscal_valida_entrada(
+        string ruc,
+        string ubigeo,
+        string razonSocial,
+        string direccion,
+        string errorEsperado)
+    {
+        await using var factory = new CapitalPosHttpFactory();
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+        var request = CrearConfiguracionFiscalRequest(
+            ruc: ruc,
+            ubigeo: ubigeo,
+            razonSocial: razonSocial,
+            direccion: direccion);
+
+        var response = await client.PutAsJsonAsync("/api/configuracion-fiscal", request);
+        var content = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains(errorEsperado, content, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(factory.ConfiguracionFiscalRepository.Configuraciones);
+        AssertSeguro(content);
+    }
+
+    [Fact]
     public async Task Post_con_entrada_invalida_devuelve_error_de_validacion()
     {
         await using var factory = new CapitalPosHttpFactory
@@ -272,6 +440,45 @@ public class HttpIntegrationTests
             rol);
     }
 
+    private static GuardarConfiguracionFiscalEmpresaRequest CrearConfiguracionFiscalRequest(
+        string ruc = "20601234567",
+        string razonSocial = "CapitalPOS SAC",
+        string? nombreComercial = "CapitalPOS",
+        string ubigeo = "150101",
+        string direccion = "AV. AREQUIPA 123",
+        string departamento = "LIMA",
+        string provincia = "LIMA",
+        string distrito = "LIMA",
+        bool activa = true)
+    {
+        return new GuardarConfiguracionFiscalEmpresaRequest(
+            ruc,
+            razonSocial,
+            nombreComercial,
+            ubigeo,
+            direccion,
+            departamento,
+            provincia,
+            distrito,
+            activa);
+    }
+
+    private static ConfiguracionFiscalEmpresa CrearConfiguracionFiscal(
+        Guid empresaId,
+        string ruc = "20601234567")
+    {
+        return new ConfiguracionFiscalEmpresa(
+            empresaId,
+            ruc,
+            "CapitalPOS SAC",
+            "CapitalPOS",
+            "150101",
+            "AV. AREQUIPA 123",
+            "LIMA",
+            "LIMA",
+            "LIMA");
+    }
+
     private static void AssertSeguro(string content)
     {
         Assert.DoesNotContain(SigningKey, content, StringComparison.Ordinal);
@@ -302,6 +509,8 @@ public class HttpIntegrationTests
         public FakeUsuarioRepository UsuarioRepository { get; } = new();
 
         public FakeUsuarioEmpresaRepository UsuarioEmpresaRepository { get; } = new();
+
+        public FakeConfiguracionFiscalEmpresaRepository ConfiguracionFiscalRepository { get; } = new();
 
         public UsuarioEmpresa? UsuarioEmpresa
         {
@@ -345,6 +554,7 @@ public class HttpIntegrationTests
                 services.RemoveAll<IClienteRepository>();
                 services.RemoveAll<IVentaRepository>();
                 services.RemoveAll<IComprobanteRepository>();
+                services.RemoveAll<IConfiguracionFiscalEmpresaRepository>();
 
                 services.AddSingleton<IEmpresaRepository>(EmpresaRepository);
                 services.AddSingleton<IUsuarioRepository>(UsuarioRepository);
@@ -355,6 +565,7 @@ public class HttpIntegrationTests
                 services.AddSingleton<IClienteRepository, FakeClienteRepository>();
                 services.AddSingleton<IVentaRepository, FakeVentaRepository>();
                 services.AddSingleton<IComprobanteRepository, FakeComprobanteRepository>();
+                services.AddSingleton<IConfiguracionFiscalEmpresaRepository>(ConfiguracionFiscalRepository);
             });
         }
     }
@@ -625,6 +836,38 @@ public class HttpIntegrationTests
     {
         public Task AgregarAsync(Comprobante comprobante, CancellationToken cancellationToken = default)
         {
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class FakeConfiguracionFiscalEmpresaRepository : IConfiguracionFiscalEmpresaRepository
+    {
+        public List<ConfiguracionFiscalEmpresa> Configuraciones { get; } = [];
+
+        public Task<ConfiguracionFiscalEmpresa?> ObtenerPorEmpresaAsync(
+            Guid empresaId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(Configuraciones.FirstOrDefault(
+                configuracion => configuracion.EmpresaId == empresaId));
+        }
+
+        public Task GuardarAsync(
+            ConfiguracionFiscalEmpresa configuracion,
+            CancellationToken cancellationToken = default)
+        {
+            var existente = Configuraciones.FindIndex(
+                item => item.EmpresaId == configuracion.EmpresaId);
+
+            if (existente >= 0)
+            {
+                Configuraciones[existente] = configuracion;
+            }
+            else
+            {
+                Configuraciones.Add(configuracion);
+            }
+
             return Task.CompletedTask;
         }
     }

@@ -4,6 +4,7 @@ using CapitalPos.Api.Authentication;
 using CapitalPos.Api.Development;
 using CapitalPos.Api.Middleware;
 using CapitalPos.Application.Clientes;
+using CapitalPos.Application.ConfiguracionFiscal;
 using CapitalPos.Application.Empresas;
 using CapitalPos.Application.Productos;
 using CapitalPos.Application.Seguridad;
@@ -59,6 +60,8 @@ builder.Services.AddScoped<ObtenerClientePorIdUseCase>();
 builder.Services.AddScoped<CrearVentaUseCase>();
 builder.Services.AddScoped<EmitirCpeDesdeVentaUseCase>();
 builder.Services.AddScoped<RegistrarComprobanteCpeUseCase>();
+builder.Services.AddScoped<GuardarConfiguracionFiscalEmpresaUseCase>();
+builder.Services.AddScoped<ObtenerConfiguracionFiscalEmpresaUseCase>();
 
 var app = builder.Build();
 
@@ -91,6 +94,7 @@ app.MapUsuarioEndpoints();
 app.MapProductoEndpoints();
 app.MapClienteEndpoints();
 app.MapVentaEndpoints();
+app.MapConfiguracionFiscalEndpoints();
 app.MapCpeEndpoints();
 
 await app.SeedDemoDataAsync();

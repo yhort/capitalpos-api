@@ -1,7 +1,7 @@
 using System.Text.Json;
 using CapitalPos.Application.Cpe;
 using CapitalPos.Application.Clientes;
-using CapitalPos.Application.Empresas;
+using CapitalPos.Application.ConfiguracionFiscal;
 using CapitalPos.Application.Productos;
 using CapitalPos.Application.Seguridad;
 using CapitalPos.Application.Ventas;
@@ -153,12 +153,21 @@ public class ApplicationVentaTests
         var clienteId = Guid.NewGuid();
         var productoId = Guid.NewGuid();
         var ventaRepository = new VentaRepositoryFake();
-        var empresaRepository = new EmpresaRepositoryFake();
+        var configuracionFiscalRepository = new ConfiguracionFiscalEmpresaRepositoryFake();
         var clienteRepository = new ClienteRepositoryFake();
         var productoRepository = new ProductoRepositoryFake();
         var varianteRepository = new ProductoVarianteRepositoryFake();
         var gateway = new CpeGatewayFake();
-        await empresaRepository.AgregarAsync(new Empresa(empresaId, "20601234567", "CapitalPOS Demo SAC", "CapitalPOS"));
+        await configuracionFiscalRepository.GuardarAsync(new ConfiguracionFiscalEmpresa(
+            empresaId,
+            "20601234567",
+            "CapitalPOS Fiscal SAC",
+            "CapitalPOS Fiscal",
+            "150102",
+            "Calle Fiscal 456",
+            "LIMA",
+            "LIMA",
+            "ANCON"));
         await clienteRepository.AgregarAsync(new Cliente(clienteId, empresaId, "DNI", "12345678", "Cliente Demo"));
         await productoRepository.AgregarAsync(new Producto(productoId, empresaId, "Producto gravado", 59m, "SKU-001"));
         var detalle = new VentaDetalle(
@@ -182,7 +191,7 @@ public class ApplicationVentaTests
         await ventaRepository.AgregarAsync(venta);
         var useCase = new EmitirCpeDesdeVentaUseCase(
             ventaRepository,
-            empresaRepository,
+            configuracionFiscalRepository,
             clienteRepository,
             productoRepository,
             varianteRepository,
@@ -211,10 +220,15 @@ public class ApplicationVentaTests
 
         var emisor = gateway.UltimoRequest.Value.GetProperty("emisor");
         Assert.Equal("20601234567", emisor.GetProperty("ruc").GetString());
-        Assert.Equal("CapitalPOS Demo SAC", emisor.GetProperty("razonSocial").GetString());
-        Assert.Equal("CapitalPOS", emisor.GetProperty("nombreComercial").GetString());
-        Assert.Equal("150101", emisor.GetProperty("ubigeo").GetString());
-        Assert.Equal("AV. DEMO 123", emisor.GetProperty("direccion").GetString());
+        Assert.Equal("CapitalPOS Fiscal SAC", emisor.GetProperty("razonSocial").GetString());
+        Assert.Equal("CapitalPOS Fiscal", emisor.GetProperty("nombreComercial").GetString());
+        Assert.Equal("150102", emisor.GetProperty("ubigeo").GetString());
+        Assert.Equal("Calle Fiscal 456", emisor.GetProperty("direccion").GetString());
+        Assert.Equal("LIMA", emisor.GetProperty("departamento").GetString());
+        Assert.Equal("LIMA", emisor.GetProperty("provincia").GetString());
+        Assert.Equal("ANCON", emisor.GetProperty("distrito").GetString());
+        Assert.DoesNotContain("AV. DEMO 123", gateway.UltimoRequest.Value.GetRawText());
+        Assert.DoesNotContain("150101", gateway.UltimoRequest.Value.GetRawText());
 
         var cliente = gateway.UltimoRequest.Value.GetProperty("cliente");
         Assert.Equal("1", cliente.GetProperty("tipoDocumento").GetString());
@@ -235,13 +249,102 @@ public class ApplicationVentaTests
     }
 
     [Fact]
+    public async Task Emitir_cpe_desde_venta_use_case_falla_si_no_existe_configuracion_fiscal()
+    {
+        var escenario = await CrearEscenarioEmisionAsync();
+        var useCase = new EmitirCpeDesdeVentaUseCase(
+            escenario.VentaRepository,
+            new ConfiguracionFiscalEmpresaRepositoryFake(),
+            escenario.ClienteRepository,
+            escenario.ProductoRepository,
+            escenario.VarianteRepository,
+            escenario.Gateway,
+            new EmpresaActivaContextFake(escenario.EmpresaId));
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            useCase.EjecutarAsync(
+                escenario.VentaId,
+                new EmitirCpeDesdeVentaRequest("03", "B001", 7, "20601234567")));
+
+        Assert.Contains("no tiene configuracion fiscal", exception.Message);
+        Assert.Null(escenario.Gateway.UltimoRequest);
+    }
+
+    [Fact]
+    public async Task Emitir_cpe_desde_venta_use_case_falla_si_configuracion_fiscal_esta_inactiva()
+    {
+        var escenario = await CrearEscenarioEmisionAsync();
+        var configuracionFiscalRepository = new ConfiguracionFiscalEmpresaRepositoryFake();
+        await configuracionFiscalRepository.GuardarAsync(new ConfiguracionFiscalEmpresa(
+            escenario.EmpresaId,
+            "20601234567",
+            "CapitalPOS Fiscal SAC",
+            "CapitalPOS Fiscal",
+            "150102",
+            "Calle Fiscal 456",
+            "LIMA",
+            "LIMA",
+            "ANCON",
+            activa: false));
+        var useCase = new EmitirCpeDesdeVentaUseCase(
+            escenario.VentaRepository,
+            configuracionFiscalRepository,
+            escenario.ClienteRepository,
+            escenario.ProductoRepository,
+            escenario.VarianteRepository,
+            escenario.Gateway,
+            new EmpresaActivaContextFake(escenario.EmpresaId));
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            useCase.EjecutarAsync(
+                escenario.VentaId,
+                new EmitirCpeDesdeVentaRequest("03", "B001", 7, "20601234567")));
+
+        Assert.Contains("esta inactiva", exception.Message);
+        Assert.Null(escenario.Gateway.UltimoRequest);
+    }
+
+    [Fact]
+    public async Task Emitir_cpe_desde_venta_use_case_falla_si_ruc_emisor_no_coincide_con_configuracion_fiscal()
+    {
+        var escenario = await CrearEscenarioEmisionAsync();
+        var configuracionFiscalRepository = new ConfiguracionFiscalEmpresaRepositoryFake();
+        await configuracionFiscalRepository.GuardarAsync(new ConfiguracionFiscalEmpresa(
+            escenario.EmpresaId,
+            "20601234567",
+            "CapitalPOS Fiscal SAC",
+            "CapitalPOS Fiscal",
+            "150102",
+            "Calle Fiscal 456",
+            "LIMA",
+            "LIMA",
+            "ANCON"));
+        var useCase = new EmitirCpeDesdeVentaUseCase(
+            escenario.VentaRepository,
+            configuracionFiscalRepository,
+            escenario.ClienteRepository,
+            escenario.ProductoRepository,
+            escenario.VarianteRepository,
+            escenario.Gateway,
+            new EmpresaActivaContextFake(escenario.EmpresaId));
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            useCase.EjecutarAsync(
+                escenario.VentaId,
+                new EmitirCpeDesdeVentaRequest("03", "B001", 7, "20600000001")));
+
+        Assert.Contains("no coincide", exception.Message);
+        Assert.Null(escenario.Gateway.UltimoRequest);
+    }
+
+    [Fact]
     public async Task Emitir_cpe_desde_venta_use_case_no_llama_gateway_si_venta_es_de_otra_empresa()
     {
         var empresaAId = Guid.NewGuid();
         var empresaBId = Guid.NewGuid();
         var ventaId = Guid.NewGuid();
         var ventaRepository = new VentaRepositoryFake();
-        var empresaRepository = new EmpresaRepositoryFake();
+        var configuracionFiscalRepository = new ConfiguracionFiscalEmpresaRepositoryFake();
         var clienteRepository = new ClienteRepositoryFake();
         var productoRepository = new ProductoRepositoryFake();
         var varianteRepository = new ProductoVarianteRepositoryFake();
@@ -263,9 +366,19 @@ public class ApplicationVentaTests
             0m,
             10m,
             [detalle]));
+        await configuracionFiscalRepository.GuardarAsync(new ConfiguracionFiscalEmpresa(
+            empresaAId,
+            "20601234567",
+            "CapitalPOS Fiscal SAC",
+            "CapitalPOS Fiscal",
+            "150102",
+            "Calle Fiscal 456",
+            "LIMA",
+            "LIMA",
+            "ANCON"));
         var useCase = new EmitirCpeDesdeVentaUseCase(
             ventaRepository,
-            empresaRepository,
+            configuracionFiscalRepository,
             clienteRepository,
             productoRepository,
             varianteRepository,
@@ -393,6 +506,69 @@ public class ApplicationVentaTests
             ]);
     }
 
+    private static async Task<EscenarioEmisionCpe> CrearEscenarioEmisionAsync()
+    {
+        var empresaId = Guid.NewGuid();
+        var ventaId = Guid.NewGuid();
+        var clienteId = Guid.NewGuid();
+        var productoId = Guid.NewGuid();
+        var ventaRepository = new VentaRepositoryFake();
+        var clienteRepository = new ClienteRepositoryFake();
+        var productoRepository = new ProductoRepositoryFake();
+        var varianteRepository = new ProductoVarianteRepositoryFake();
+        var gateway = new CpeGatewayFake();
+
+        await clienteRepository.AgregarAsync(new Cliente(
+            clienteId,
+            empresaId,
+            "DNI",
+            "12345678",
+            "Cliente Demo"));
+        await productoRepository.AgregarAsync(new Producto(
+            productoId,
+            empresaId,
+            "Producto gravado",
+            59m,
+            "SKU-001"));
+
+        var detalle = new VentaDetalle(
+            Guid.NewGuid(),
+            empresaId,
+            ventaId,
+            productoId,
+            2m,
+            50m,
+            18m,
+            118m);
+        await ventaRepository.AgregarAsync(new Venta(
+            ventaId,
+            empresaId,
+            new DateTimeOffset(2026, 7, 11, 5, 0, 0, TimeSpan.Zero),
+            100m,
+            18m,
+            118m,
+            [detalle],
+            clienteId));
+
+        return new EscenarioEmisionCpe(
+            empresaId,
+            ventaId,
+            ventaRepository,
+            clienteRepository,
+            productoRepository,
+            varianteRepository,
+            gateway);
+    }
+
+    private sealed record EscenarioEmisionCpe(
+        Guid EmpresaId,
+        Guid VentaId,
+        VentaRepositoryFake VentaRepository,
+        ClienteRepositoryFake ClienteRepository,
+        ProductoRepositoryFake ProductoRepository,
+        ProductoVarianteRepositoryFake VarianteRepository,
+        CpeGatewayFake Gateway);
+
     private static CrearVentaUseCase CrearUseCase(
         VentaRepositoryFake ventaRepository,
         ProductoRepositoryFake productoRepository,
@@ -444,37 +620,36 @@ public class ApplicationVentaTests
         }
     }
 
-    private sealed class EmpresaRepositoryFake : IEmpresaRepository
+    private sealed class ConfiguracionFiscalEmpresaRepositoryFake : IConfiguracionFiscalEmpresaRepository
     {
-        private readonly List<Empresa> _empresas = new();
+        private readonly List<ConfiguracionFiscalEmpresa> _configuraciones = new();
 
-        public Task AgregarAsync(Empresa empresa, CancellationToken cancellationToken = default)
+        public Task<ConfiguracionFiscalEmpresa?> ObtenerPorEmpresaAsync(
+            Guid empresaId,
+            CancellationToken cancellationToken = default)
         {
-            _empresas.Add(empresa);
+            var configuracion = _configuraciones.SingleOrDefault(
+                configuracion => configuracion.EmpresaId == empresaId);
+
+            return Task.FromResult(configuracion);
+        }
+
+        public Task GuardarAsync(
+            ConfiguracionFiscalEmpresa configuracion,
+            CancellationToken cancellationToken = default)
+        {
+            var index = _configuraciones.FindIndex(
+                actual => actual.EmpresaId == configuracion.EmpresaId);
+            if (index >= 0)
+            {
+                _configuraciones[index] = configuracion;
+            }
+            else
+            {
+                _configuraciones.Add(configuracion);
+            }
 
             return Task.CompletedTask;
-        }
-
-        public Task<IReadOnlyCollection<Empresa>> ListarAsync(CancellationToken cancellationToken = default)
-        {
-            return Task.FromResult<IReadOnlyCollection<Empresa>>(_empresas.ToArray());
-        }
-
-        public Task<Empresa?> ObtenerPorIdAsync(Guid id, CancellationToken cancellationToken = default)
-        {
-            var empresa = _empresas.SingleOrDefault(empresa => empresa.Id == id);
-
-            return Task.FromResult(empresa);
-        }
-
-        public Task ActualizarAsync(Empresa empresa, CancellationToken cancellationToken = default)
-        {
-            return Task.CompletedTask;
-        }
-
-        public Task<bool> ExisteRucAsync(string ruc, CancellationToken cancellationToken = default)
-        {
-            return Task.FromResult(_empresas.Any(empresa => empresa.Ruc == ruc));
         }
     }
 

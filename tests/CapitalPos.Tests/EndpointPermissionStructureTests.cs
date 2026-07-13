@@ -8,6 +8,7 @@ public class EndpointPermissionStructureTests
     [InlineData("src/CapitalPos.Api/Endpoints/ProductoEndpoints.cs")]
     [InlineData("src/CapitalPos.Api/Endpoints/ClienteEndpoints.cs")]
     [InlineData("src/CapitalPos.Api/Endpoints/VentaEndpoints.cs")]
+    [InlineData("src/CapitalPos.Api/Endpoints/ConfiguracionFiscalEndpoints.cs")]
     public void Endpoints_piden_permisos_explicitamente(string relativePath)
     {
         var source = File.ReadAllText(ResolverRutaRepo(relativePath));
@@ -21,6 +22,7 @@ public class EndpointPermissionStructureTests
     [InlineData("src/CapitalPos.Api/Endpoints/ProductoEndpoints.cs")]
     [InlineData("src/CapitalPos.Api/Endpoints/ClienteEndpoints.cs")]
     [InlineData("src/CapitalPos.Api/Endpoints/VentaEndpoints.cs")]
+    [InlineData("src/CapitalPos.Api/Endpoints/ConfiguracionFiscalEndpoints.cs")]
     public void Endpoints_no_comparan_roles_directamente_para_autorizar(string relativePath)
     {
         var source = File.ReadAllText(ResolverRutaRepo(relativePath));

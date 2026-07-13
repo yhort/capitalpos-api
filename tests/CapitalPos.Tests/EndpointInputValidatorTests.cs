@@ -1,4 +1,5 @@
 using CapitalPos.Api.Endpoints;
+using CapitalPos.Application.ConfiguracionFiscal;
 using CapitalPos.Application.Empresas;
 using CapitalPos.Application.Usuarios;
 using CapitalPos.Domain;
@@ -138,5 +139,93 @@ public class EndpointInputValidatorTests
 
         Assert.False(esValido);
         Assert.Contains("rol", error);
+    }
+
+    [Fact]
+    public void GuardarConfiguracionFiscal_acepta_request_valido()
+    {
+        var request = CrearConfiguracionFiscalRequest();
+
+        var esValido = EndpointInputValidator.TryValidate(request, out var error);
+
+        Assert.True(esValido);
+        Assert.Equal(string.Empty, error);
+    }
+
+    [Theory]
+    [InlineData("", "RUC")]
+    [InlineData("123", "RUC")]
+    [InlineData("2060123456A", "RUC")]
+    public void GuardarConfiguracionFiscal_rechaza_ruc_invalido(string ruc, string campoEsperado)
+    {
+        var request = CrearConfiguracionFiscalRequest(ruc: ruc);
+
+        var esValido = EndpointInputValidator.TryValidate(request, out var error);
+
+        Assert.False(esValido);
+        Assert.Contains(campoEsperado, error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData("", "ubigeo")]
+    [InlineData("15010", "ubigeo")]
+    [InlineData("15010A", "ubigeo")]
+    public void GuardarConfiguracionFiscal_rechaza_ubigeo_invalido(string ubigeo, string campoEsperado)
+    {
+        var request = CrearConfiguracionFiscalRequest(ubigeo: ubigeo);
+
+        var esValido = EndpointInputValidator.TryValidate(request, out var error);
+
+        Assert.False(esValido);
+        Assert.Contains(campoEsperado, error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData("", "razon social")]
+    public void GuardarConfiguracionFiscal_rechaza_razon_social_vacia(
+        string razonSocial,
+        string campoEsperado)
+    {
+        var request = CrearConfiguracionFiscalRequest(razonSocial: razonSocial);
+
+        var esValido = EndpointInputValidator.TryValidate(request, out var error);
+
+        Assert.False(esValido);
+        Assert.Contains(campoEsperado, error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData("", "direccion")]
+    public void GuardarConfiguracionFiscal_rechaza_direccion_vacia(
+        string direccion,
+        string campoEsperado)
+    {
+        var request = CrearConfiguracionFiscalRequest(direccion: direccion);
+
+        var esValido = EndpointInputValidator.TryValidate(request, out var error);
+
+        Assert.False(esValido);
+        Assert.Contains(campoEsperado, error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static GuardarConfiguracionFiscalEmpresaRequest CrearConfiguracionFiscalRequest(
+        string ruc = "20601234567",
+        string razonSocial = "CapitalPOS SAC",
+        string? nombreComercial = "CapitalPOS",
+        string ubigeo = "150101",
+        string direccion = "AV. AREQUIPA 123",
+        string departamento = "LIMA",
+        string provincia = "LIMA",
+        string distrito = "LIMA")
+    {
+        return new GuardarConfiguracionFiscalEmpresaRequest(
+            ruc,
+            razonSocial,
+            nombreComercial,
+            ubigeo,
+            direccion,
+            departamento,
+            provincia,
+            distrito);
     }
 }

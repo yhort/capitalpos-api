@@ -1,5 +1,6 @@
 using CapitalPos.Application.Empresas;
 using CapitalPos.Application.Clientes;
+using CapitalPos.Application.ConfiguracionFiscal;
 using CapitalPos.Application.Productos;
 using CapitalPos.Application.Usuarios;
 using CapitalPos.Application.Ventas;
@@ -266,6 +267,66 @@ public static class EndpointInputValidator
         if (request.RucEmisor.Length != 11 || request.RucEmisor.Any(static character => !char.IsDigit(character)))
         {
             error = "El RUC emisor debe tener 11 digitos.";
+            return false;
+        }
+
+        error = string.Empty;
+        return true;
+    }
+
+    public static bool TryValidate(GuardarConfiguracionFiscalEmpresaRequest request, out string error)
+    {
+        if (string.IsNullOrWhiteSpace(request.Ruc))
+        {
+            error = "El RUC es obligatorio.";
+            return false;
+        }
+
+        if (request.Ruc.Length != 11 || request.Ruc.Any(static character => !char.IsDigit(character)))
+        {
+            error = "El RUC debe tener 11 digitos.";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(request.RazonSocial))
+        {
+            error = "La razon social es obligatoria.";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Ubigeo))
+        {
+            error = "El ubigeo es obligatorio.";
+            return false;
+        }
+
+        if (request.Ubigeo.Length != 6 || request.Ubigeo.Any(static character => !char.IsDigit(character)))
+        {
+            error = "El ubigeo debe tener 6 digitos.";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Direccion))
+        {
+            error = "La direccion es obligatoria.";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Departamento))
+        {
+            error = "El departamento es obligatorio.";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Provincia))
+        {
+            error = "La provincia es obligatoria.";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Distrito))
+        {
+            error = "El distrito es obligatorio.";
             return false;
         }
 

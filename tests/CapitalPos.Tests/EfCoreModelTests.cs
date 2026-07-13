@@ -22,6 +22,7 @@ public class EfCoreModelTests
         Assert.NotNull(context.Model.FindEntityType(typeof(Venta)));
         Assert.NotNull(context.Model.FindEntityType(typeof(VentaDetalle)));
         Assert.NotNull(context.Model.FindEntityType(typeof(Comprobante)));
+        Assert.NotNull(context.Model.FindEntityType(typeof(ConfiguracionFiscalEmpresa)));
     }
 
     [Fact]
@@ -370,6 +371,36 @@ public class EfCoreModelTests
                 nameof(Comprobante.VentaId),
                 nameof(Comprobante.EmpresaId)
             ]));
+    }
+
+    [Fact]
+    public void Configuracion_fiscal_empresa_tiene_relacion_uno_a_uno_con_empresa()
+    {
+        var entityType = ObtenerEntidad<ConfiguracionFiscalEmpresa>();
+
+        Assert.Equal("configuraciones_fiscales_empresas", entityType.GetTableName());
+        Assert.Equal(nameof(ConfiguracionFiscalEmpresa.EmpresaId), entityType.FindPrimaryKey()?.Properties.Single().Name);
+        AssertPropiedad(entityType, nameof(ConfiguracionFiscalEmpresa.EmpresaId), nullable: false);
+        AssertPropiedad(entityType, nameof(ConfiguracionFiscalEmpresa.Ruc), maxLength: 11, nullable: false);
+        AssertPropiedad(entityType, nameof(ConfiguracionFiscalEmpresa.RazonSocial), maxLength: 200, nullable: false);
+        AssertPropiedad(entityType, nameof(ConfiguracionFiscalEmpresa.NombreComercial), maxLength: 200, nullable: false);
+        AssertPropiedad(entityType, nameof(ConfiguracionFiscalEmpresa.Ubigeo), maxLength: 6, nullable: false);
+        AssertPropiedad(entityType, nameof(ConfiguracionFiscalEmpresa.Direccion), maxLength: 250, nullable: false);
+        AssertPropiedad(entityType, nameof(ConfiguracionFiscalEmpresa.Departamento), maxLength: 100, nullable: false);
+        AssertPropiedad(entityType, nameof(ConfiguracionFiscalEmpresa.Provincia), maxLength: 100, nullable: false);
+        AssertPropiedad(entityType, nameof(ConfiguracionFiscalEmpresa.Distrito), maxLength: 100, nullable: false);
+        AssertPropiedad(entityType, nameof(ConfiguracionFiscalEmpresa.Activa), nullable: false);
+        AssertPropiedad(entityType, nameof(ConfiguracionFiscalEmpresa.FechaCreacion), nullable: false);
+
+        Assert.Contains(entityType.GetIndexes(), index =>
+            index.IsUnique &&
+            index.Properties.Select(property => property.Name).SequenceEqual([nameof(ConfiguracionFiscalEmpresa.EmpresaId)]));
+
+        Assert.Contains(entityType.GetForeignKeys(), foreignKey =>
+            foreignKey.IsUnique &&
+            foreignKey.PrincipalEntityType.ClrType == typeof(Empresa) &&
+            foreignKey.DeleteBehavior == DeleteBehavior.Restrict &&
+            foreignKey.Properties.Select(property => property.Name).SequenceEqual([nameof(ConfiguracionFiscalEmpresa.EmpresaId)]));
     }
 
     private static IEntityType ObtenerEntidad<TEntity>()
