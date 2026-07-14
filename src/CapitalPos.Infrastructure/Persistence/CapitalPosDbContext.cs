@@ -32,6 +32,8 @@ public sealed class CapitalPosDbContext : DbContext
 
     public DbSet<ConfiguracionFiscalEmpresa> ConfiguracionesFiscalesEmpresas => Set<ConfiguracionFiscalEmpresa>();
 
+    public DbSet<StockProducto> StocksProductos => Set<StockProducto>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(CapitalPosDbContext).Assembly);

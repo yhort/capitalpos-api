@@ -1,5 +1,6 @@
 using CapitalPos.Application.ConfiguracionFiscal;
 using CapitalPos.Application.Empresas;
+using CapitalPos.Application.Inventario;
 using CapitalPos.Application.Seguridad;
 using CapitalPos.Application.Usuarios;
 using CapitalPos.Infrastructure.Persistence.Repositories;
@@ -36,6 +37,12 @@ public class EfRepositoryStructureTests
     public void Ef_configuracion_fiscal_empresa_repository_implementa_puerto_de_aplicacion()
     {
         Assert.True(typeof(IConfiguracionFiscalEmpresaRepository).IsAssignableFrom(typeof(EfConfiguracionFiscalEmpresaRepository)));
+    }
+
+    [Fact]
+    public void Ef_stock_producto_repository_implementa_puerto_de_aplicacion()
+    {
+        Assert.True(typeof(IStockProductoRepository).IsAssignableFrom(typeof(EfStockProductoRepository)));
     }
 
     [Fact]

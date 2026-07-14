@@ -23,6 +23,7 @@ public class EfCoreModelTests
         Assert.NotNull(context.Model.FindEntityType(typeof(VentaDetalle)));
         Assert.NotNull(context.Model.FindEntityType(typeof(Comprobante)));
         Assert.NotNull(context.Model.FindEntityType(typeof(ConfiguracionFiscalEmpresa)));
+        Assert.NotNull(context.Model.FindEntityType(typeof(StockProducto)));
     }
 
     [Fact]
@@ -401,6 +402,65 @@ public class EfCoreModelTests
             foreignKey.PrincipalEntityType.ClrType == typeof(Empresa) &&
             foreignKey.DeleteBehavior == DeleteBehavior.Restrict &&
             foreignKey.Properties.Select(property => property.Name).SequenceEqual([nameof(ConfiguracionFiscalEmpresa.EmpresaId)]));
+    }
+
+    [Fact]
+    public void Stock_producto_tiene_empresa_producto_variante_opcional_indices_y_relaciones()
+    {
+        var entityType = ObtenerEntidad<StockProducto>();
+
+        Assert.Equal("stocks_productos", entityType.GetTableName());
+        Assert.Equal(nameof(StockProducto.Id), entityType.FindPrimaryKey()?.Properties.Single().Name);
+        AssertPropiedad(entityType, nameof(StockProducto.EmpresaId), nullable: false);
+        AssertPropiedad(entityType, nameof(StockProducto.ProductoId), nullable: false);
+        AssertPropiedad(entityType, nameof(StockProducto.ProductoVarianteId));
+        AssertPropiedad(entityType, nameof(StockProducto.CantidadDisponible), nullable: false);
+        AssertPropiedad(entityType, nameof(StockProducto.CantidadReservada), nullable: false);
+        AssertPropiedad(entityType, nameof(StockProducto.FechaCreacion), nullable: false);
+        AssertPropiedad(entityType, nameof(StockProducto.FechaActualizacion), nullable: false);
+        Assert.Null(entityType.FindProperty(nameof(StockProducto.CantidadLibre)));
+
+        Assert.Contains(entityType.GetIndexes(), index =>
+            index.Properties.Select(property => property.Name).SequenceEqual([nameof(StockProducto.EmpresaId)]));
+        Assert.Contains(entityType.GetIndexes(), index =>
+            index.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(StockProducto.EmpresaId),
+                nameof(StockProducto.ProductoId)
+            ]));
+        Assert.Contains(entityType.GetIndexes(), index =>
+            index.IsUnique &&
+            index.GetFilter() == "\"ProductoVarianteId\" IS NULL" &&
+            index.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(StockProducto.EmpresaId),
+                nameof(StockProducto.ProductoId)
+            ]));
+        Assert.Contains(entityType.GetIndexes(), index =>
+            index.IsUnique &&
+            index.GetFilter() == "\"ProductoVarianteId\" IS NOT NULL" &&
+            index.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(StockProducto.EmpresaId),
+                nameof(StockProducto.ProductoId),
+                nameof(StockProducto.ProductoVarianteId)
+            ]));
+
+        Assert.Contains(entityType.GetForeignKeys(), foreignKey =>
+            foreignKey.PrincipalEntityType.ClrType == typeof(Empresa) &&
+            foreignKey.DeleteBehavior == DeleteBehavior.Restrict &&
+            foreignKey.Properties.Select(property => property.Name).SequenceEqual([nameof(StockProducto.EmpresaId)]));
+        Assert.Contains(entityType.GetForeignKeys(), foreignKey =>
+            foreignKey.PrincipalEntityType.ClrType == typeof(Producto) &&
+            foreignKey.DeleteBehavior == DeleteBehavior.Restrict &&
+            foreignKey.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(StockProducto.ProductoId),
+                nameof(StockProducto.EmpresaId)
+            ]));
+        Assert.Contains(entityType.GetForeignKeys(), foreignKey =>
+            foreignKey.PrincipalEntityType.ClrType == typeof(ProductoVariante) &&
+            foreignKey.DeleteBehavior == DeleteBehavior.Restrict &&
+            foreignKey.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(StockProducto.ProductoVarianteId),
+                nameof(StockProducto.EmpresaId)
+            ]));
     }
 
     private static IEntityType ObtenerEntidad<TEntity>()

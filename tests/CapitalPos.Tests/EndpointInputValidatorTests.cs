@@ -1,6 +1,7 @@
 using CapitalPos.Api.Endpoints;
 using CapitalPos.Application.ConfiguracionFiscal;
 using CapitalPos.Application.Empresas;
+using CapitalPos.Application.Inventario;
 using CapitalPos.Application.Usuarios;
 using CapitalPos.Domain;
 
@@ -206,6 +207,50 @@ public class EndpointInputValidatorTests
 
         Assert.False(esValido);
         Assert.Contains(campoEsperado, error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void AjustarStockProducto_acepta_request_valido()
+    {
+        var request = new AjustarStockProductoRequest(Guid.NewGuid(), null, 10m);
+
+        var esValido = EndpointInputValidator.TryValidate(request, out var error);
+
+        Assert.True(esValido);
+        Assert.Equal(string.Empty, error);
+    }
+
+    [Fact]
+    public void AjustarStockProducto_rechaza_producto_vacio()
+    {
+        var request = new AjustarStockProductoRequest(Guid.Empty, null, 10m);
+
+        var esValido = EndpointInputValidator.TryValidate(request, out var error);
+
+        Assert.False(esValido);
+        Assert.Contains("producto", error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void AjustarStockProducto_rechaza_variante_vacia()
+    {
+        var request = new AjustarStockProductoRequest(Guid.NewGuid(), Guid.Empty, 10m);
+
+        var esValido = EndpointInputValidator.TryValidate(request, out var error);
+
+        Assert.False(esValido);
+        Assert.Contains("variante", error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void AjustarStockProducto_rechaza_cantidad_negativa()
+    {
+        var request = new AjustarStockProductoRequest(Guid.NewGuid(), null, -1m);
+
+        var esValido = EndpointInputValidator.TryValidate(request, out var error);
+
+        Assert.False(esValido);
+        Assert.Contains("cantidad", error, StringComparison.OrdinalIgnoreCase);
     }
 
     private static GuardarConfiguracionFiscalEmpresaRequest CrearConfiguracionFiscalRequest(

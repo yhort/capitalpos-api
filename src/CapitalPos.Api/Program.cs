@@ -6,6 +6,7 @@ using CapitalPos.Api.Middleware;
 using CapitalPos.Application.Clientes;
 using CapitalPos.Application.ConfiguracionFiscal;
 using CapitalPos.Application.Empresas;
+using CapitalPos.Application.Inventario;
 using CapitalPos.Application.Productos;
 using CapitalPos.Application.Seguridad;
 using CapitalPos.Application.Usuarios;
@@ -62,6 +63,8 @@ builder.Services.AddScoped<EmitirCpeDesdeVentaUseCase>();
 builder.Services.AddScoped<RegistrarComprobanteCpeUseCase>();
 builder.Services.AddScoped<GuardarConfiguracionFiscalEmpresaUseCase>();
 builder.Services.AddScoped<ObtenerConfiguracionFiscalEmpresaUseCase>();
+builder.Services.AddScoped<AjustarStockProductoUseCase>();
+builder.Services.AddScoped<ObtenerStockProductoUseCase>();
 
 var app = builder.Build();
 
@@ -92,6 +95,7 @@ app.MapAuthEndpoints();
 app.MapEmpresaEndpoints();
 app.MapUsuarioEndpoints();
 app.MapProductoEndpoints();
+app.MapStockEndpoints();
 app.MapClienteEndpoints();
 app.MapVentaEndpoints();
 app.MapConfiguracionFiscalEndpoints();

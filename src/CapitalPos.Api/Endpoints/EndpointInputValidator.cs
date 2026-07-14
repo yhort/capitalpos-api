@@ -1,6 +1,7 @@
 using CapitalPos.Application.Empresas;
 using CapitalPos.Application.Clientes;
 using CapitalPos.Application.ConfiguracionFiscal;
+using CapitalPos.Application.Inventario;
 using CapitalPos.Application.Productos;
 using CapitalPos.Application.Usuarios;
 using CapitalPos.Application.Ventas;
@@ -327,6 +328,30 @@ public static class EndpointInputValidator
         if (string.IsNullOrWhiteSpace(request.Distrito))
         {
             error = "El distrito es obligatorio.";
+            return false;
+        }
+
+        error = string.Empty;
+        return true;
+    }
+
+    public static bool TryValidate(AjustarStockProductoRequest request, out string error)
+    {
+        if (request.ProductoId == Guid.Empty)
+        {
+            error = "El identificador del producto es obligatorio.";
+            return false;
+        }
+
+        if (request.ProductoVarianteId == Guid.Empty)
+        {
+            error = "El identificador de la variante no puede estar vacio.";
+            return false;
+        }
+
+        if (request.CantidadDisponible < 0)
+        {
+            error = "La cantidad disponible no puede ser negativa.";
             return false;
         }
 
