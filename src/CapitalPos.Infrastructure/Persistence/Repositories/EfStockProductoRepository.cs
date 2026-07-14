@@ -33,6 +33,11 @@ public sealed class EfStockProductoRepository : IStockProductoRepository
     {
         ArgumentNullException.ThrowIfNull(stock);
 
+        if (_dbContext.Entry(stock).State != EntityState.Detached)
+        {
+            return;
+        }
+
         var existe = await _dbContext.StocksProductos.AnyAsync(
             actual => actual.Id == stock.Id,
             cancellationToken);
@@ -44,7 +49,5 @@ public sealed class EfStockProductoRepository : IStockProductoRepository
         {
             await _dbContext.StocksProductos.AddAsync(stock, cancellationToken);
         }
-
-        await _dbContext.SaveChangesAsync(cancellationToken);
     }
 }

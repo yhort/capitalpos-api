@@ -4,6 +4,7 @@ using CapitalPos.Application.ConfiguracionFiscal;
 using CapitalPos.Application.Cpe;
 using CapitalPos.Application.Empresas;
 using CapitalPos.Application.Inventario;
+using CapitalPos.Application.Persistence;
 using CapitalPos.Application.Productos;
 using CapitalPos.Application.Seguridad;
 using CapitalPos.Application.Usuarios;
@@ -12,6 +13,7 @@ using CapitalPos.Infrastructure;
 using CapitalPos.Infrastructure.Auditing;
 using CapitalPos.Infrastructure.Cpe;
 using CapitalPos.Infrastructure.Persistence.Repositories;
+using CapitalPos.Infrastructure.Persistence;
 using CapitalPos.Infrastructure.Security;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -83,6 +85,10 @@ public class InfrastructureDependencyInjectionTests
         Assert.Contains(services, descriptor =>
             descriptor.ServiceType == typeof(IStockProductoRepository) &&
             descriptor.ImplementationType == typeof(EfStockProductoRepository) &&
+            descriptor.Lifetime == ServiceLifetime.Scoped);
+        Assert.Contains(services, descriptor =>
+            descriptor.ServiceType == typeof(IUnitOfWork) &&
+            descriptor.ImplementationType == typeof(EfUnitOfWork) &&
             descriptor.Lifetime == ServiceLifetime.Scoped);
         Assert.Contains(services, descriptor =>
             descriptor.ServiceType == typeof(IAuditoriaOperaciones) &&

@@ -1,4 +1,5 @@
 using CapitalPos.Application.Inventario;
+using CapitalPos.Application.Persistence;
 using CapitalPos.Application.Productos;
 using CapitalPos.Application.Seguridad;
 using CapitalPos.Domain;
@@ -19,6 +20,7 @@ public class ApplicationStockProductoTests
             repository,
             productoRepository,
             new ProductoVarianteRepositoryFake(),
+            new UnitOfWorkFake(),
             new EmpresaActivaContextFake(empresaId));
 
         var stock = await useCase.EjecutarAsync(new AjustarStockProductoRequest(
@@ -51,6 +53,7 @@ public class ApplicationStockProductoTests
             repository,
             productoRepository,
             new ProductoVarianteRepositoryFake(),
+            new UnitOfWorkFake(),
             new EmpresaActivaContextFake(empresaId));
 
         var stock = await useCase.EjecutarAsync(new AjustarStockProductoRequest(
@@ -71,6 +74,7 @@ public class ApplicationStockProductoTests
             repository,
             new ProductoRepositoryFake(),
             new ProductoVarianteRepositoryFake(),
+            new UnitOfWorkFake(),
             new EmpresaActivaContextFake());
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
@@ -94,6 +98,7 @@ public class ApplicationStockProductoTests
             repository,
             productoRepository,
             new ProductoVarianteRepositoryFake(),
+            new UnitOfWorkFake(),
             new EmpresaActivaContextFake(empresaActivaId));
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
@@ -126,6 +131,7 @@ public class ApplicationStockProductoTests
             repository,
             productoRepository,
             varianteRepository,
+            new UnitOfWorkFake(),
             new EmpresaActivaContextFake(empresaId));
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
@@ -240,6 +246,18 @@ public class ApplicationStockProductoTests
             return Task.FromResult(Variantes.FirstOrDefault(variante =>
                 variante.EmpresaId == empresaId &&
                 variante.Id == id));
+        }
+    }
+
+    private sealed class UnitOfWorkFake : IUnitOfWork
+    {
+        public int SaveChangesCount { get; private set; }
+
+        public Task SaveChangesAsync(CancellationToken cancellationToken = default)
+        {
+            SaveChangesCount++;
+
+            return Task.CompletedTask;
         }
     }
 

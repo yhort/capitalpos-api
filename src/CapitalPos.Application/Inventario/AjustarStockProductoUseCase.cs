@@ -1,5 +1,6 @@
 using CapitalPos.Application.Seguridad;
 using CapitalPos.Application.Productos;
+using CapitalPos.Application.Persistence;
 using CapitalPos.Domain;
 
 namespace CapitalPos.Application.Inventario;
@@ -10,16 +11,19 @@ public sealed class AjustarStockProductoUseCase
     private readonly IProductoRepository _productoRepository;
     private readonly IProductoVarianteRepository _productoVarianteRepository;
     private readonly IStockProductoRepository _stockRepository;
+    private readonly IUnitOfWork _unitOfWork;
 
     public AjustarStockProductoUseCase(
         IStockProductoRepository stockRepository,
         IProductoRepository productoRepository,
         IProductoVarianteRepository productoVarianteRepository,
+        IUnitOfWork unitOfWork,
         IEmpresaActivaContext empresaActiva)
     {
         _stockRepository = stockRepository;
         _productoRepository = productoRepository;
         _productoVarianteRepository = productoVarianteRepository;
+        _unitOfWork = unitOfWork;
         _empresaActiva = empresaActiva;
     }
 
@@ -52,6 +56,7 @@ public sealed class AjustarStockProductoUseCase
         }
 
         await _stockRepository.GuardarAsync(stock, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return stock;
     }

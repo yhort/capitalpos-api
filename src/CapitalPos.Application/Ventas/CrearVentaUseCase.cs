@@ -1,4 +1,5 @@
 using CapitalPos.Application.Clientes;
+using CapitalPos.Application.Inventario;
 using CapitalPos.Application.Productos;
 using CapitalPos.Application.Seguridad;
 using CapitalPos.Domain;
@@ -11,6 +12,7 @@ public sealed class CrearVentaUseCase
     private readonly IEmpresaActivaContext _empresaActiva;
     private readonly IProductoRepository _productoRepository;
     private readonly IProductoVarianteRepository _productoVarianteRepository;
+    private readonly IStockProductoRepository _stockRepository;
     private readonly IVentaRepository _ventaRepository;
 
     public CrearVentaUseCase(
@@ -18,12 +20,14 @@ public sealed class CrearVentaUseCase
         IProductoRepository productoRepository,
         IProductoVarianteRepository productoVarianteRepository,
         IClienteRepository clienteRepository,
+        IStockProductoRepository stockRepository,
         IEmpresaActivaContext empresaActiva)
     {
         _ventaRepository = ventaRepository;
         _productoRepository = productoRepository;
         _productoVarianteRepository = productoVarianteRepository;
         _clienteRepository = clienteRepository;
+        _stockRepository = stockRepository;
         _empresaActiva = empresaActiva;
     }
 
@@ -50,6 +54,8 @@ public sealed class CrearVentaUseCase
             detalles.Add(detalleRequest.CrearDetalle(empresaId, ventaId));
         }
 
+        var stocksADescontar = await ValidarStockAsync(empresaId, detalles, cancellationToken);
+
         var total = detalles.Sum(detalle => detalle.Total);
         var igv = detalles.Sum(detalle => detalle.Igv);
         var subtotal = total - igv;
@@ -63,7 +69,25 @@ public sealed class CrearVentaUseCase
             detalles,
             request.ClienteId);
 
-        await _ventaRepository.AgregarAsync(venta, cancellationToken);
+        try
+        {
+            foreach (var stockADescontar in stocksADescontar)
+            {
+                stockADescontar.Stock.Descontar(stockADescontar.Cantidad);
+                await _stockRepository.GuardarAsync(stockADescontar.Stock, cancellationToken);
+            }
+
+            await _ventaRepository.AgregarAsync(venta, cancellationToken);
+        }
+        catch
+        {
+            foreach (var stockADescontar in stocksADescontar)
+            {
+                stockADescontar.Restaurar();
+            }
+
+            throw;
+        }
 
         return venta;
     }
@@ -122,11 +146,82 @@ public sealed class CrearVentaUseCase
         }
     }
 
+    private async Task<IReadOnlyCollection<StockADescontar>> ValidarStockAsync(
+        Guid empresaId,
+        IReadOnlyCollection<VentaDetalle> detalles,
+        CancellationToken cancellationToken)
+    {
+        var stocks = new List<StockADescontar>();
+        var cantidadesPorStock = detalles
+            .GroupBy(detalle => new StockKey(detalle.ProductoId, detalle.ProductoVarianteId))
+            .Select(grupo => new StockADescontarRequest(
+                grupo.Key.ProductoId,
+                grupo.Key.ProductoVarianteId,
+                grupo.Sum(detalle => detalle.Cantidad)))
+            .ToArray();
+
+        foreach (var item in cantidadesPorStock)
+        {
+            var stock = await _stockRepository.ObtenerPorProductoAsync(
+                empresaId,
+                item.ProductoId,
+                item.ProductoVarianteId,
+                cancellationToken);
+            if (stock is null)
+            {
+                throw new InvalidOperationException(
+                    CrearMensajeStockNoDisponible(item.ProductoId, item.ProductoVarianteId));
+            }
+
+            if (stock.CantidadLibre < item.Cantidad)
+            {
+                throw new InvalidOperationException(
+                    CrearMensajeStockInsuficiente(item.ProductoId, item.ProductoVarianteId));
+            }
+
+            stocks.Add(new StockADescontar(stock, item.Cantidad, stock.CantidadDisponible));
+        }
+
+        return stocks;
+    }
+
+    private static string CrearMensajeStockNoDisponible(Guid productoId, Guid? productoVarianteId)
+    {
+        return productoVarianteId is null
+            ? $"No existe stock registrado para el producto {productoId}."
+            : $"No existe stock registrado para el producto {productoId} y variante {productoVarianteId}.";
+    }
+
+    private static string CrearMensajeStockInsuficiente(Guid productoId, Guid? productoVarianteId)
+    {
+        return productoVarianteId is null
+            ? $"Stock insuficiente para el producto {productoId}."
+            : $"Stock insuficiente para el producto {productoId} y variante {productoVarianteId}.";
+    }
+
     private void ValidarEmpresaActiva()
     {
         if (!_empresaActiva.TieneEmpresaActiva || _empresaActiva.EmpresaId == Guid.Empty)
         {
             throw new InvalidOperationException("La empresa activa es obligatoria para operar ventas.");
+        }
+    }
+
+    private sealed record StockKey(Guid ProductoId, Guid? ProductoVarianteId);
+
+    private sealed record StockADescontarRequest(
+        Guid ProductoId,
+        Guid? ProductoVarianteId,
+        decimal Cantidad);
+
+    private sealed record StockADescontar(
+        StockProducto Stock,
+        decimal Cantidad,
+        decimal CantidadDisponibleOriginal)
+    {
+        public void Restaurar()
+        {
+            Stock.AjustarCantidadDisponible(CantidadDisponibleOriginal);
         }
     }
 }

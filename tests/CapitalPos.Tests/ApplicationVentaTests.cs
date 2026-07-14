@@ -2,6 +2,7 @@ using System.Text.Json;
 using CapitalPos.Application.Cpe;
 using CapitalPos.Application.Clientes;
 using CapitalPos.Application.ConfiguracionFiscal;
+using CapitalPos.Application.Inventario;
 using CapitalPos.Application.Productos;
 using CapitalPos.Application.Seguridad;
 using CapitalPos.Application.Ventas;
@@ -22,15 +23,19 @@ public class ApplicationVentaTests
         var productoRepository = new ProductoRepositoryFake();
         var varianteRepository = new ProductoVarianteRepositoryFake();
         var clienteRepository = new ClienteRepositoryFake();
+        var stockRepository = new StockProductoRepositoryFake();
         await clienteRepository.AgregarAsync(new Cliente(clienteId, empresaId, "DNI", "12345678", "Juan Perez"));
         await productoRepository.AgregarAsync(new Producto(productoId, empresaId, "Polo", 59m));
         await varianteRepository.AgregarAsync(new ProductoVariante(varianteId, empresaId, productoId, talla: "M"));
+        await stockRepository.GuardarAsync(new StockProducto(Guid.NewGuid(), empresaId, productoId, varianteId, 10m));
+        await stockRepository.GuardarAsync(new StockProducto(Guid.NewGuid(), empresaId, productoId, null, 10m));
         var useCase = CrearUseCase(
             ventaRepository,
             productoRepository,
             varianteRepository,
             clienteRepository,
-            empresaId);
+            stockRepository,
+            empresaId: empresaId);
         var fecha = DateTimeOffset.UtcNow;
         var request = new CrearVentaRequest(
             fecha,
@@ -55,6 +60,8 @@ public class ApplicationVentaTests
             Assert.Equal(venta.Id, detalle.VentaId);
         });
         Assert.Same(venta, ventaRepository.Ventas.Single());
+        Assert.Equal(8m, stockRepository.Stocks.Single(stock => stock.ProductoVarianteId == varianteId).CantidadDisponible);
+        Assert.Equal(9m, stockRepository.Stocks.Single(stock => stock.ProductoVarianteId is null).CantidadDisponible);
     }
 
     [Fact]
@@ -86,7 +93,7 @@ public class ApplicationVentaTests
             productoRepository,
             new ProductoVarianteRepositoryFake(),
             new ClienteRepositoryFake(),
-            empresaAId);
+            empresaId: empresaAId);
         var request = new CrearVentaRequest(
             DateTimeOffset.UtcNow,
             null,
@@ -111,7 +118,7 @@ public class ApplicationVentaTests
             productoRepository,
             new ProductoVarianteRepositoryFake(),
             clienteRepository,
-            empresaAId);
+            empresaId: empresaAId);
         var request = new CrearVentaRequest(
             DateTimeOffset.UtcNow,
             clienteId,
@@ -136,13 +143,246 @@ public class ApplicationVentaTests
             productoRepository,
             varianteRepository,
             new ClienteRepositoryFake(),
-            empresaId);
+            empresaId: empresaId);
         var request = new CrearVentaRequest(
             DateTimeOffset.UtcNow,
             null,
             [new CrearVentaDetalleRequest(productoId, varianteId, 1m, 10m, 0m, 10m)]);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => useCase.EjecutarAsync(request));
+    }
+
+    [Fact]
+    public async Task Crear_venta_descuenta_stock_de_producto()
+    {
+        var empresaId = Guid.NewGuid();
+        var productoId = Guid.NewGuid();
+        var ventaRepository = new VentaRepositoryFake();
+        var productoRepository = new ProductoRepositoryFake();
+        var stockRepository = new StockProductoRepositoryFake();
+        await productoRepository.AgregarAsync(new Producto(productoId, empresaId, "Polo", 59m));
+        await stockRepository.GuardarAsync(new StockProducto(Guid.NewGuid(), empresaId, productoId, null, 5m));
+        var useCase = CrearUseCase(
+            ventaRepository,
+            productoRepository,
+            new ProductoVarianteRepositoryFake(),
+            new ClienteRepositoryFake(),
+            stockRepository,
+            empresaId);
+
+        await useCase.EjecutarAsync(CrearVentaRequest(productoId, null, 2m));
+
+        Assert.Single(ventaRepository.Ventas);
+        Assert.Equal(3m, stockRepository.Stocks.Single().CantidadDisponible);
+    }
+
+    [Fact]
+    public async Task Crear_venta_falla_si_producto_no_tiene_stock()
+    {
+        var empresaId = Guid.NewGuid();
+        var productoId = Guid.NewGuid();
+        var ventaRepository = new VentaRepositoryFake();
+        var productoRepository = new ProductoRepositoryFake();
+        var stockRepository = new StockProductoRepositoryFake();
+        await productoRepository.AgregarAsync(new Producto(productoId, empresaId, "Polo", 59m));
+        var useCase = CrearUseCase(
+            ventaRepository,
+            productoRepository,
+            new ProductoVarianteRepositoryFake(),
+            new ClienteRepositoryFake(),
+            stockRepository,
+            empresaId);
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            useCase.EjecutarAsync(CrearVentaRequest(productoId, null, 1m)));
+
+        Assert.Contains("stock", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(ventaRepository.Ventas);
+        Assert.Empty(stockRepository.Stocks);
+    }
+
+    [Fact]
+    public async Task Crear_venta_falla_si_stock_libre_es_insuficiente()
+    {
+        var empresaId = Guid.NewGuid();
+        var productoId = Guid.NewGuid();
+        var ventaRepository = new VentaRepositoryFake();
+        var productoRepository = new ProductoRepositoryFake();
+        var stockRepository = new StockProductoRepositoryFake();
+        await productoRepository.AgregarAsync(new Producto(productoId, empresaId, "Polo", 59m));
+        await stockRepository.GuardarAsync(new StockProducto(
+            Guid.NewGuid(),
+            empresaId,
+            productoId,
+            null,
+            5m,
+            2m));
+        var useCase = CrearUseCase(
+            ventaRepository,
+            productoRepository,
+            new ProductoVarianteRepositoryFake(),
+            new ClienteRepositoryFake(),
+            stockRepository,
+            empresaId);
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            useCase.EjecutarAsync(CrearVentaRequest(productoId, null, 4m)));
+
+        Assert.Contains("Stock insuficiente", exception.Message);
+        Assert.Empty(ventaRepository.Ventas);
+        Assert.Equal(5m, stockRepository.Stocks.Single().CantidadDisponible);
+        Assert.Equal(2m, stockRepository.Stocks.Single().CantidadReservada);
+    }
+
+    [Fact]
+    public async Task Crear_venta_con_variante_descuenta_stock_de_variante()
+    {
+        var empresaId = Guid.NewGuid();
+        var productoId = Guid.NewGuid();
+        var varianteId = Guid.NewGuid();
+        var ventaRepository = new VentaRepositoryFake();
+        var productoRepository = new ProductoRepositoryFake();
+        var varianteRepository = new ProductoVarianteRepositoryFake();
+        var stockRepository = new StockProductoRepositoryFake();
+        await productoRepository.AgregarAsync(new Producto(productoId, empresaId, "Polo", 59m));
+        await varianteRepository.AgregarAsync(new ProductoVariante(varianteId, empresaId, productoId, talla: "M"));
+        await stockRepository.GuardarAsync(new StockProducto(Guid.NewGuid(), empresaId, productoId, varianteId, 7m));
+        var useCase = CrearUseCase(
+            ventaRepository,
+            productoRepository,
+            varianteRepository,
+            new ClienteRepositoryFake(),
+            stockRepository,
+            empresaId);
+
+        await useCase.EjecutarAsync(CrearVentaRequest(productoId, varianteId, 3m));
+
+        Assert.Single(ventaRepository.Ventas);
+        Assert.Equal(4m, stockRepository.Stocks.Single().CantidadDisponible);
+    }
+
+    [Fact]
+    public async Task Crear_venta_multidetalle_descuenta_todos_los_stocks()
+    {
+        var empresaId = Guid.NewGuid();
+        var productoAId = Guid.NewGuid();
+        var productoBId = Guid.NewGuid();
+        var ventaRepository = new VentaRepositoryFake();
+        var productoRepository = new ProductoRepositoryFake();
+        var stockRepository = new StockProductoRepositoryFake();
+        await productoRepository.AgregarAsync(new Producto(productoAId, empresaId, "Polo", 59m));
+        await productoRepository.AgregarAsync(new Producto(productoBId, empresaId, "Gorra", 25m));
+        await stockRepository.GuardarAsync(new StockProducto(Guid.NewGuid(), empresaId, productoAId, null, 8m));
+        await stockRepository.GuardarAsync(new StockProducto(Guid.NewGuid(), empresaId, productoBId, null, 6m));
+        var useCase = CrearUseCase(
+            ventaRepository,
+            productoRepository,
+            new ProductoVarianteRepositoryFake(),
+            new ClienteRepositoryFake(),
+            stockRepository,
+            empresaId);
+        var request = new CrearVentaRequest(
+            DateTimeOffset.UtcNow,
+            null,
+            [
+                new CrearVentaDetalleRequest(productoAId, null, 2m, 10m, 0m, 20m),
+                new CrearVentaDetalleRequest(productoBId, null, 3m, 10m, 0m, 30m)
+            ]);
+
+        await useCase.EjecutarAsync(request);
+
+        Assert.Single(ventaRepository.Ventas);
+        Assert.Equal(6m, stockRepository.Stocks.Single(stock => stock.ProductoId == productoAId).CantidadDisponible);
+        Assert.Equal(3m, stockRepository.Stocks.Single(stock => stock.ProductoId == productoBId).CantidadDisponible);
+    }
+
+    [Fact]
+    public async Task Crear_venta_multidetalle_con_un_detalle_sin_stock_no_descuenta_ninguno()
+    {
+        var empresaId = Guid.NewGuid();
+        var productoAId = Guid.NewGuid();
+        var productoBId = Guid.NewGuid();
+        var ventaRepository = new VentaRepositoryFake();
+        var productoRepository = new ProductoRepositoryFake();
+        var stockRepository = new StockProductoRepositoryFake();
+        await productoRepository.AgregarAsync(new Producto(productoAId, empresaId, "Polo", 59m));
+        await productoRepository.AgregarAsync(new Producto(productoBId, empresaId, "Gorra", 25m));
+        await stockRepository.GuardarAsync(new StockProducto(Guid.NewGuid(), empresaId, productoAId, null, 8m));
+        await stockRepository.GuardarAsync(new StockProducto(Guid.NewGuid(), empresaId, productoBId, null, 2m));
+        var useCase = CrearUseCase(
+            ventaRepository,
+            productoRepository,
+            new ProductoVarianteRepositoryFake(),
+            new ClienteRepositoryFake(),
+            stockRepository,
+            empresaId);
+        var request = new CrearVentaRequest(
+            DateTimeOffset.UtcNow,
+            null,
+            [
+                new CrearVentaDetalleRequest(productoAId, null, 2m, 10m, 0m, 20m),
+                new CrearVentaDetalleRequest(productoBId, null, 3m, 10m, 0m, 30m)
+            ]);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => useCase.EjecutarAsync(request));
+
+        Assert.Empty(ventaRepository.Ventas);
+        Assert.Equal(8m, stockRepository.Stocks.Single(stock => stock.ProductoId == productoAId).CantidadDisponible);
+        Assert.Equal(2m, stockRepository.Stocks.Single(stock => stock.ProductoId == productoBId).CantidadDisponible);
+    }
+
+    [Fact]
+    public async Task Crear_venta_si_falla_persistencia_no_deja_stock_descontado()
+    {
+        var empresaId = Guid.NewGuid();
+        var productoId = Guid.NewGuid();
+        var ventaRepository = new VentaRepositoryFake
+        {
+            LanzarExcepcionAlAgregar = true
+        };
+        var productoRepository = new ProductoRepositoryFake();
+        var stockRepository = new StockProductoRepositoryFake();
+        await productoRepository.AgregarAsync(new Producto(productoId, empresaId, "Polo", 59m));
+        await stockRepository.GuardarAsync(new StockProducto(Guid.NewGuid(), empresaId, productoId, null, 5m));
+        var useCase = CrearUseCase(
+            ventaRepository,
+            productoRepository,
+            new ProductoVarianteRepositoryFake(),
+            new ClienteRepositoryFake(),
+            stockRepository,
+            empresaId);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            useCase.EjecutarAsync(CrearVentaRequest(productoId, null, 2m)));
+
+        Assert.Empty(ventaRepository.Ventas);
+        Assert.Equal(5m, stockRepository.Stocks.Single().CantidadDisponible);
+    }
+
+    [Fact]
+    public async Task Crear_venta_no_descuenta_stock_de_otra_empresa()
+    {
+        var empresaAId = Guid.NewGuid();
+        var empresaBId = Guid.NewGuid();
+        var productoId = Guid.NewGuid();
+        var ventaRepository = new VentaRepositoryFake();
+        var productoRepository = new ProductoRepositoryFake();
+        var stockRepository = new StockProductoRepositoryFake();
+        await productoRepository.AgregarAsync(new Producto(productoId, empresaAId, "Polo", 59m));
+        await stockRepository.GuardarAsync(new StockProducto(Guid.NewGuid(), empresaBId, productoId, null, 10m));
+        var useCase = CrearUseCase(
+            ventaRepository,
+            productoRepository,
+            new ProductoVarianteRepositoryFake(),
+            new ClienteRepositoryFake(),
+            stockRepository,
+            empresaAId);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            useCase.EjecutarAsync(CrearVentaRequest(productoId, null, 1m)));
+
+        Assert.Empty(ventaRepository.Ventas);
+        Assert.Equal(10m, stockRepository.Stocks.Single().CantidadDisponible);
     }
 
     [Fact]
@@ -653,6 +893,7 @@ public class ApplicationVentaTests
         ProductoRepositoryFake productoRepository,
         ProductoVarianteRepositoryFake varianteRepository,
         ClienteRepositoryFake clienteRepository,
+        StockProductoRepositoryFake? stockRepository = null,
         Guid? empresaId = null)
     {
         return new CrearVentaUseCase(
@@ -660,17 +901,36 @@ public class ApplicationVentaTests
             productoRepository,
             varianteRepository,
             clienteRepository,
+            stockRepository ?? new StockProductoRepositoryFake(),
             empresaId.HasValue
                 ? new EmpresaActivaContextFake(empresaId.Value)
                 : new EmpresaActivaContextFake());
+    }
+
+    private static CrearVentaRequest CrearVentaRequest(
+        Guid productoId,
+        Guid? productoVarianteId,
+        decimal cantidad)
+    {
+        return new CrearVentaRequest(
+            DateTimeOffset.UtcNow,
+            null,
+            [new CrearVentaDetalleRequest(productoId, productoVarianteId, cantidad, 10m, 0m, cantidad * 10m)]);
     }
 
     private sealed class VentaRepositoryFake : IVentaRepository
     {
         public List<Venta> Ventas { get; } = new();
 
+        public bool LanzarExcepcionAlAgregar { get; set; }
+
         public Task AgregarAsync(Venta venta, CancellationToken cancellationToken = default)
         {
+            if (LanzarExcepcionAlAgregar)
+            {
+                throw new InvalidOperationException("Fallo simulado al persistir venta.");
+            }
+
             Ventas.Add(venta);
 
             return Task.CompletedTask;
@@ -841,6 +1101,42 @@ public class ApplicationVentaTests
 
         public Task ActualizarAsync(Cliente cliente, CancellationToken cancellationToken = default)
         {
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class StockProductoRepositoryFake : IStockProductoRepository
+    {
+        public List<StockProducto> Stocks { get; } = new();
+
+        public Task<StockProducto?> ObtenerPorProductoAsync(
+            Guid empresaId,
+            Guid productoId,
+            Guid? productoVarianteId = null,
+            CancellationToken cancellationToken = default)
+        {
+            var stock = Stocks.SingleOrDefault(stock =>
+                stock.EmpresaId == empresaId &&
+                stock.ProductoId == productoId &&
+                stock.ProductoVarianteId == productoVarianteId);
+
+            return Task.FromResult(stock);
+        }
+
+        public Task GuardarAsync(
+            StockProducto stock,
+            CancellationToken cancellationToken = default)
+        {
+            var index = Stocks.FindIndex(actual => actual.Id == stock.Id);
+            if (index >= 0)
+            {
+                Stocks[index] = stock;
+            }
+            else
+            {
+                Stocks.Add(stock);
+            }
+
             return Task.CompletedTask;
         }
     }

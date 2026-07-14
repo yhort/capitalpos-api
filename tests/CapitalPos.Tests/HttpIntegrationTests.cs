@@ -10,6 +10,7 @@ using CapitalPos.Application.Clientes;
 using CapitalPos.Application.ConfiguracionFiscal;
 using CapitalPos.Application.Empresas;
 using CapitalPos.Application.Inventario;
+using CapitalPos.Application.Persistence;
 using CapitalPos.Application.Productos;
 using CapitalPos.Application.Seguridad;
 using CapitalPos.Application.Usuarios;
@@ -509,6 +510,105 @@ public class HttpIntegrationTests
     }
 
     [Fact]
+    public async Task Crear_venta_descuenta_stock()
+    {
+        var productoId = Guid.NewGuid();
+        await using var factory = new CapitalPosHttpFactory();
+        await factory.ProductoRepository.AgregarAsync(CrearProducto(EmpresaId, productoId));
+        await factory.StockRepository.GuardarAsync(new StockProducto(
+            Guid.NewGuid(),
+            EmpresaId,
+            productoId,
+            null,
+            5m));
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+
+        var response = await client.PostAsJsonAsync("/api/ventas/", CrearVentaRequest(productoId, null, 2m));
+        var content = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.Single(factory.VentaRepository.Ventas);
+        Assert.Equal(3m, factory.StockRepository.Stocks.Single().CantidadDisponible);
+        AssertSeguro(content);
+    }
+
+    [Fact]
+    public async Task Crear_venta_con_stock_insuficiente_no_persiste_venta_ni_cambia_stock()
+    {
+        var productoId = Guid.NewGuid();
+        await using var factory = new CapitalPosHttpFactory();
+        await factory.ProductoRepository.AgregarAsync(CrearProducto(EmpresaId, productoId));
+        await factory.StockRepository.GuardarAsync(new StockProducto(
+            Guid.NewGuid(),
+            EmpresaId,
+            productoId,
+            null,
+            1m));
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+
+        var response = await client.PostAsJsonAsync("/api/ventas/", CrearVentaRequest(productoId, null, 2m));
+        var content = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("Stock insuficiente", content);
+        Assert.Empty(factory.VentaRepository.Ventas);
+        Assert.Equal(1m, factory.StockRepository.Stocks.Single().CantidadDisponible);
+        AssertSeguro(content);
+    }
+
+    [Fact]
+    public async Task Crear_venta_con_producto_de_otra_empresa_falla()
+    {
+        var otraEmpresaId = Guid.Parse("44444444-4444-4444-4444-444444444444");
+        var productoId = Guid.NewGuid();
+        await using var factory = new CapitalPosHttpFactory();
+        await factory.ProductoRepository.AgregarAsync(CrearProducto(otraEmpresaId, productoId));
+        await factory.StockRepository.GuardarAsync(new StockProducto(
+            Guid.NewGuid(),
+            otraEmpresaId,
+            productoId,
+            null,
+            5m));
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+
+        var response = await client.PostAsJsonAsync("/api/ventas/", CrearVentaRequest(productoId, null, 1m));
+        var content = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("producto", content, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(factory.VentaRepository.Ventas);
+        Assert.Equal(5m, factory.StockRepository.Stocks.Single().CantidadDisponible);
+        AssertSeguro(content);
+    }
+
+    [Fact]
+    public async Task Crear_venta_con_variante_de_otra_empresa_falla()
+    {
+        var otraEmpresaId = Guid.Parse("44444444-4444-4444-4444-444444444444");
+        var productoId = Guid.NewGuid();
+        var varianteId = Guid.NewGuid();
+        await using var factory = new CapitalPosHttpFactory();
+        await factory.ProductoRepository.AgregarAsync(CrearProducto(EmpresaId, productoId));
+        await factory.ProductoVarianteRepository.AgregarAsync(CrearVariante(otraEmpresaId, productoId, varianteId));
+        await factory.StockRepository.GuardarAsync(new StockProducto(
+            Guid.NewGuid(),
+            otraEmpresaId,
+            productoId,
+            varianteId,
+            5m));
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+
+        var response = await client.PostAsJsonAsync("/api/ventas/", CrearVentaRequest(productoId, varianteId, 1m));
+        var content = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("variante", content, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(factory.VentaRepository.Ventas);
+        Assert.Equal(5m, factory.StockRepository.Stocks.Single().CantidadDisponible);
+        AssertSeguro(content);
+    }
+
+    [Fact]
     public async Task Post_con_entrada_invalida_devuelve_error_de_validacion()
     {
         await using var factory = new CapitalPosHttpFactory
@@ -680,6 +780,17 @@ public class HttpIntegrationTests
             talla: "M");
     }
 
+    private static CrearVentaRequest CrearVentaRequest(
+        Guid productoId,
+        Guid? productoVarianteId,
+        decimal cantidad)
+    {
+        return new CrearVentaRequest(
+            DateTimeOffset.UtcNow,
+            null,
+            [new CrearVentaDetalleRequest(productoId, productoVarianteId, cantidad, 10m, 0m, cantidad * 10m)]);
+    }
+
     private static void AssertSeguro(string content)
     {
         Assert.DoesNotContain(SigningKey, content, StringComparison.Ordinal);
@@ -718,6 +829,8 @@ public class HttpIntegrationTests
         public FakeProductoVarianteRepository ProductoVarianteRepository { get; } = new();
 
         public FakeStockProductoRepository StockRepository { get; } = new();
+
+        public FakeVentaRepository VentaRepository { get; } = new();
 
         public UsuarioEmpresa? UsuarioEmpresa
         {
@@ -763,6 +876,7 @@ public class HttpIntegrationTests
                 services.RemoveAll<IComprobanteRepository>();
                 services.RemoveAll<IConfiguracionFiscalEmpresaRepository>();
                 services.RemoveAll<IStockProductoRepository>();
+                services.RemoveAll<IUnitOfWork>();
 
                 services.AddSingleton<IEmpresaRepository>(EmpresaRepository);
                 services.AddSingleton<IUsuarioRepository>(UsuarioRepository);
@@ -771,10 +885,11 @@ public class HttpIntegrationTests
                 services.AddSingleton<IProductoRepository>(ProductoRepository);
                 services.AddSingleton<IProductoVarianteRepository>(ProductoVarianteRepository);
                 services.AddSingleton<IClienteRepository, FakeClienteRepository>();
-                services.AddSingleton<IVentaRepository, FakeVentaRepository>();
+                services.AddSingleton<IVentaRepository>(VentaRepository);
                 services.AddSingleton<IComprobanteRepository, FakeComprobanteRepository>();
                 services.AddSingleton<IConfiguracionFiscalEmpresaRepository>(ConfiguracionFiscalRepository);
                 services.AddSingleton<IStockProductoRepository>(StockRepository);
+                services.AddSingleton<IUnitOfWork, FakeUnitOfWork>();
             });
         }
     }
@@ -1036,8 +1151,12 @@ public class HttpIntegrationTests
 
     private sealed class FakeVentaRepository : IVentaRepository
     {
+        public List<Venta> Ventas { get; } = [];
+
         public Task AgregarAsync(Venta venta, CancellationToken cancellationToken = default)
         {
+            Ventas.Add(venta);
+
             return Task.CompletedTask;
         }
 
@@ -1045,7 +1164,8 @@ public class HttpIntegrationTests
             Guid empresaId,
             CancellationToken cancellationToken = default)
         {
-            return Task.FromResult<IReadOnlyCollection<Venta>>([]);
+            return Task.FromResult<IReadOnlyCollection<Venta>>(
+                Ventas.Where(venta => venta.EmpresaId == empresaId).ToArray());
         }
 
         public Task<Venta?> ObtenerPorEmpresaAsync(
@@ -1053,7 +1173,17 @@ public class HttpIntegrationTests
             Guid id,
             CancellationToken cancellationToken = default)
         {
-            return Task.FromResult<Venta?>(null);
+            return Task.FromResult(Ventas.FirstOrDefault(venta =>
+                venta.EmpresaId == empresaId &&
+                venta.Id == id));
+        }
+    }
+
+    private sealed class FakeUnitOfWork : IUnitOfWork
+    {
+        public Task SaveChangesAsync(CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
         }
     }
 

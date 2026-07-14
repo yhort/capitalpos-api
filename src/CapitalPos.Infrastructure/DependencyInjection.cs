@@ -4,6 +4,7 @@ using CapitalPos.Application.ConfiguracionFiscal;
 using CapitalPos.Application.Cpe;
 using CapitalPos.Application.Empresas;
 using CapitalPos.Application.Inventario;
+using CapitalPos.Application.Persistence;
 using CapitalPos.Application.Productos;
 using CapitalPos.Application.Seguridad;
 using CapitalPos.Application.Usuarios;
@@ -46,6 +47,7 @@ public static class DependencyInjection
         services.AddScoped<IComprobanteRepository, EfComprobanteRepository>();
         services.AddScoped<IConfiguracionFiscalEmpresaRepository, EfConfiguracionFiscalEmpresaRepository>();
         services.AddScoped<IStockProductoRepository, EfStockProductoRepository>();
+        services.AddScoped<IUnitOfWork, EfUnitOfWork>();
         services.AddScoped<IAuditoriaOperaciones, LoggerAuditoriaOperaciones>();
         services.AddScoped<IPasswordHasher, AspNetCoreIdentityPasswordHasher>();
         services.Configure<JwtTokenOptions>(configuration.GetSection(JwtTokenOptions.SectionName));
