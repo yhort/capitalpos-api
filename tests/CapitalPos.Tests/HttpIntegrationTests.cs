@@ -510,6 +510,181 @@ public class HttpIntegrationTests
     }
 
     [Fact]
+    public async Task Producto_variantes_sin_jwt_devuelve_unauthorized()
+    {
+        await using var factory = new CapitalPosHttpFactory();
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync($"/api/productos/{Guid.NewGuid()}/variantes");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Producto_variantes_con_jwt_sin_empresa_activa_devuelve_bad_request()
+    {
+        await using var factory = new CapitalPosHttpFactory();
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = CrearAuthorizationHeader(UsuarioId);
+
+        var response = await client.GetAsync($"/api/productos/{Guid.NewGuid()}/variantes");
+        var content = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains(EmpresaActivaHeaders.HeaderName, content);
+        AssertSeguro(content);
+    }
+
+    [Fact]
+    public async Task Producto_variantes_usuario_sin_permiso_devuelve_forbidden()
+    {
+        await using var factory = new CapitalPosHttpFactory
+        {
+            UsuarioEmpresa = CrearUsuarioEmpresa(RolEmpresa.Vendedor)
+        };
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+
+        var response = await client.GetAsync($"/api/productos/{Guid.NewGuid()}/variantes");
+        var content = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Contains("permiso requerido", content);
+        AssertSeguro(content);
+    }
+
+    [Fact]
+    public async Task Listar_variantes_devuelve_solo_producto_y_empresa_activa()
+    {
+        var productoId = Guid.NewGuid();
+        var otroProductoId = Guid.NewGuid();
+        var otraEmpresaId = Guid.Parse("44444444-4444-4444-4444-444444444444");
+        await using var factory = new CapitalPosHttpFactory();
+        await factory.ProductoRepository.AgregarAsync(CrearProducto(EmpresaId, productoId));
+        await factory.ProductoRepository.AgregarAsync(CrearProducto(EmpresaId, otroProductoId));
+        await factory.ProductoRepository.AgregarAsync(CrearProducto(otraEmpresaId, productoId));
+        await factory.ProductoVarianteRepository.AgregarAsync(CrearVariante(EmpresaId, productoId, Guid.NewGuid()));
+        await factory.ProductoVarianteRepository.AgregarAsync(CrearVariante(EmpresaId, otroProductoId, Guid.NewGuid()));
+        await factory.ProductoVarianteRepository.AgregarAsync(CrearVariante(otraEmpresaId, productoId, Guid.NewGuid()));
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+
+        var response = await client.GetAsync($"/api/productos/{productoId}/variantes");
+        var content = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadFromJsonAsync<ProductoVarianteResponse[]>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(body);
+        var variante = Assert.Single(body);
+        Assert.Equal(EmpresaId, variante.EmpresaId);
+        Assert.Equal(productoId, variante.ProductoId);
+        Assert.DoesNotContain(otraEmpresaId.ToString(), content);
+        AssertSeguro(content);
+    }
+
+    [Fact]
+    public async Task Crear_variante_funciona_con_talla_color_sku_y_codigo_barras()
+    {
+        var productoId = Guid.NewGuid();
+        await using var factory = new CapitalPosHttpFactory();
+        await factory.ProductoRepository.AgregarAsync(CrearProducto(EmpresaId, productoId));
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+        var request = new CrearProductoVarianteRequest(
+            Guid.NewGuid(),
+            " M ",
+            " Azul ",
+            " SKU-AZ-M ",
+            " 7750000000104 ");
+
+        var response = await client.PostAsJsonAsync($"/api/productos/{productoId}/variantes", request);
+        var content = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadFromJsonAsync<ProductoVarianteResponse>();
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.NotNull(body);
+        Assert.Equal(EmpresaId, body.EmpresaId);
+        Assert.Equal(productoId, body.ProductoId);
+        Assert.Equal("M", body.Talla);
+        Assert.Equal("Azul", body.Color);
+        Assert.Equal("SKU-AZ-M", body.CodigoSku);
+        Assert.Equal("7750000000104", body.CodigoBarras);
+        Assert.True(body.Activo);
+        Assert.DoesNotContain(request.ProductoId.ToString(), content);
+        Assert.Contains(factory.ProductoVarianteRepository.Variantes, variante =>
+            variante.EmpresaId == EmpresaId &&
+            variante.ProductoId == productoId &&
+            variante.CodigoSku == "SKU-AZ-M");
+        AssertSeguro(content);
+    }
+
+    [Fact]
+    public async Task Crear_variante_falla_si_producto_no_pertenece_a_empresa_activa()
+    {
+        var otraEmpresaId = Guid.Parse("44444444-4444-4444-4444-444444444444");
+        var productoId = Guid.NewGuid();
+        await using var factory = new CapitalPosHttpFactory();
+        await factory.ProductoRepository.AgregarAsync(CrearProducto(otraEmpresaId, productoId));
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+        var request = new CrearProductoVarianteRequest(productoId, Talla: "M");
+
+        var response = await client.PostAsJsonAsync($"/api/productos/{productoId}/variantes", request);
+        var content = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("producto", content, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(factory.ProductoVarianteRepository.Variantes);
+        AssertSeguro(content);
+    }
+
+    [Fact]
+    public async Task Crear_variante_rechaza_sku_y_codigo_barras_duplicados_por_empresa()
+    {
+        var productoId = Guid.NewGuid();
+        await using var factory = new CapitalPosHttpFactory();
+        await factory.ProductoRepository.AgregarAsync(CrearProducto(EmpresaId, productoId));
+        await factory.ProductoVarianteRepository.AgregarAsync(new ProductoVariante(
+            Guid.NewGuid(),
+            EmpresaId,
+            productoId,
+            codigoSku: "SKU-001",
+            codigoBarras: "7750000000104"));
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+
+        var responseSku = await client.PostAsJsonAsync(
+            $"/api/productos/{productoId}/variantes",
+            new CrearProductoVarianteRequest(productoId, CodigoSku: "SKU-001"));
+        var responseCodigo = await client.PostAsJsonAsync(
+            $"/api/productos/{productoId}/variantes",
+            new CrearProductoVarianteRequest(productoId, CodigoBarras: "7750000000104"));
+
+        Assert.Equal(HttpStatusCode.BadRequest, responseSku.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, responseCodigo.StatusCode);
+        Assert.Single(factory.ProductoVarianteRepository.Variantes);
+    }
+
+    [Fact]
+    public async Task Activar_y_desactivar_variante_validan_producto_y_empresa()
+    {
+        var productoId = Guid.NewGuid();
+        var varianteId = Guid.NewGuid();
+        await using var factory = new CapitalPosHttpFactory();
+        await factory.ProductoRepository.AgregarAsync(CrearProducto(EmpresaId, productoId));
+        await factory.ProductoVarianteRepository.AgregarAsync(CrearVariante(EmpresaId, productoId, varianteId));
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+
+        var desactivar = await client.PatchAsync(
+            $"/api/productos/{productoId}/variantes/{varianteId}/desactivar",
+            null);
+        var activar = await client.PatchAsync(
+            $"/api/productos/{productoId}/variantes/{varianteId}/activar",
+            null);
+        var body = await activar.Content.ReadFromJsonAsync<ProductoVarianteResponse>();
+
+        Assert.Equal(HttpStatusCode.OK, desactivar.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, activar.StatusCode);
+        Assert.NotNull(body);
+        Assert.True(body.Activo);
+    }
+
+    [Fact]
     public async Task Crear_venta_descuenta_stock()
     {
         var productoId = Guid.NewGuid();
@@ -1116,6 +1291,33 @@ public class HttpIntegrationTests
             return Task.FromResult(Variantes.FirstOrDefault(variante =>
                 variante.EmpresaId == empresaId &&
                 variante.Id == id));
+        }
+
+        public Task ActualizarAsync(
+            ProductoVariante variante,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task<bool> ExisteSkuAsync(
+            Guid empresaId,
+            string codigoSku,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(Variantes.Any(variante =>
+                variante.EmpresaId == empresaId &&
+                variante.CodigoSku == codigoSku.Trim()));
+        }
+
+        public Task<bool> ExisteCodigoBarrasAsync(
+            Guid empresaId,
+            string codigoBarras,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(Variantes.Any(variante =>
+                variante.EmpresaId == empresaId &&
+                variante.CodigoBarras == codigoBarras.Trim()));
         }
     }
 

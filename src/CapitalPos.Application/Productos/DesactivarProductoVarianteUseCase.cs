@@ -3,13 +3,13 @@ using CapitalPos.Domain;
 
 namespace CapitalPos.Application.Productos;
 
-public sealed class ListarProductoVariantesUseCase
+public sealed class DesactivarProductoVarianteUseCase
 {
     private readonly IEmpresaActivaContext _empresaActiva;
     private readonly IProductoRepository _productoRepository;
     private readonly IProductoVarianteRepository _productoVarianteRepository;
 
-    public ListarProductoVariantesUseCase(
+    public DesactivarProductoVarianteUseCase(
         IProductoVarianteRepository productoVarianteRepository,
         IProductoRepository productoRepository,
         IEmpresaActivaContext empresaActiva)
@@ -19,8 +19,9 @@ public sealed class ListarProductoVariantesUseCase
         _empresaActiva = empresaActiva;
     }
 
-    public async Task<IReadOnlyCollection<ProductoVariante>?> EjecutarAsync(
+    public async Task<ProductoVariante?> EjecutarAsync(
         Guid productoId,
+        Guid varianteId,
         CancellationToken cancellationToken = default)
     {
         ValidarEmpresaActiva();
@@ -33,10 +34,19 @@ public sealed class ListarProductoVariantesUseCase
             return null;
         }
 
-        return await _productoVarianteRepository.ListarPorProductoAsync(
+        var variante = await _productoVarianteRepository.ObtenerPorEmpresaAsync(
             _empresaActiva.EmpresaId,
-            productoId,
+            varianteId,
             cancellationToken);
+        if (variante is null || variante.ProductoId != productoId)
+        {
+            return null;
+        }
+
+        variante.Desactivar();
+        await _productoVarianteRepository.ActualizarAsync(variante, cancellationToken);
+
+        return variante;
     }
 
     private void ValidarEmpresaActiva()

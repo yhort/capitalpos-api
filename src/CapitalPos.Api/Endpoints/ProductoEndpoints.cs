@@ -36,6 +36,22 @@ public static class ProductoEndpoints
             .WithName("DesactivarProducto")
             .RequirePermisoEmpresa(PermisoEmpresa.OperarAlmacen);
 
+        group.MapGet("/{productoId:guid}/variantes", ListarVariantesAsync)
+            .WithName("ListarProductoVariantes")
+            .RequirePermisoEmpresa(PermisoEmpresa.OperarAlmacen);
+
+        group.MapPost("/{productoId:guid}/variantes", CrearVarianteAsync)
+            .WithName("CrearProductoVariante")
+            .RequirePermisoEmpresa(PermisoEmpresa.OperarAlmacen);
+
+        group.MapPatch("/{productoId:guid}/variantes/{varianteId:guid}/activar", ActivarVarianteAsync)
+            .WithName("ActivarProductoVariante")
+            .RequirePermisoEmpresa(PermisoEmpresa.OperarAlmacen);
+
+        group.MapPatch("/{productoId:guid}/variantes/{varianteId:guid}/desactivar", DesactivarVarianteAsync)
+            .WithName("DesactivarProductoVariante")
+            .RequirePermisoEmpresa(PermisoEmpresa.OperarAlmacen);
+
         return app;
     }
 
@@ -177,6 +193,119 @@ public static class ProductoEndpoints
             : Results.Ok(ProductoResponse.From(producto));
     }
 
+    private static async Task<IResult> ListarVariantesAsync(
+        Guid productoId,
+        ListarProductoVariantesUseCase useCase,
+        CancellationToken cancellationToken)
+    {
+        var variantes = await useCase.EjecutarAsync(productoId, cancellationToken);
+
+        return variantes is null
+            ? Results.NotFound()
+            : Results.Ok(variantes.Select(ProductoVarianteResponse.From));
+    }
+
+    private static async Task<IResult> CrearVarianteAsync(
+        Guid productoId,
+        CrearProductoVarianteRequest request,
+        CrearProductoVarianteUseCase useCase,
+        IAuditoriaOperaciones auditoria,
+        IEmpresaActivaContext empresaActiva,
+        HttpContext httpContext,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var requestSeguro = request with
+            {
+                ProductoId = productoId
+            };
+            if (!EndpointInputValidator.TryValidate(requestSeguro, out var error))
+            {
+                await AuditarProductoAsync(
+                    auditoria,
+                    empresaActiva,
+                    httpContext,
+                    "CrearProductoVariante",
+                    "CrearVariante",
+                    AuditoriaResultados.Rechazado,
+                    "ValidacionDeEntrada",
+                    cancellationToken);
+
+                return Results.BadRequest(ErrorResponse.From(error));
+            }
+
+            var variante = await useCase.EjecutarAsync(requestSeguro, cancellationToken);
+            await AuditarProductoAsync(
+                auditoria,
+                empresaActiva,
+                httpContext,
+                "CrearProductoVariante",
+                "CrearVariante",
+                AuditoriaResultados.Exitoso,
+                $"ProductoId={productoId};VarianteId={variante.Id}",
+                cancellationToken);
+
+            return Results.Created(
+                $"/api/productos/{productoId}/variantes/{variante.Id}",
+                ProductoVarianteResponse.From(variante));
+        }
+        catch (ArgumentException ex)
+        {
+            await AuditarProductoAsync(
+                auditoria,
+                empresaActiva,
+                httpContext,
+                "CrearProductoVariante",
+                "CrearVariante",
+                AuditoriaResultados.Rechazado,
+                "ValidacionDeDominio",
+                cancellationToken);
+
+            return Results.BadRequest(ErrorResponse.From(ex.Message));
+        }
+        catch (InvalidOperationException ex)
+        {
+            await AuditarProductoAsync(
+                auditoria,
+                empresaActiva,
+                httpContext,
+                "CrearProductoVariante",
+                "CrearVariante",
+                AuditoriaResultados.Rechazado,
+                "ReferenciaFueraDeEmpresa",
+                cancellationToken);
+
+            return Results.BadRequest(ErrorResponse.From(ex.Message));
+        }
+    }
+
+    private static async Task<IResult> ActivarVarianteAsync(
+        Guid productoId,
+        Guid varianteId,
+        ActivarProductoVarianteUseCase useCase,
+        CancellationToken cancellationToken)
+    {
+        var variante = await useCase.EjecutarAsync(productoId, varianteId, cancellationToken);
+
+        return variante is null
+            ? Results.NotFound()
+            : Results.Ok(ProductoVarianteResponse.From(variante));
+    }
+
+    private static async Task<IResult> DesactivarVarianteAsync(
+        Guid productoId,
+        Guid varianteId,
+        DesactivarProductoVarianteUseCase useCase,
+        CancellationToken cancellationToken)
+    {
+        var variante = await useCase.EjecutarAsync(productoId, varianteId, cancellationToken);
+
+        return variante is null
+            ? Results.NotFound()
+            : Results.Ok(ProductoVarianteResponse.From(variante));
+    }
+
     private static Task AuditarProductoAsync(
         IAuditoriaOperaciones auditoria,
         IEmpresaActivaContext empresaActiva,
@@ -223,5 +352,32 @@ public sealed record ProductoResponse(
             producto.Costo,
             producto.Activo,
             producto.FechaCreacion);
+    }
+}
+
+public sealed record ProductoVarianteResponse(
+    Guid Id,
+    Guid EmpresaId,
+    Guid ProductoId,
+    string Talla,
+    string Color,
+    string CodigoSku,
+    string CodigoBarras,
+    bool Activo,
+    DateTimeOffset FechaCreacion)
+{
+    // StockActual queda fuera del contrato publico; el stock operativo vive en StockProducto.
+    public static ProductoVarianteResponse From(ProductoVariante variante)
+    {
+        return new ProductoVarianteResponse(
+            variante.Id,
+            variante.EmpresaId,
+            variante.ProductoId,
+            variante.Talla,
+            variante.Color,
+            variante.CodigoSku,
+            variante.CodigoBarras,
+            variante.Activo,
+            variante.FechaCreacion);
     }
 }

@@ -17,4 +17,18 @@ public interface IProductoVarianteRepository
         Guid empresaId,
         Guid id,
         CancellationToken cancellationToken = default);
+
+    Task ActualizarAsync(
+        ProductoVariante variante,
+        CancellationToken cancellationToken = default);
+
+    Task<bool> ExisteSkuAsync(
+        Guid empresaId,
+        string codigoSku,
+        CancellationToken cancellationToken = default);
+
+    Task<bool> ExisteCodigoBarrasAsync(
+        Guid empresaId,
+        string codigoBarras,
+        CancellationToken cancellationToken = default);
 }

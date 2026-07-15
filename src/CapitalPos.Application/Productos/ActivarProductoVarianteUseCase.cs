@@ -3,13 +3,13 @@ using CapitalPos.Domain;
 
 namespace CapitalPos.Application.Productos;
 
-public sealed class ListarProductoVariantesUseCase
+public sealed class ActivarProductoVarianteUseCase
 {
     private readonly IEmpresaActivaContext _empresaActiva;
     private readonly IProductoRepository _productoRepository;
     private readonly IProductoVarianteRepository _productoVarianteRepository;
 
-    public ListarProductoVariantesUseCase(
+    public ActivarProductoVarianteUseCase(
         IProductoVarianteRepository productoVarianteRepository,
         IProductoRepository productoRepository,
         IEmpresaActivaContext empresaActiva)
@@ -19,24 +19,43 @@ public sealed class ListarProductoVariantesUseCase
         _empresaActiva = empresaActiva;
     }
 
-    public async Task<IReadOnlyCollection<ProductoVariante>?> EjecutarAsync(
+    public async Task<ProductoVariante?> EjecutarAsync(
         Guid productoId,
+        Guid varianteId,
         CancellationToken cancellationToken = default)
     {
         ValidarEmpresaActiva();
-        var producto = await _productoRepository.ObtenerPorEmpresaAsync(
-            _empresaActiva.EmpresaId,
-            productoId,
-            cancellationToken);
-        if (producto is null)
+        if (!await ExisteProductoAsync(productoId, cancellationToken))
         {
             return null;
         }
 
-        return await _productoVarianteRepository.ListarPorProductoAsync(
+        var variante = await _productoVarianteRepository.ObtenerPorEmpresaAsync(
+            _empresaActiva.EmpresaId,
+            varianteId,
+            cancellationToken);
+        if (variante is null || variante.ProductoId != productoId)
+        {
+            return null;
+        }
+
+        variante.Activar();
+        await _productoVarianteRepository.ActualizarAsync(variante, cancellationToken);
+
+        return variante;
+    }
+
+    private Task<Producto?> ObtenerProductoAsync(Guid productoId, CancellationToken cancellationToken)
+    {
+        return _productoRepository.ObtenerPorEmpresaAsync(
             _empresaActiva.EmpresaId,
             productoId,
             cancellationToken);
+    }
+
+    private async Task<bool> ExisteProductoAsync(Guid productoId, CancellationToken cancellationToken)
+    {
+        return await ObtenerProductoAsync(productoId, cancellationToken) is not null;
     }
 
     private void ValidarEmpresaActiva()

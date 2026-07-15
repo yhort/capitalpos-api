@@ -12,8 +12,10 @@ public class ApplicationProductoVarianteTests
         var empresaId = Guid.NewGuid();
         var productoId = Guid.NewGuid();
         var repository = new ProductoVarianteRepositoryFake();
+        var productoRepository = new ProductoRepositoryFake();
+        await productoRepository.AgregarAsync(new Producto(productoId, empresaId, "Polo", 59m));
         var empresaActiva = new EmpresaActivaContextFake(empresaId);
-        var useCase = new CrearProductoVarianteUseCase(repository, empresaActiva);
+        var useCase = new CrearProductoVarianteUseCase(repository, productoRepository, empresaActiva);
         var request = new CrearProductoVarianteRequest(
             productoId,
             " M ",
@@ -41,6 +43,7 @@ public class ApplicationProductoVarianteTests
         var repository = new ProductoVarianteRepositoryFake();
         var useCase = new CrearProductoVarianteUseCase(
             repository,
+            new ProductoRepositoryFake(),
             new EmpresaActivaContextFake());
         var request = new CrearProductoVarianteRequest(
             Guid.NewGuid(),
@@ -54,14 +57,65 @@ public class ApplicationProductoVarianteTests
     public async Task Crear_variante_use_case_propaga_validaciones_de_dominio()
     {
         var repository = new ProductoVarianteRepositoryFake();
+        var productoRepository = new ProductoRepositoryFake();
+        var productoId = Guid.NewGuid();
+        var empresaId = Guid.NewGuid();
+        await productoRepository.AgregarAsync(new Producto(productoId, empresaId, "Polo", 59m));
         var useCase = new CrearProductoVarianteUseCase(
             repository,
-            new EmpresaActivaContextFake(Guid.NewGuid()));
+            productoRepository,
+            new EmpresaActivaContextFake(empresaId));
         var request = new CrearProductoVarianteRequest(
-            Guid.NewGuid());
+            productoId);
 
         await Assert.ThrowsAsync<ArgumentException>(() => useCase.EjecutarAsync(request));
         Assert.Empty(repository.Variantes);
+    }
+
+    [Fact]
+    public async Task Crear_variante_use_case_falla_si_producto_no_pertenece_a_empresa_activa()
+    {
+        var empresaAId = Guid.NewGuid();
+        var empresaBId = Guid.NewGuid();
+        var productoId = Guid.NewGuid();
+        var repository = new ProductoVarianteRepositoryFake();
+        var productoRepository = new ProductoRepositoryFake();
+        await productoRepository.AgregarAsync(new Producto(productoId, empresaBId, "Polo", 59m));
+        var useCase = new CrearProductoVarianteUseCase(
+            repository,
+            productoRepository,
+            new EmpresaActivaContextFake(empresaAId));
+        var request = new CrearProductoVarianteRequest(
+            productoId,
+            Talla: "M");
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => useCase.EjecutarAsync(request));
+        Assert.Empty(repository.Variantes);
+    }
+
+    [Fact]
+    public async Task Crear_variante_use_case_rechaza_sku_duplicado_por_empresa()
+    {
+        var empresaId = Guid.NewGuid();
+        var productoId = Guid.NewGuid();
+        var repository = new ProductoVarianteRepositoryFake();
+        var productoRepository = new ProductoRepositoryFake();
+        await productoRepository.AgregarAsync(new Producto(productoId, empresaId, "Polo", 59m));
+        await repository.AgregarAsync(new ProductoVariante(
+            Guid.NewGuid(),
+            empresaId,
+            productoId,
+            codigoSku: "SKU-001"));
+        var useCase = new CrearProductoVarianteUseCase(
+            repository,
+            productoRepository,
+            new EmpresaActivaContextFake(empresaId));
+        var request = new CrearProductoVarianteRequest(
+            productoId,
+            CodigoSku: " SKU-001 ");
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => useCase.EjecutarAsync(request));
+        Assert.Single(repository.Variantes);
     }
 
     [Fact]
@@ -90,12 +144,16 @@ public class ApplicationProductoVarianteTests
         await repository.AgregarAsync(varianteEmpresaA);
         await repository.AgregarAsync(varianteOtroProducto);
         await repository.AgregarAsync(varianteEmpresaB);
+        var productoRepository = new ProductoRepositoryFake();
+        await productoRepository.AgregarAsync(new Producto(productoAId, empresaAId, "Polo", 59m));
         var useCase = new ListarProductoVariantesUseCase(
             repository,
+            productoRepository,
             new EmpresaActivaContextFake(empresaAId));
 
         var variantes = await useCase.EjecutarAsync(productoAId);
 
+        Assert.NotNull(variantes);
         Assert.Same(varianteEmpresaA, Assert.Single(variantes));
     }
 
@@ -105,9 +163,76 @@ public class ApplicationProductoVarianteTests
         var repository = new ProductoVarianteRepositoryFake();
         var useCase = new ListarProductoVariantesUseCase(
             repository,
+            new ProductoRepositoryFake(),
             new EmpresaActivaContextFake());
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => useCase.EjecutarAsync(Guid.NewGuid()));
+    }
+
+    [Fact]
+    public async Task Activar_y_desactivar_variante_validan_producto_y_empresa()
+    {
+        var empresaId = Guid.NewGuid();
+        var productoId = Guid.NewGuid();
+        var varianteId = Guid.NewGuid();
+        var repository = new ProductoVarianteRepositoryFake();
+        var productoRepository = new ProductoRepositoryFake();
+        await productoRepository.AgregarAsync(new Producto(productoId, empresaId, "Polo", 59m));
+        await repository.AgregarAsync(new ProductoVariante(
+            varianteId,
+            empresaId,
+            productoId,
+            talla: "M"));
+        var desactivarUseCase = new DesactivarProductoVarianteUseCase(
+            repository,
+            productoRepository,
+            new EmpresaActivaContextFake(empresaId));
+        var activarUseCase = new ActivarProductoVarianteUseCase(
+            repository,
+            productoRepository,
+            new EmpresaActivaContextFake(empresaId));
+
+        var desactivada = await desactivarUseCase.EjecutarAsync(productoId, varianteId);
+        var activada = await activarUseCase.EjecutarAsync(productoId, varianteId);
+
+        Assert.NotNull(desactivada);
+        Assert.NotNull(activada);
+        Assert.True(activada.Activo);
+    }
+
+    private sealed class ProductoRepositoryFake : IProductoRepository
+    {
+        public List<Producto> Productos { get; } = new();
+
+        public Task AgregarAsync(Producto producto, CancellationToken cancellationToken = default)
+        {
+            Productos.Add(producto);
+
+            return Task.CompletedTask;
+        }
+
+        public Task<IReadOnlyCollection<Producto>> ListarPorEmpresaAsync(
+            Guid empresaId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyCollection<Producto>>(
+                Productos.Where(producto => producto.EmpresaId == empresaId).ToArray());
+        }
+
+        public Task<Producto?> ObtenerPorEmpresaAsync(
+            Guid empresaId,
+            Guid id,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(Productos.SingleOrDefault(producto =>
+                producto.EmpresaId == empresaId &&
+                producto.Id == id));
+        }
+
+        public Task ActualizarAsync(Producto producto, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class ProductoVarianteRepositoryFake : IProductoVarianteRepository
@@ -144,6 +269,33 @@ public class ApplicationProductoVarianteTests
                 variante.EmpresaId == empresaId && variante.Id == id);
 
             return Task.FromResult(variante);
+        }
+
+        public Task ActualizarAsync(
+            ProductoVariante variante,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task<bool> ExisteSkuAsync(
+            Guid empresaId,
+            string codigoSku,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(Variantes.Any(variante =>
+                variante.EmpresaId == empresaId &&
+                variante.CodigoSku == codigoSku.Trim()));
+        }
+
+        public Task<bool> ExisteCodigoBarrasAsync(
+            Guid empresaId,
+            string codigoBarras,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(Variantes.Any(variante =>
+                variante.EmpresaId == empresaId &&
+                variante.CodigoBarras == codigoBarras.Trim()));
         }
     }
 

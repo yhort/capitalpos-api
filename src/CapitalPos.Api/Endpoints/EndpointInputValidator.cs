@@ -153,6 +153,57 @@ public static class EndpointInputValidator
         return true;
     }
 
+    public static bool TryValidate(CrearProductoVarianteRequest request, out string error)
+    {
+        if (request.ProductoId == Guid.Empty)
+        {
+            error = "El identificador del producto es obligatorio.";
+            return false;
+        }
+
+        if (request.Talla is { Length: > 50 })
+        {
+            error = "La talla de la variante no debe exceder 50 caracteres.";
+            return false;
+        }
+
+        if (request.Color is { Length: > 80 })
+        {
+            error = "El color de la variante no debe exceder 80 caracteres.";
+            return false;
+        }
+
+        if (request.CodigoSku is { Length: > 80 })
+        {
+            error = "El SKU de la variante no debe exceder 80 caracteres.";
+            return false;
+        }
+
+        if (request.CodigoBarras is { Length: > 80 })
+        {
+            error = "El codigo de barras de la variante no debe exceder 80 caracteres.";
+            return false;
+        }
+
+        if (request.StockActual < 0)
+        {
+            error = "El stock actual de la variante no puede ser negativo.";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Talla) &&
+            string.IsNullOrWhiteSpace(request.Color) &&
+            string.IsNullOrWhiteSpace(request.CodigoSku) &&
+            string.IsNullOrWhiteSpace(request.CodigoBarras))
+        {
+            error = "La variante debe tener talla, color, SKU o codigo de barras.";
+            return false;
+        }
+
+        error = string.Empty;
+        return true;
+    }
+
     public static bool TryValidate(CrearClienteRequest request, out string error)
     {
         if (string.IsNullOrWhiteSpace(request.TipoDocumento))

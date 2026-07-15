@@ -247,6 +247,33 @@ public class ApplicationStockProductoTests
                 variante.EmpresaId == empresaId &&
                 variante.Id == id));
         }
+
+        public Task ActualizarAsync(
+            ProductoVariante variante,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task<bool> ExisteSkuAsync(
+            Guid empresaId,
+            string codigoSku,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(Variantes.Any(variante =>
+                variante.EmpresaId == empresaId &&
+                variante.CodigoSku == codigoSku.Trim()));
+        }
+
+        public Task<bool> ExisteCodigoBarrasAsync(
+            Guid empresaId,
+            string codigoBarras,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(Variantes.Any(variante =>
+                variante.EmpresaId == empresaId &&
+                variante.CodigoBarras == codigoBarras.Trim()));
+        }
     }
 
     private sealed class UnitOfWorkFake : IUnitOfWork
