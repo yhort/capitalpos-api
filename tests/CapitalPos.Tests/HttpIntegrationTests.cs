@@ -12,6 +12,7 @@ using CapitalPos.Application.Empresas;
 using CapitalPos.Application.Inventario;
 using CapitalPos.Application.Persistence;
 using CapitalPos.Application.Productos;
+using CapitalPos.Application.Reportes;
 using CapitalPos.Application.Seguridad;
 using CapitalPos.Application.Usuarios;
 using CapitalPos.Application.Ventas;
@@ -320,6 +321,159 @@ public class HttpIntegrationTests
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Contains(errorEsperado, content, StringComparison.OrdinalIgnoreCase);
         Assert.Empty(factory.ConfiguracionFiscalRepository.Configuraciones);
+        AssertSeguro(content);
+    }
+
+    [Fact]
+    public async Task Reporte_ventas_por_canal_sin_jwt_devuelve_unauthorized()
+    {
+        await using var factory = new CapitalPosHttpFactory();
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync("/api/reportes/ventas-por-canal?desde=2026-05-01&hasta=2026-05-31");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Reporte_ventas_por_canal_con_jwt_sin_empresa_activa_devuelve_bad_request()
+    {
+        await using var factory = new CapitalPosHttpFactory();
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = CrearAuthorizationHeader(UsuarioId);
+
+        var response = await client.GetAsync("/api/reportes/ventas-por-canal?desde=2026-05-01&hasta=2026-05-31");
+        var content = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains(EmpresaActivaHeaders.HeaderName, content);
+        AssertSeguro(content);
+    }
+
+    [Fact]
+    public async Task Reporte_ventas_por_canal_usuario_sin_permiso_devuelve_forbidden()
+    {
+        await using var factory = new CapitalPosHttpFactory
+        {
+            UsuarioEmpresa = CrearUsuarioEmpresa(RolEmpresa.Almacenero)
+        };
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+
+        var response = await client.GetAsync("/api/reportes/ventas-por-canal?desde=2026-05-01&hasta=2026-05-31");
+        var content = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Contains("permiso requerido", content);
+        AssertSeguro(content);
+    }
+
+    [Fact]
+    public async Task Reporte_ventas_por_canal_rechaza_rango_invalido()
+    {
+        await using var factory = new CapitalPosHttpFactory();
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+
+        var response = await client.GetAsync("/api/reportes/ventas-por-canal?desde=2026-06-01&hasta=2026-05-31");
+        var content = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("desde no puede ser mayor", content);
+        AssertSeguro(content);
+    }
+
+    [Fact]
+    public async Task Reporte_ventas_por_canal_agrupa_filtra_y_calcula_totales()
+    {
+        var otraEmpresaId = Guid.Parse("44444444-4444-4444-4444-444444444444");
+        await using var factory = new CapitalPosHttpFactory();
+        await factory.VentaRepository.AgregarAsync(CrearVentaReporte(
+            EmpresaId,
+            CanalVenta.TIENDA,
+            new DateTimeOffset(2026, 5, 1, 10, 0, 0, TimeSpan.Zero),
+            [(2m, 100m), (1m, 50m)]));
+        await factory.VentaRepository.AgregarAsync(CrearVentaReporte(
+            EmpresaId,
+            CanalVenta.PROVINCIA,
+            new DateTimeOffset(2026, 5, 15, 10, 0, 0, TimeSpan.Zero),
+            [(3m, 90m)]));
+        await factory.VentaRepository.AgregarAsync(CrearVentaReporte(
+            EmpresaId,
+            CanalVenta.MARKETING,
+            new DateTimeOffset(2026, 5, 31, 10, 0, 0, TimeSpan.Zero),
+            [(1m, 20m)]));
+        await factory.VentaRepository.AgregarAsync(CrearVentaReporte(
+            EmpresaId,
+            CanalVenta.TIENDA,
+            new DateTimeOffset(2026, 4, 30, 10, 0, 0, TimeSpan.Zero),
+            [(9m, 900m)]));
+        await factory.VentaRepository.AgregarAsync(CrearVentaReporte(
+            otraEmpresaId,
+            CanalVenta.TIENDA,
+            new DateTimeOffset(2026, 5, 10, 10, 0, 0, TimeSpan.Zero),
+            [(99m, 999m)]));
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+
+        var response = await client.GetAsync("/api/reportes/ventas-por-canal?desde=2026-05-01&hasta=2026-05-31");
+        var content = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadFromJsonAsync<ReporteVentasPorCanalResponse>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(body);
+        Assert.Equal(new DateOnly(2026, 5, 1), body.Desde);
+        Assert.Equal(new DateOnly(2026, 5, 31), body.Hasta);
+        Assert.Equal(Enum.GetValues<CanalVenta>().Length, body.Items.Count);
+        var tienda = body.Items.Single(item => item.CanalVenta == "TIENDA");
+        Assert.Equal(1, tienda.CantidadVentas);
+        Assert.Equal(3m, tienda.Unidades);
+        Assert.Equal(150m, tienda.Soles);
+        Assert.Equal(50m, tienda.PrecioPromedio);
+        var provincia = body.Items.Single(item => item.CanalVenta == "PROVINCIA");
+        Assert.Equal(1, provincia.CantidadVentas);
+        Assert.Equal(3m, provincia.Unidades);
+        Assert.Equal(90m, provincia.Soles);
+        Assert.Equal(30m, provincia.PrecioPromedio);
+        var marketing = body.Items.Single(item => item.CanalVenta == "MARKETING");
+        Assert.Equal(1, marketing.CantidadVentas);
+        Assert.Equal(1m, marketing.Unidades);
+        Assert.Equal(20m, marketing.Soles);
+        Assert.Equal(20m, marketing.PrecioPromedio);
+        var mayorista = body.Items.Single(item => item.CanalVenta == "MAYORISTA");
+        Assert.Equal(0, mayorista.CantidadVentas);
+        Assert.Equal(0m, mayorista.Unidades);
+        Assert.Equal(0m, mayorista.Soles);
+        Assert.Equal(0m, mayorista.PrecioPromedio);
+        Assert.Equal(3, body.TotalGeneral.CantidadVentas);
+        Assert.Equal(7m, body.TotalGeneral.Unidades);
+        Assert.Equal(260m, body.TotalGeneral.Soles);
+        Assert.Equal(37.14m, body.TotalGeneral.PrecioPromedio);
+        Assert.DoesNotContain("999", content);
+        AssertSeguro(content);
+    }
+
+    [Fact]
+    public async Task Reporte_ventas_por_canal_sin_ventas_devuelve_canales_y_total_en_cero()
+    {
+        await using var factory = new CapitalPosHttpFactory();
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+
+        var response = await client.GetAsync("/api/reportes/ventas-por-canal?desde=2026-05-01&hasta=2026-05-31");
+        var content = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadFromJsonAsync<ReporteVentasPorCanalResponse>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(body);
+        Assert.Equal(Enum.GetValues<CanalVenta>().Length, body.Items.Count);
+        Assert.All(body.Items, item =>
+        {
+            Assert.Equal(0, item.CantidadVentas);
+            Assert.Equal(0m, item.Unidades);
+            Assert.Equal(0m, item.Soles);
+            Assert.Equal(0m, item.PrecioPromedio);
+        });
+        Assert.Equal(0, body.TotalGeneral.CantidadVentas);
+        Assert.Equal(0m, body.TotalGeneral.Unidades);
+        Assert.Equal(0m, body.TotalGeneral.Soles);
+        Assert.Equal(0m, body.TotalGeneral.PrecioPromedio);
         AssertSeguro(content);
     }
 
@@ -1043,6 +1197,37 @@ public class HttpIntegrationTests
             canalVenta,
             puntoVentaId,
             vendedorId);
+    }
+
+    private static Venta CrearVentaReporte(
+        Guid empresaId,
+        CanalVenta canalVenta,
+        DateTimeOffset fecha,
+        IReadOnlyCollection<(decimal Cantidad, decimal Total)> detalles)
+    {
+        var ventaId = Guid.NewGuid();
+        var ventaDetalles = detalles
+            .Select(detalle => new VentaDetalle(
+                Guid.NewGuid(),
+                empresaId,
+                ventaId,
+                Guid.NewGuid(),
+                detalle.Cantidad,
+                detalle.Total / detalle.Cantidad,
+                0m,
+                detalle.Total))
+            .ToArray();
+        var total = ventaDetalles.Sum(detalle => detalle.Total);
+
+        return new Venta(
+            ventaId,
+            empresaId,
+            fecha,
+            total,
+            0m,
+            total,
+            ventaDetalles,
+            canalVenta: canalVenta);
     }
 
     private static void AssertSeguro(string content)

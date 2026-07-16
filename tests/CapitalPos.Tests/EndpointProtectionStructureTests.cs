@@ -9,6 +9,7 @@ public class EndpointProtectionStructureTests
     [InlineData("src/CapitalPos.Api/Endpoints/StockEndpoints.cs")]
     [InlineData("src/CapitalPos.Api/Endpoints/ClienteEndpoints.cs")]
     [InlineData("src/CapitalPos.Api/Endpoints/VentaEndpoints.cs")]
+    [InlineData("src/CapitalPos.Api/Endpoints/ReporteEndpoints.cs")]
     [InlineData("src/CapitalPos.Api/Endpoints/ConfiguracionFiscalEndpoints.cs")]
     public void Grupos_de_endpoints_de_negocio_requieren_autorizacion(string relativePath)
     {
@@ -24,6 +25,7 @@ public class EndpointProtectionStructureTests
     [InlineData("src/CapitalPos.Api/Endpoints/StockEndpoints.cs")]
     [InlineData("src/CapitalPos.Api/Endpoints/ClienteEndpoints.cs")]
     [InlineData("src/CapitalPos.Api/Endpoints/VentaEndpoints.cs")]
+    [InlineData("src/CapitalPos.Api/Endpoints/ReporteEndpoints.cs")]
     [InlineData("src/CapitalPos.Api/Endpoints/ConfiguracionFiscalEndpoints.cs")]
     public void Grupos_de_endpoints_de_negocio_requieren_empresa_activa(string relativePath)
     {
@@ -39,6 +41,7 @@ public class EndpointProtectionStructureTests
     [InlineData("src/CapitalPos.Api/Endpoints/StockEndpoints.cs")]
     [InlineData("src/CapitalPos.Api/Endpoints/ClienteEndpoints.cs")]
     [InlineData("src/CapitalPos.Api/Endpoints/VentaEndpoints.cs")]
+    [InlineData("src/CapitalPos.Api/Endpoints/ReporteEndpoints.cs")]
     [InlineData("src/CapitalPos.Api/Endpoints/ConfiguracionFiscalEndpoints.cs")]
     public void Endpoints_de_negocio_requieren_permisos_empresariales(string relativePath)
     {
