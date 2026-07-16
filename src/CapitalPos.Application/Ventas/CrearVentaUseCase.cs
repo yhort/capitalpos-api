@@ -37,6 +37,7 @@ public sealed class CrearVentaUseCase
     {
         ArgumentNullException.ThrowIfNull(request);
         ValidarEmpresaActiva();
+        var canalVenta = NormalizarCanalVenta(request.CanalVenta);
 
         var empresaId = _empresaActiva.EmpresaId;
         await ValidarClienteAsync(empresaId, request.ClienteId, cancellationToken);
@@ -67,7 +68,10 @@ public sealed class CrearVentaUseCase
             igv,
             total,
             detalles,
-            request.ClienteId);
+            request.ClienteId,
+            canalVenta,
+            request.PuntoVentaId,
+            request.VendedorId);
 
         try
         {
@@ -115,6 +119,25 @@ public sealed class CrearVentaUseCase
         {
             throw new InvalidOperationException("El cliente no pertenece a la empresa activa.");
         }
+    }
+
+    private static CanalVenta NormalizarCanalVenta(string? canalVenta)
+    {
+        if (string.IsNullOrWhiteSpace(canalVenta))
+        {
+            return CanalVenta.TIENDA;
+        }
+
+        if (Enum.TryParse<CanalVenta>(
+            canalVenta.Trim(),
+            ignoreCase: true,
+            out var canalNormalizado) &&
+            Enum.IsDefined(canalNormalizado))
+        {
+            return canalNormalizado;
+        }
+
+        throw new ArgumentException("El canal de venta no es valido.", nameof(canalVenta));
     }
 
     private async Task ValidarProductoAsync(

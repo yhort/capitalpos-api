@@ -266,6 +266,29 @@ public static class EndpointInputValidator
             return false;
         }
 
+        if (!string.IsNullOrWhiteSpace(request.CanalVenta) &&
+            (!Enum.TryParse<CanalVenta>(
+                request.CanalVenta.Trim(),
+                ignoreCase: true,
+                out var canalVenta) ||
+            !Enum.IsDefined(canalVenta)))
+        {
+            error = "El canal de venta no es valido.";
+            return false;
+        }
+
+        if (request.PuntoVentaId == Guid.Empty)
+        {
+            error = "El identificador del punto de venta no puede estar vacio.";
+            return false;
+        }
+
+        if (request.VendedorId == Guid.Empty)
+        {
+            error = "El identificador del vendedor no puede estar vacio.";
+            return false;
+        }
+
         foreach (var detalle in request.Detalles)
         {
             if (!TryValidate(detalle, out error))

@@ -257,6 +257,9 @@ public class EfCoreModelTests
         Assert.Equal(nameof(Venta.Id), entityType.FindPrimaryKey()?.Properties.Single().Name);
         AssertPropiedad(entityType, nameof(Venta.EmpresaId), nullable: false);
         AssertPropiedad(entityType, nameof(Venta.ClienteId));
+        AssertPropiedad(entityType, nameof(Venta.CanalVenta), maxLength: 30, nullable: false);
+        AssertPropiedad(entityType, nameof(Venta.PuntoVentaId));
+        AssertPropiedad(entityType, nameof(Venta.VendedorId));
         AssertPropiedad(entityType, nameof(Venta.Fecha), nullable: false);
         AssertPropiedad(entityType, nameof(Venta.Subtotal), nullable: false);
         AssertPropiedad(entityType, nameof(Venta.Igv), nullable: false);
@@ -266,9 +269,17 @@ public class EfCoreModelTests
 
         var estadoProperty = entityType.FindProperty(nameof(Venta.Estado));
         Assert.Equal(typeof(string), estadoProperty?.GetProviderClrType());
+        var canalVentaProperty = entityType.FindProperty(nameof(Venta.CanalVenta));
+        Assert.Equal(typeof(string), canalVentaProperty?.GetProviderClrType());
 
         Assert.Contains(entityType.GetIndexes(), index =>
             index.Properties.Select(property => property.Name).SequenceEqual([nameof(Venta.EmpresaId)]));
+        Assert.Contains(entityType.GetIndexes(), index =>
+            index.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(Venta.EmpresaId),
+                nameof(Venta.CanalVenta),
+                nameof(Venta.Fecha)
+            ]));
 
         Assert.Contains(entityType.GetForeignKeys(), foreignKey =>
             foreignKey.PrincipalEntityType.ClrType == typeof(Empresa) &&

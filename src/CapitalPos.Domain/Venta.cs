@@ -17,6 +17,9 @@ public sealed class Venta
         decimal total,
         IReadOnlyCollection<VentaDetalle> detalles,
         Guid? clienteId = null,
+        CanalVenta canalVenta = CanalVenta.TIENDA,
+        Guid? puntoVentaId = null,
+        Guid? vendedorId = null,
         EstadoVenta estado = EstadoVenta.Registrada,
         DateTimeOffset? fechaCreacion = null)
     {
@@ -38,6 +41,21 @@ public sealed class Venta
         if (clienteId == Guid.Empty)
         {
             throw new ArgumentException("El identificador del cliente no puede estar vacio.", nameof(clienteId));
+        }
+
+        if (!Enum.IsDefined(canalVenta))
+        {
+            throw new ArgumentOutOfRangeException(nameof(canalVenta), "El canal de venta no es valido.");
+        }
+
+        if (puntoVentaId == Guid.Empty)
+        {
+            throw new ArgumentException("El identificador del punto de venta no puede estar vacio.", nameof(puntoVentaId));
+        }
+
+        if (vendedorId == Guid.Empty)
+        {
+            throw new ArgumentException("El identificador del vendedor no puede estar vacio.", nameof(vendedorId));
         }
 
         if (!Enum.IsDefined(estado))
@@ -88,6 +106,9 @@ public sealed class Venta
         Id = id;
         EmpresaId = empresaId;
         ClienteId = clienteId;
+        CanalVenta = canalVenta;
+        PuntoVentaId = puntoVentaId;
+        VendedorId = vendedorId;
         Fecha = fecha;
         Subtotal = subtotal;
         Igv = igv;
@@ -102,6 +123,12 @@ public sealed class Venta
     public Guid EmpresaId { get; private set; }
 
     public Guid? ClienteId { get; private set; }
+
+    public CanalVenta CanalVenta { get; private set; }
+
+    public Guid? PuntoVentaId { get; private set; }
+
+    public Guid? VendedorId { get; private set; }
 
     public DateTimeOffset Fecha { get; private set; }
 

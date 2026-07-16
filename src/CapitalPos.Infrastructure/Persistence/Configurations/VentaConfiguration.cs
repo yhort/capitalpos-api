@@ -20,6 +20,15 @@ public sealed class VentaConfiguration : IEntityTypeConfiguration<Venta>
 
         builder.Property(venta => venta.ClienteId);
 
+        builder.Property(venta => venta.CanalVenta)
+            .HasConversion<string>()
+            .HasMaxLength(30)
+            .IsRequired();
+
+        builder.Property(venta => venta.PuntoVentaId);
+
+        builder.Property(venta => venta.VendedorId);
+
         builder.Property(venta => venta.Fecha)
             .IsRequired();
 
@@ -44,6 +53,13 @@ public sealed class VentaConfiguration : IEntityTypeConfiguration<Venta>
             .IsRequired();
 
         builder.HasIndex(venta => venta.EmpresaId);
+
+        builder.HasIndex(venta => new
+        {
+            venta.EmpresaId,
+            venta.CanalVenta,
+            venta.Fecha
+        });
 
         builder.HasAlternateKey(venta => new
         {

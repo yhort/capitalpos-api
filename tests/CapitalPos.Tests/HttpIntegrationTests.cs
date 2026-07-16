@@ -700,10 +700,83 @@ public class HttpIntegrationTests
 
         var response = await client.PostAsJsonAsync("/api/ventas/", CrearVentaRequest(productoId, null, 2m));
         var content = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadFromJsonAsync<VentaResponse>();
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.NotNull(body);
+        Assert.Equal("TIENDA", body.CanalVenta);
+        Assert.Null(body.PuntoVentaId);
+        Assert.Null(body.VendedorId);
         Assert.Single(factory.VentaRepository.Ventas);
         Assert.Equal(3m, factory.StockRepository.Stocks.Single().CantidadDisponible);
+        AssertSeguro(content);
+    }
+
+    [Theory]
+    [InlineData("PROVINCIA")]
+    [InlineData("MARKETING")]
+    public async Task Crear_venta_devuelve_dimensiones_comerciales(string canalVenta)
+    {
+        var productoId = Guid.NewGuid();
+        var puntoVentaId = Guid.NewGuid();
+        var vendedorId = Guid.NewGuid();
+        await using var factory = new CapitalPosHttpFactory();
+        await factory.ProductoRepository.AgregarAsync(CrearProducto(EmpresaId, productoId));
+        await factory.StockRepository.GuardarAsync(new StockProducto(
+            Guid.NewGuid(),
+            EmpresaId,
+            productoId,
+            null,
+            5m));
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+
+        var response = await client.PostAsJsonAsync("/api/ventas/", CrearVentaRequest(
+            productoId,
+            null,
+            1m,
+            canalVenta,
+            puntoVentaId,
+            vendedorId));
+        var content = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadFromJsonAsync<VentaResponse>();
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.NotNull(body);
+        Assert.Equal(canalVenta, body.CanalVenta);
+        Assert.Equal(puntoVentaId, body.PuntoVentaId);
+        Assert.Equal(vendedorId, body.VendedorId);
+        var venta = Assert.Single(factory.VentaRepository.Ventas);
+        Assert.Equal(Enum.Parse<CanalVenta>(canalVenta), venta.CanalVenta);
+        Assert.Equal(puntoVentaId, venta.PuntoVentaId);
+        Assert.Equal(vendedorId, venta.VendedorId);
+        AssertSeguro(content);
+    }
+
+    [Fact]
+    public async Task Crear_venta_con_canal_invalido_devuelve_bad_request()
+    {
+        var productoId = Guid.NewGuid();
+        await using var factory = new CapitalPosHttpFactory();
+        await factory.ProductoRepository.AgregarAsync(CrearProducto(EmpresaId, productoId));
+        await factory.StockRepository.GuardarAsync(new StockProducto(
+            Guid.NewGuid(),
+            EmpresaId,
+            productoId,
+            null,
+            5m));
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+
+        var response = await client.PostAsJsonAsync("/api/ventas/", CrearVentaRequest(
+            productoId,
+            null,
+            1m,
+            "ONLINE"));
+        var content = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("canal de venta", content, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(factory.VentaRepository.Ventas);
+        Assert.Equal(5m, factory.StockRepository.Stocks.Single().CantidadDisponible);
         AssertSeguro(content);
     }
 
@@ -958,12 +1031,18 @@ public class HttpIntegrationTests
     private static CrearVentaRequest CrearVentaRequest(
         Guid productoId,
         Guid? productoVarianteId,
-        decimal cantidad)
+        decimal cantidad,
+        string? canalVenta = null,
+        Guid? puntoVentaId = null,
+        Guid? vendedorId = null)
     {
         return new CrearVentaRequest(
             DateTimeOffset.UtcNow,
             null,
-            [new CrearVentaDetalleRequest(productoId, productoVarianteId, cantidad, 10m, 0m, cantidad * 10m)]);
+            [new CrearVentaDetalleRequest(productoId, productoVarianteId, cantidad, 10m, 0m, cantidad * 10m)],
+            canalVenta,
+            puntoVentaId,
+            vendedorId);
     }
 
     private static void AssertSeguro(string content)

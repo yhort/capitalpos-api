@@ -28,6 +28,9 @@ public class VentaTests
         Assert.Equal(ventaId, venta.Id);
         Assert.Equal(empresaId, venta.EmpresaId);
         Assert.Equal(clienteId, venta.ClienteId);
+        Assert.Equal(CanalVenta.TIENDA, venta.CanalVenta);
+        Assert.Null(venta.PuntoVentaId);
+        Assert.Null(venta.VendedorId);
         Assert.Equal(fecha, venta.Fecha);
         Assert.Equal(100m, venta.Subtotal);
         Assert.Equal(18m, venta.Igv);
@@ -54,6 +57,51 @@ public class VentaTests
             [detalle]);
 
         Assert.Null(venta.ClienteId);
+        Assert.Equal(CanalVenta.TIENDA, venta.CanalVenta);
+    }
+
+    [Fact]
+    public void Permite_dimensiones_comerciales_opcionales()
+    {
+        var ventaId = Guid.NewGuid();
+        var empresaId = Guid.NewGuid();
+        var puntoVentaId = Guid.NewGuid();
+        var vendedorId = Guid.NewGuid();
+        var detalle = CrearDetalle(ventaId, empresaId, total: 10m, igv: 0m);
+
+        var venta = new Venta(
+            ventaId,
+            empresaId,
+            DateTimeOffset.UtcNow,
+            10m,
+            0m,
+            10m,
+            [detalle],
+            canalVenta: CanalVenta.PROVINCIA,
+            puntoVentaId: puntoVentaId,
+            vendedorId: vendedorId);
+
+        Assert.Equal(CanalVenta.PROVINCIA, venta.CanalVenta);
+        Assert.Equal(puntoVentaId, venta.PuntoVentaId);
+        Assert.Equal(vendedorId, venta.VendedorId);
+    }
+
+    [Fact]
+    public void Rechaza_canal_venta_invalido()
+    {
+        var ventaId = Guid.NewGuid();
+        var empresaId = Guid.NewGuid();
+
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new Venta(
+                ventaId,
+                empresaId,
+                DateTimeOffset.UtcNow,
+                10m,
+                0m,
+                10m,
+                [CrearDetalle(ventaId, empresaId, total: 10m, igv: 0m)],
+                canalVenta: (CanalVenta)999));
     }
 
     [Fact]

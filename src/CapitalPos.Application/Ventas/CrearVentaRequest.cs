@@ -5,7 +5,10 @@ namespace CapitalPos.Application.Ventas;
 public sealed record CrearVentaRequest(
     DateTimeOffset? Fecha,
     Guid? ClienteId,
-    IReadOnlyCollection<CrearVentaDetalleRequest> Detalles);
+    IReadOnlyCollection<CrearVentaDetalleRequest> Detalles,
+    string? CanalVenta = null,
+    Guid? PuntoVentaId = null,
+    Guid? VendedorId = null);
 
 public sealed record CrearVentaDetalleRequest(
     Guid ProductoId,
