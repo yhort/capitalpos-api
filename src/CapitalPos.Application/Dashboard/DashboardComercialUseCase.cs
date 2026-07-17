@@ -43,8 +43,9 @@ public sealed class DashboardComercialUseCase
 
         var ultimaActualizacion = _clock.AhoraLima();
         var fecha = DateOnly.FromDateTime(ultimaActualizacion.Date);
-        var desde = new DateTimeOffset(fecha.ToDateTime(TimeOnly.MinValue), ultimaActualizacion.Offset);
-        var hastaExclusivo = desde.AddDays(1);
+        var inicioLima = new DateTimeOffset(fecha.ToDateTime(TimeOnly.MinValue), ultimaActualizacion.Offset);
+        var desde = inicioLima.ToUniversalTime();
+        var hastaExclusivo = inicioLima.AddDays(1).ToUniversalTime();
         var empresaId = _empresaActiva.EmpresaId;
 
         var ventas = await _ventaRepository.ListarRegistradasPorEmpresaYFechaAsync(

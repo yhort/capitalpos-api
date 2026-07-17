@@ -184,6 +184,25 @@ public class ApplicationDashboardComercialTests
     }
 
     [Fact]
+    public async Task Dashboard_comercial_envia_limites_del_dia_lima_convertidos_a_utc()
+    {
+        var empresaId = Guid.NewGuid();
+        var repos = CrearRepositorios(empresaId);
+        var ahoraLima = new DateTimeOffset(2026, 7, 17, 15, 42, 10, TimeSpan.FromHours(-5));
+        var useCase = CrearUseCase(repos, empresaId, ahoraLima);
+
+        var dashboard = await useCase.EjecutarAsync();
+
+        Assert.Equal(TimeSpan.FromHours(-5), ahoraLima.Offset);
+        Assert.Equal(new DateOnly(2026, 7, 17), dashboard.Fecha);
+        Assert.Equal(new DateTimeOffset(2026, 7, 17, 5, 0, 0, TimeSpan.Zero), repos.Ventas.UltimoDesde);
+        Assert.Equal(new DateTimeOffset(2026, 7, 18, 5, 0, 0, TimeSpan.Zero), repos.Ventas.UltimoHastaExclusivo);
+        Assert.Equal(TimeSpan.Zero, repos.Ventas.UltimoDesde?.Offset);
+        Assert.Equal(TimeSpan.Zero, repos.Ventas.UltimoHastaExclusivo?.Offset);
+        Assert.Equal(TimeSpan.FromHours(24), repos.Ventas.UltimoHastaExclusivo - repos.Ventas.UltimoDesde);
+    }
+
+    [Fact]
     public async Task Dashboard_comercial_desempata_canal_lider_por_canal_ascendente()
     {
         var empresaId = Guid.NewGuid();
@@ -491,6 +510,10 @@ public class ApplicationDashboardComercialTests
     {
         public List<Venta> Ventas { get; } = new();
 
+        public DateTimeOffset? UltimoDesde { get; private set; }
+
+        public DateTimeOffset? UltimoHastaExclusivo { get; private set; }
+
         public Task AgregarAsync(Venta venta, CancellationToken cancellationToken = default)
         {
             Ventas.Add(venta);
@@ -512,6 +535,9 @@ public class ApplicationDashboardComercialTests
             DateTimeOffset hastaExclusivo,
             CancellationToken cancellationToken = default)
         {
+            UltimoDesde = desde;
+            UltimoHastaExclusivo = hastaExclusivo;
+
             return Task.FromResult<IReadOnlyCollection<Venta>>(
                 Ventas.Where(venta =>
                     venta.EmpresaId == empresaId &&
