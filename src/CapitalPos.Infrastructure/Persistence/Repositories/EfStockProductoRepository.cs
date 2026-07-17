@@ -27,6 +27,16 @@ public sealed class EfStockProductoRepository : IStockProductoRepository
             cancellationToken);
     }
 
+    public async Task<IReadOnlyCollection<StockProducto>> ListarPorEmpresaAsync(
+        Guid empresaId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.StocksProductos
+            .AsNoTracking()
+            .Where(stock => stock.EmpresaId == empresaId)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task GuardarAsync(
         StockProducto stock,
         CancellationToken cancellationToken = default)

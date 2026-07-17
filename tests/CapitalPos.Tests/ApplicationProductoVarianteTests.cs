@@ -260,6 +260,17 @@ public class ApplicationProductoVarianteTests
             return Task.FromResult(variantes);
         }
 
+        public Task<IReadOnlyCollection<ProductoVariante>> ListarPorEmpresaAsync(
+            Guid empresaId,
+            CancellationToken cancellationToken = default)
+        {
+            IReadOnlyCollection<ProductoVariante> variantes = Variantes
+                .Where(variante => variante.EmpresaId == empresaId)
+                .ToArray();
+
+            return Task.FromResult(variantes);
+        }
+
         public Task<ProductoVariante?> ObtenerPorEmpresaAsync(
             Guid empresaId,
             Guid id,

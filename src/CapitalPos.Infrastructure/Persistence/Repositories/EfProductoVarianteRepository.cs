@@ -36,6 +36,19 @@ public sealed class EfProductoVarianteRepository : IProductoVarianteRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyCollection<ProductoVariante>> ListarPorEmpresaAsync(
+        Guid empresaId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.ProductosVariantes
+            .AsNoTracking()
+            .Where(variante => variante.EmpresaId == empresaId)
+            .OrderBy(variante => variante.ProductoId)
+            .ThenBy(variante => variante.Talla)
+            .ThenBy(variante => variante.Color)
+            .ToListAsync(cancellationToken);
+    }
+
     public Task<ProductoVariante?> ObtenerPorEmpresaAsync(
         Guid empresaId,
         Guid id,

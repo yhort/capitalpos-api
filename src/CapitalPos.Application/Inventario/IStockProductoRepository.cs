@@ -10,6 +10,10 @@ public interface IStockProductoRepository
         Guid? productoVarianteId = null,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyCollection<StockProducto>> ListarPorEmpresaAsync(
+        Guid empresaId,
+        CancellationToken cancellationToken = default);
+
     Task GuardarAsync(
         StockProducto stock,
         CancellationToken cancellationToken = default);

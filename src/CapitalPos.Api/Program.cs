@@ -5,6 +5,7 @@ using CapitalPos.Api.Development;
 using CapitalPos.Api.Middleware;
 using CapitalPos.Application.Clientes;
 using CapitalPos.Application.ConfiguracionFiscal;
+using CapitalPos.Application.Dashboard;
 using CapitalPos.Application.Empresas;
 using CapitalPos.Application.Inventario;
 using CapitalPos.Application.Productos;
@@ -71,6 +72,8 @@ builder.Services.AddScoped<ObtenerConfiguracionFiscalEmpresaUseCase>();
 builder.Services.AddScoped<AjustarStockProductoUseCase>();
 builder.Services.AddScoped<ObtenerStockProductoUseCase>();
 builder.Services.AddScoped<ReporteVentasPorCanalUseCase>();
+builder.Services.AddScoped<DashboardComercialUseCase>();
+builder.Services.AddSingleton<IDashboardComercialClock, DashboardComercialClock>();
 
 var app = builder.Build();
 
@@ -105,6 +108,7 @@ app.MapStockEndpoints();
 app.MapClienteEndpoints();
 app.MapVentaEndpoints();
 app.MapReporteEndpoints();
+app.MapDashboardEndpoints();
 app.MapConfiguracionFiscalEndpoints();
 app.MapCpeEndpoints();
 

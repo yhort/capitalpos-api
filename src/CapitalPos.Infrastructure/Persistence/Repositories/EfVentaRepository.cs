@@ -33,6 +33,24 @@ public sealed class EfVentaRepository : IVentaRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyCollection<Venta>> ListarRegistradasPorEmpresaYFechaAsync(
+        Guid empresaId,
+        DateTimeOffset desde,
+        DateTimeOffset hastaExclusivo,
+        CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.Ventas
+            .AsNoTracking()
+            .Include(venta => venta.Detalles)
+            .Where(venta =>
+                venta.EmpresaId == empresaId &&
+                venta.Estado == EstadoVenta.Registrada &&
+                venta.Fecha >= desde &&
+                venta.Fecha < hastaExclusivo)
+            .OrderByDescending(venta => venta.Fecha)
+            .ToListAsync(cancellationToken);
+    }
+
     public Task<Venta?> ObtenerPorEmpresaAsync(
         Guid empresaId,
         Guid id,

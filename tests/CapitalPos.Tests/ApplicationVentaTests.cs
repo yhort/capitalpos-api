@@ -1047,6 +1047,23 @@ public class ApplicationVentaTests
             return Task.FromResult(ventas);
         }
 
+        public Task<IReadOnlyCollection<Venta>> ListarRegistradasPorEmpresaYFechaAsync(
+            Guid empresaId,
+            DateTimeOffset desde,
+            DateTimeOffset hastaExclusivo,
+            CancellationToken cancellationToken = default)
+        {
+            IReadOnlyCollection<Venta> ventas = Ventas
+                .Where(venta =>
+                    venta.EmpresaId == empresaId &&
+                    venta.Estado == EstadoVenta.Registrada &&
+                    venta.Fecha >= desde &&
+                    venta.Fecha < hastaExclusivo)
+                .ToArray();
+
+            return Task.FromResult(ventas);
+        }
+
         public Task<Venta?> ObtenerPorEmpresaAsync(
             Guid empresaId,
             Guid id,
@@ -1154,6 +1171,17 @@ public class ApplicationVentaTests
             return Task.FromResult(variantes);
         }
 
+        public Task<IReadOnlyCollection<ProductoVariante>> ListarPorEmpresaAsync(
+            Guid empresaId,
+            CancellationToken cancellationToken = default)
+        {
+            IReadOnlyCollection<ProductoVariante> variantes = _variantes
+                .Where(variante => variante.EmpresaId == empresaId)
+                .ToArray();
+
+            return Task.FromResult(variantes);
+        }
+
         public Task<ProductoVariante?> ObtenerPorEmpresaAsync(
             Guid empresaId,
             Guid id,
@@ -1248,6 +1276,14 @@ public class ApplicationVentaTests
                 stock.ProductoVarianteId == productoVarianteId);
 
             return Task.FromResult(stock);
+        }
+
+        public Task<IReadOnlyCollection<StockProducto>> ListarPorEmpresaAsync(
+            Guid empresaId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyCollection<StockProducto>>(
+                Stocks.Where(stock => stock.EmpresaId == empresaId).ToArray());
         }
 
         public Task GuardarAsync(

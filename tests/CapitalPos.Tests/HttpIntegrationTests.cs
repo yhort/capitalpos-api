@@ -8,6 +8,7 @@ using CapitalPos.Api.ActiveCompany;
 using CapitalPos.Api.Endpoints;
 using CapitalPos.Application.Clientes;
 using CapitalPos.Application.ConfiguracionFiscal;
+using CapitalPos.Application.Dashboard;
 using CapitalPos.Application.Empresas;
 using CapitalPos.Application.Inventario;
 using CapitalPos.Application.Persistence;
@@ -474,6 +475,122 @@ public class HttpIntegrationTests
         Assert.Equal(0m, body.TotalGeneral.Unidades);
         Assert.Equal(0m, body.TotalGeneral.Soles);
         Assert.Equal(0m, body.TotalGeneral.PrecioPromedio);
+        AssertSeguro(content);
+    }
+
+    [Fact]
+    public async Task Dashboard_comercial_sin_jwt_devuelve_unauthorized()
+    {
+        await using var factory = new CapitalPosHttpFactory();
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync("/api/dashboard/comercial");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Dashboard_comercial_con_jwt_sin_empresa_activa_devuelve_bad_request()
+    {
+        await using var factory = new CapitalPosHttpFactory();
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = CrearAuthorizationHeader(UsuarioId);
+
+        var response = await client.GetAsync("/api/dashboard/comercial");
+        var content = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains(EmpresaActivaHeaders.HeaderName, content);
+        AssertSeguro(content);
+    }
+
+    [Fact]
+    public async Task Dashboard_comercial_usuario_sin_permiso_devuelve_forbidden()
+    {
+        await using var factory = new CapitalPosHttpFactory
+        {
+            UsuarioEmpresa = CrearUsuarioEmpresa(RolEmpresa.Almacenero)
+        };
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+
+        var response = await client.GetAsync("/api/dashboard/comercial");
+        var content = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Contains("permiso requerido", content);
+        AssertSeguro(content);
+    }
+
+    [Fact]
+    public async Task Dashboard_comercial_devuelve_resumen_top_y_stock_bajo()
+    {
+        var otraEmpresaId = Guid.Parse("44444444-4444-4444-4444-444444444444");
+        var productoId = Guid.NewGuid();
+        var varianteId = Guid.NewGuid();
+        await using var factory = new CapitalPosHttpFactory();
+        factory.ProductoRepository.Productos.Add(new Producto(productoId, EmpresaId, "Polo", 50m, codigoSku: "POLO"));
+        await factory.ProductoVarianteRepository.AgregarAsync(new ProductoVariante(
+            varianteId,
+            EmpresaId,
+            productoId,
+            talla: "M",
+            color: "Negro",
+            codigoSku: "POLO-M-NEGRO",
+            codigoBarras: "7750000000010"));
+        await factory.StockRepository.GuardarAsync(new StockProducto(
+            Guid.NewGuid(),
+            EmpresaId,
+            productoId,
+            varianteId,
+            4m,
+            1m));
+        await factory.StockRepository.GuardarAsync(new StockProducto(
+            Guid.NewGuid(),
+            EmpresaId,
+            Guid.NewGuid(),
+            null,
+            10m));
+        await factory.VentaRepository.AgregarAsync(CrearVentaDashboard(
+            EmpresaId,
+            CanalVenta.TIENDA,
+            new DateTimeOffset(2026, 7, 17, 10, 0, 0, TimeSpan.FromHours(-5)),
+            [(productoId, varianteId, 2m, 100m)]));
+        await factory.VentaRepository.AgregarAsync(CrearVentaDashboard(
+            EmpresaId,
+            CanalVenta.PROVINCIA,
+            new DateTimeOffset(2026, 7, 17, 11, 0, 0, TimeSpan.FromHours(-5)),
+            [(productoId, varianteId, 3m, 90m)]));
+        await factory.VentaRepository.AgregarAsync(CrearVentaDashboard(
+            otraEmpresaId,
+            CanalVenta.TIENDA,
+            new DateTimeOffset(2026, 7, 17, 10, 0, 0, TimeSpan.FromHours(-5)),
+            [(productoId, varianteId, 99m, 999m)]));
+        var ventaAnulada = CrearVentaDashboard(
+            EmpresaId,
+            CanalVenta.TIENDA,
+            new DateTimeOffset(2026, 7, 17, 12, 0, 0, TimeSpan.FromHours(-5)),
+            [(productoId, varianteId, 9m, 900m)]);
+        ventaAnulada.Anular();
+        await factory.VentaRepository.AgregarAsync(ventaAnulada);
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+
+        var response = await client.GetAsync("/api/dashboard/comercial");
+        var content = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadFromJsonAsync<DashboardComercialResponse>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(body);
+        Assert.Equal(new DateOnly(2026, 7, 17), body.Fecha);
+        Assert.Equal(190m, body.Resumen.ImporteTotalVendido);
+        Assert.Equal(2, body.Resumen.CantidadOperaciones);
+        Assert.Equal(5m, body.Resumen.UnidadesVendidas);
+        Assert.Equal("TIENDA", body.Resumen.CanalLider?.CanalVenta);
+        Assert.Single(body.TopProductos);
+        Assert.Equal(varianteId, body.TopProductos.Single().ProductoVarianteId);
+        Assert.Equal("POLO-M-NEGRO", body.TopProductos.Single().CodigoSku);
+        Assert.Single(body.StockBajo);
+        Assert.Equal(3m, body.StockBajo.Single().StockLibre);
+        Assert.DoesNotContain("999", content);
         AssertSeguro(content);
     }
 
@@ -1230,6 +1347,38 @@ public class HttpIntegrationTests
             canalVenta: canalVenta);
     }
 
+    private static Venta CrearVentaDashboard(
+        Guid empresaId,
+        CanalVenta canalVenta,
+        DateTimeOffset fecha,
+        IReadOnlyCollection<(Guid ProductoId, Guid? ProductoVarianteId, decimal Cantidad, decimal Total)> detalles)
+    {
+        var ventaId = Guid.NewGuid();
+        var ventaDetalles = detalles
+            .Select(detalle => new VentaDetalle(
+                Guid.NewGuid(),
+                empresaId,
+                ventaId,
+                detalle.ProductoId,
+                detalle.Cantidad,
+                detalle.Total / detalle.Cantidad,
+                0m,
+                detalle.Total,
+                detalle.ProductoVarianteId))
+            .ToArray();
+        var total = ventaDetalles.Sum(detalle => detalle.Total);
+
+        return new Venta(
+            ventaId,
+            empresaId,
+            fecha,
+            total,
+            0m,
+            total,
+            ventaDetalles,
+            canalVenta: canalVenta);
+    }
+
     private static void AssertSeguro(string content)
     {
         Assert.DoesNotContain(SigningKey, content, StringComparison.Ordinal);
@@ -1270,6 +1419,9 @@ public class HttpIntegrationTests
         public FakeStockProductoRepository StockRepository { get; } = new();
 
         public FakeVentaRepository VentaRepository { get; } = new();
+
+        public IDashboardComercialClock DashboardClock { get; set; } =
+            new FakeDashboardComercialClock(new DateTimeOffset(2026, 7, 17, 15, 42, 10, TimeSpan.FromHours(-5)));
 
         public UsuarioEmpresa? UsuarioEmpresa
         {
@@ -1316,6 +1468,7 @@ public class HttpIntegrationTests
                 services.RemoveAll<IConfiguracionFiscalEmpresaRepository>();
                 services.RemoveAll<IStockProductoRepository>();
                 services.RemoveAll<IUnitOfWork>();
+                services.RemoveAll<IDashboardComercialClock>();
 
                 services.AddSingleton<IEmpresaRepository>(EmpresaRepository);
                 services.AddSingleton<IUsuarioRepository>(UsuarioRepository);
@@ -1329,8 +1482,21 @@ public class HttpIntegrationTests
                 services.AddSingleton<IConfiguracionFiscalEmpresaRepository>(ConfiguracionFiscalRepository);
                 services.AddSingleton<IStockProductoRepository>(StockRepository);
                 services.AddSingleton<IUnitOfWork, FakeUnitOfWork>();
+                services.AddSingleton(DashboardClock);
             });
         }
+    }
+
+    private sealed class FakeDashboardComercialClock : IDashboardComercialClock
+    {
+        private readonly DateTimeOffset _ahoraLima;
+
+        public FakeDashboardComercialClock(DateTimeOffset ahoraLima)
+        {
+            _ahoraLima = ahoraLima;
+        }
+
+        public DateTimeOffset AhoraLima() => _ahoraLima;
     }
 
     private sealed class FakeEmpresaRepository : IEmpresaRepository
@@ -1547,6 +1713,14 @@ public class HttpIntegrationTests
                     variante.ProductoId == productoId).ToArray());
         }
 
+        public Task<IReadOnlyCollection<ProductoVariante>> ListarPorEmpresaAsync(
+            Guid empresaId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyCollection<ProductoVariante>>(
+                Variantes.Where(variante => variante.EmpresaId == empresaId).ToArray());
+        }
+
         public Task<ProductoVariante?> ObtenerPorEmpresaAsync(
             Guid empresaId,
             Guid id,
@@ -1634,6 +1808,20 @@ public class HttpIntegrationTests
                 Ventas.Where(venta => venta.EmpresaId == empresaId).ToArray());
         }
 
+        public Task<IReadOnlyCollection<Venta>> ListarRegistradasPorEmpresaYFechaAsync(
+            Guid empresaId,
+            DateTimeOffset desde,
+            DateTimeOffset hastaExclusivo,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyCollection<Venta>>(
+                Ventas.Where(venta =>
+                    venta.EmpresaId == empresaId &&
+                    venta.Estado == EstadoVenta.Registrada &&
+                    venta.Fecha >= desde &&
+                    venta.Fecha < hastaExclusivo).ToArray());
+        }
+
         public Task<Venta?> ObtenerPorEmpresaAsync(
             Guid empresaId,
             Guid id,
@@ -1707,6 +1895,14 @@ public class HttpIntegrationTests
                 stock.EmpresaId == empresaId &&
                 stock.ProductoId == productoId &&
                 stock.ProductoVarianteId == productoVarianteId));
+        }
+
+        public Task<IReadOnlyCollection<StockProducto>> ListarPorEmpresaAsync(
+            Guid empresaId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyCollection<StockProducto>>(
+                Stocks.Where(stock => stock.EmpresaId == empresaId).ToArray());
         }
 
         public Task GuardarAsync(

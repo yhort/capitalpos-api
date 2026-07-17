@@ -10,6 +10,12 @@ public interface IVentaRepository
         Guid empresaId,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyCollection<Venta>> ListarRegistradasPorEmpresaYFechaAsync(
+        Guid empresaId,
+        DateTimeOffset desde,
+        DateTimeOffset hastaExclusivo,
+        CancellationToken cancellationToken = default);
+
     Task<Venta?> ObtenerPorEmpresaAsync(
         Guid empresaId,
         Guid id,

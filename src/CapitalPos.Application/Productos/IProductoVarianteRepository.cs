@@ -13,6 +13,10 @@ public interface IProductoVarianteRepository
         Guid productoId,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyCollection<ProductoVariante>> ListarPorEmpresaAsync(
+        Guid empresaId,
+        CancellationToken cancellationToken = default);
+
     Task<ProductoVariante?> ObtenerPorEmpresaAsync(
         Guid empresaId,
         Guid id,

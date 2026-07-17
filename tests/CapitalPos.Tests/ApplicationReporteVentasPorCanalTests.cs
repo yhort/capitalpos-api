@@ -162,6 +162,20 @@ public class ApplicationReporteVentasPorCanalTests
                 Ventas.Where(venta => venta.EmpresaId == empresaId).ToArray());
         }
 
+        public Task<IReadOnlyCollection<Venta>> ListarRegistradasPorEmpresaYFechaAsync(
+            Guid empresaId,
+            DateTimeOffset desde,
+            DateTimeOffset hastaExclusivo,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyCollection<Venta>>(
+                Ventas.Where(venta =>
+                    venta.EmpresaId == empresaId &&
+                    venta.Estado == EstadoVenta.Registrada &&
+                    venta.Fecha >= desde &&
+                    venta.Fecha < hastaExclusivo).ToArray());
+        }
+
         public Task<Venta?> ObtenerPorEmpresaAsync(
             Guid empresaId,
             Guid id,

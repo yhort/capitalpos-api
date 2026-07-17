@@ -10,6 +10,7 @@ public class EndpointProtectionStructureTests
     [InlineData("src/CapitalPos.Api/Endpoints/ClienteEndpoints.cs")]
     [InlineData("src/CapitalPos.Api/Endpoints/VentaEndpoints.cs")]
     [InlineData("src/CapitalPos.Api/Endpoints/ReporteEndpoints.cs")]
+    [InlineData("src/CapitalPos.Api/Endpoints/DashboardEndpoints.cs")]
     [InlineData("src/CapitalPos.Api/Endpoints/ConfiguracionFiscalEndpoints.cs")]
     public void Grupos_de_endpoints_de_negocio_requieren_autorizacion(string relativePath)
     {
@@ -26,6 +27,7 @@ public class EndpointProtectionStructureTests
     [InlineData("src/CapitalPos.Api/Endpoints/ClienteEndpoints.cs")]
     [InlineData("src/CapitalPos.Api/Endpoints/VentaEndpoints.cs")]
     [InlineData("src/CapitalPos.Api/Endpoints/ReporteEndpoints.cs")]
+    [InlineData("src/CapitalPos.Api/Endpoints/DashboardEndpoints.cs")]
     [InlineData("src/CapitalPos.Api/Endpoints/ConfiguracionFiscalEndpoints.cs")]
     public void Grupos_de_endpoints_de_negocio_requieren_empresa_activa(string relativePath)
     {
@@ -42,6 +44,7 @@ public class EndpointProtectionStructureTests
     [InlineData("src/CapitalPos.Api/Endpoints/ClienteEndpoints.cs")]
     [InlineData("src/CapitalPos.Api/Endpoints/VentaEndpoints.cs")]
     [InlineData("src/CapitalPos.Api/Endpoints/ReporteEndpoints.cs")]
+    [InlineData("src/CapitalPos.Api/Endpoints/DashboardEndpoints.cs")]
     [InlineData("src/CapitalPos.Api/Endpoints/ConfiguracionFiscalEndpoints.cs")]
     public void Endpoints_de_negocio_requieren_permisos_empresariales(string relativePath)
     {
@@ -56,6 +59,15 @@ public class EndpointProtectionStructureTests
 
         Assert.True(endpointCount > 0);
         Assert.Equal(endpointCount, permissionCount);
+    }
+
+    [Fact]
+    public void Dashboard_comercial_no_usa_api_key()
+    {
+        var source = File.ReadAllText(ResolverRutaRepo("src/CapitalPos.Api/Endpoints/DashboardEndpoints.cs"));
+
+        Assert.DoesNotContain("X-API-KEY", source, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("ApiKey", source, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

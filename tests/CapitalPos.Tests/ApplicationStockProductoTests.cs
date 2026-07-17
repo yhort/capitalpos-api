@@ -238,6 +238,14 @@ public class ApplicationStockProductoTests
                     variante.ProductoId == productoId).ToArray());
         }
 
+        public Task<IReadOnlyCollection<ProductoVariante>> ListarPorEmpresaAsync(
+            Guid empresaId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyCollection<ProductoVariante>>(
+                Variantes.Where(variante => variante.EmpresaId == empresaId).ToArray());
+        }
+
         public Task<ProductoVariante?> ObtenerPorEmpresaAsync(
             Guid empresaId,
             Guid id,
@@ -304,6 +312,14 @@ public class ApplicationStockProductoTests
                 stock.ProductoVarianteId == productoVarianteId);
 
             return Task.FromResult(stock);
+        }
+
+        public Task<IReadOnlyCollection<StockProducto>> ListarPorEmpresaAsync(
+            Guid empresaId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyCollection<StockProducto>>(
+                Stocks.Where(stock => stock.EmpresaId == empresaId).ToArray());
         }
 
         public Task GuardarAsync(
