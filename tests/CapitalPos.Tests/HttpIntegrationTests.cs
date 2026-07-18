@@ -643,6 +643,152 @@ public class HttpIntegrationTests
     }
 
     [Fact]
+    public async Task Sedes_sin_jwt_devuelve_unauthorized()
+    {
+        await using var factory = new CapitalPosHttpFactory();
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync("/api/sedes");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Sedes_con_jwt_sin_empresa_activa_devuelve_bad_request()
+    {
+        await using var factory = new CapitalPosHttpFactory();
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = CrearAuthorizationHeader(UsuarioId);
+
+        var response = await client.GetAsync("/api/sedes");
+        var content = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains(EmpresaActivaHeaders.HeaderName, content);
+        AssertSeguro(content);
+    }
+
+    [Fact]
+    public async Task Sedes_usuario_sin_permiso_devuelve_forbidden()
+    {
+        await using var factory = new CapitalPosHttpFactory
+        {
+            UsuarioEmpresa = CrearUsuarioEmpresa(RolEmpresa.Almacenero)
+        };
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+
+        var response = await client.GetAsync("/api/sedes");
+        var content = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Contains("permiso requerido", content);
+        AssertSeguro(content);
+    }
+
+    [Fact]
+    public async Task Listar_sedes_devuelve_solo_sedes_activas_de_empresa_activa()
+    {
+        var otraEmpresaId = Guid.Parse("44444444-4444-4444-4444-444444444444");
+        var sedeInactivaId = Guid.NewGuid();
+        var sedeOtraEmpresaId = Guid.NewGuid();
+        await using var factory = new CapitalPosHttpFactory();
+        factory.SedeRepository.Sedes.Add(new Sede(
+            sedeInactivaId,
+            EmpresaId,
+            "Sede inactiva",
+            TipoSede.ALMACEN,
+            activa: false));
+        factory.SedeRepository.Sedes.Add(new Sede(
+            sedeOtraEmpresaId,
+            otraEmpresaId,
+            "Sede externa",
+            TipoSede.TIENDA));
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+
+        var response = await client.GetAsync("/api/sedes");
+        var content = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadFromJsonAsync<SedeResponse[]>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(body);
+        var sede = Assert.Single(body);
+        Assert.Equal(SedeId, sede.Id);
+        Assert.Equal(EmpresaId, sede.EmpresaId);
+        Assert.Equal("TIENDA", sede.Tipo);
+        Assert.True(sede.Activa);
+        Assert.DoesNotContain(sedeInactivaId.ToString(), content, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(sedeOtraEmpresaId.ToString(), content, StringComparison.OrdinalIgnoreCase);
+        AssertSeguro(content);
+    }
+
+    [Fact]
+    public async Task Listar_puntos_venta_devuelve_solo_activos_de_sede_y_empresa_activa()
+    {
+        var otraSedeId = Guid.NewGuid();
+        var puntoOtraSedeId = Guid.NewGuid();
+        var puntoInactivoId = Guid.NewGuid();
+        var puntoOtraEmpresaId = Guid.NewGuid();
+        var otraEmpresaId = Guid.Parse("44444444-4444-4444-4444-444444444444");
+        await using var factory = new CapitalPosHttpFactory();
+        factory.SedeRepository.Sedes.Add(new Sede(
+            otraSedeId,
+            EmpresaId,
+            "Otra sede",
+            TipoSede.TIENDA));
+        factory.PuntoVentaRepository.PuntosVenta.Add(new PuntoVenta(
+            puntoOtraSedeId,
+            EmpresaId,
+            otraSedeId,
+            "Caja otra sede"));
+        factory.PuntoVentaRepository.PuntosVenta.Add(new PuntoVenta(
+            puntoInactivoId,
+            EmpresaId,
+            SedeId,
+            "Caja inactiva",
+            activo: false));
+        factory.PuntoVentaRepository.PuntosVenta.Add(new PuntoVenta(
+            puntoOtraEmpresaId,
+            otraEmpresaId,
+            SedeId,
+            "Caja externa"));
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+
+        var response = await client.GetAsync($"/api/sedes/{SedeId}/puntos-venta");
+        var content = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadFromJsonAsync<PuntoVentaResponse[]>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(body);
+        var puntoVenta = Assert.Single(body);
+        Assert.Equal(PuntoVentaId, puntoVenta.Id);
+        Assert.Equal(EmpresaId, puntoVenta.EmpresaId);
+        Assert.Equal(SedeId, puntoVenta.SedeId);
+        Assert.True(puntoVenta.Activo);
+        Assert.DoesNotContain(puntoOtraSedeId.ToString(), content, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(puntoInactivoId.ToString(), content, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(puntoOtraEmpresaId.ToString(), content, StringComparison.OrdinalIgnoreCase);
+        AssertSeguro(content);
+    }
+
+    [Fact]
+    public async Task Listar_puntos_venta_de_sede_de_otra_empresa_devuelve_not_found()
+    {
+        var otraEmpresaId = Guid.Parse("44444444-4444-4444-4444-444444444444");
+        var sedeOtraEmpresaId = Guid.NewGuid();
+        await using var factory = new CapitalPosHttpFactory();
+        factory.SedeRepository.Sedes.Add(new Sede(
+            sedeOtraEmpresaId,
+            otraEmpresaId,
+            "Sede externa",
+            TipoSede.TIENDA));
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+
+        var response = await client.GetAsync($"/api/sedes/{sedeOtraEmpresaId}/puntos-venta");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
     public async Task Obtener_stock_producto_devuelve_stock_de_empresa_activa()
     {
         var productoId = Guid.NewGuid();
@@ -1927,14 +2073,14 @@ public class HttpIntegrationTests
 
     private sealed class FakePuntoVentaRepository : IPuntoVentaRepository
     {
-        private readonly List<PuntoVenta> _puntosVenta =
+        public List<PuntoVenta> PuntosVenta { get; } =
         [
             new PuntoVenta(PuntoVentaId, EmpresaId, SedeId, "Caja principal")
         ];
 
         public Task AgregarAsync(PuntoVenta puntoVenta, CancellationToken cancellationToken = default)
         {
-            _puntosVenta.Add(puntoVenta);
+            PuntosVenta.Add(puntoVenta);
 
             return Task.CompletedTask;
         }
@@ -1944,7 +2090,7 @@ public class HttpIntegrationTests
             CancellationToken cancellationToken = default)
         {
             return Task.FromResult<IReadOnlyCollection<PuntoVenta>>(
-                _puntosVenta.Where(puntoVenta => puntoVenta.EmpresaId == empresaId).ToArray());
+                PuntosVenta.Where(puntoVenta => puntoVenta.EmpresaId == empresaId).ToArray());
         }
 
         public Task<IReadOnlyCollection<PuntoVenta>> ListarPorSedeAsync(
@@ -1953,7 +2099,7 @@ public class HttpIntegrationTests
             CancellationToken cancellationToken = default)
         {
             return Task.FromResult<IReadOnlyCollection<PuntoVenta>>(
-                _puntosVenta
+                PuntosVenta
                     .Where(puntoVenta => puntoVenta.EmpresaId == empresaId && puntoVenta.SedeId == sedeId)
                     .ToArray());
         }
@@ -1963,7 +2109,7 @@ public class HttpIntegrationTests
             Guid id,
             CancellationToken cancellationToken = default)
         {
-            return Task.FromResult(_puntosVenta.FirstOrDefault(puntoVenta =>
+            return Task.FromResult(PuntosVenta.FirstOrDefault(puntoVenta =>
                 puntoVenta.EmpresaId == empresaId &&
                 puntoVenta.Id == id));
         }
