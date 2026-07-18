@@ -43,6 +43,28 @@ public sealed class EfDemoSeedStore : IDemoSeedStore
             .SingleOrDefaultAsync(credencial => credencial.UsuarioId == usuarioId, cancellationToken);
     }
 
+    public Task<Sede?> ObtenerSedeAsync(
+        Guid empresaId,
+        Guid sedeId,
+        CancellationToken cancellationToken)
+    {
+        return _dbContext.Sedes
+            .SingleOrDefaultAsync(
+                sede => sede.EmpresaId == empresaId && sede.Id == sedeId,
+                cancellationToken);
+    }
+
+    public Task<PuntoVenta?> ObtenerPuntoVentaAsync(
+        Guid empresaId,
+        Guid puntoVentaId,
+        CancellationToken cancellationToken)
+    {
+        return _dbContext.PuntosVenta
+            .SingleOrDefaultAsync(
+                puntoVenta => puntoVenta.EmpresaId == empresaId && puntoVenta.Id == puntoVentaId,
+                cancellationToken);
+    }
+
     public async Task AgregarEmpresaAsync(Empresa empresa, CancellationToken cancellationToken)
     {
         await _dbContext.Empresas.AddAsync(empresa, cancellationToken);
@@ -61,6 +83,16 @@ public sealed class EfDemoSeedStore : IDemoSeedStore
     public async Task AgregarCredencialAsync(UsuarioCredencial credencial, CancellationToken cancellationToken)
     {
         await _dbContext.UsuariosCredenciales.AddAsync(credencial, cancellationToken);
+    }
+
+    public async Task AgregarSedeAsync(Sede sede, CancellationToken cancellationToken)
+    {
+        await _dbContext.Sedes.AddAsync(sede, cancellationToken);
+    }
+
+    public async Task AgregarPuntoVentaAsync(PuntoVenta puntoVenta, CancellationToken cancellationToken)
+    {
+        await _dbContext.PuntosVenta.AddAsync(puntoVenta, cancellationToken);
     }
 
     public Task GuardarCambiosAsync(CancellationToken cancellationToken)

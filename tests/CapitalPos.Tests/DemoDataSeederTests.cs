@@ -24,6 +24,8 @@ public class DemoDataSeederTests
         Assert.Empty(store.Usuarios);
         Assert.Empty(store.Relaciones);
         Assert.Empty(store.Credenciales);
+        Assert.Empty(store.Sedes);
+        Assert.Empty(store.PuntosVenta);
         Assert.Equal(0, store.SaveChangesCount);
     }
 
@@ -39,6 +41,8 @@ public class DemoDataSeederTests
         Assert.Empty(store.Usuarios);
         Assert.Empty(store.Relaciones);
         Assert.Empty(store.Credenciales);
+        Assert.Empty(store.Sedes);
+        Assert.Empty(store.PuntosVenta);
         Assert.Equal(0, store.SaveChangesCount);
     }
 
@@ -64,6 +68,18 @@ public class DemoDataSeederTests
         Assert.Equal(RolEmpresa.Administrador, relacion.Rol);
         Assert.True(relacion.Activo);
 
+        var sede = Assert.Single(store.Sedes);
+        Assert.Equal(empresa.Id, sede.EmpresaId);
+        Assert.Equal(DemoSeedData.SedeNombre, sede.Nombre);
+        Assert.Equal(TipoSede.TIENDA, sede.Tipo);
+        Assert.True(sede.Activa);
+
+        var puntoVenta = Assert.Single(store.PuntosVenta);
+        Assert.Equal(empresa.Id, puntoVenta.EmpresaId);
+        Assert.Equal(sede.Id, puntoVenta.SedeId);
+        Assert.Equal(DemoSeedData.PuntoVentaNombre, puntoVenta.Nombre);
+        Assert.True(puntoVenta.Activo);
+
         var credencial = Assert.Single(store.Credenciales);
         Assert.Equal(usuario.Id, credencial.UsuarioId);
         Assert.NotEqual(PasswordDemo, credencial.PasswordHash);
@@ -85,6 +101,8 @@ public class DemoDataSeederTests
         Assert.Single(store.Empresas);
         Assert.Single(store.Usuarios);
         Assert.Single(store.Relaciones);
+        Assert.Single(store.Sedes);
+        Assert.Single(store.PuntosVenta);
         Assert.Empty(store.Credenciales);
         Assert.Contains(logger.Messages, message => message.Contains("AdminPassword no esta configurado", StringComparison.Ordinal));
         Assert.DoesNotContain(logger.Messages, message => message.Contains("password", StringComparison.Ordinal) &&
@@ -106,6 +124,8 @@ public class DemoDataSeederTests
         Assert.Single(store.Empresas);
         Assert.Single(store.Usuarios);
         Assert.Single(store.Relaciones);
+        Assert.Single(store.Sedes);
+        Assert.Single(store.PuntosVenta);
         var credencial = Assert.Single(store.Credenciales);
         Assert.Equal(hashOriginal, credencial.PasswordHash);
         Assert.Equal(2, store.SaveChangesCount);
@@ -170,6 +190,10 @@ public class DemoDataSeederTests
 
         public List<UsuarioCredencial> Credenciales { get; } = [];
 
+        public List<Sede> Sedes { get; } = [];
+
+        public List<PuntoVenta> PuntosVenta { get; } = [];
+
         public int SaveChangesCount { get; private set; }
 
         public Task<Empresa?> ObtenerEmpresaPorRucAsync(string ruc, CancellationToken cancellationToken)
@@ -197,6 +221,26 @@ public class DemoDataSeederTests
             return Task.FromResult(Credenciales.SingleOrDefault(credencial => credencial.UsuarioId == usuarioId));
         }
 
+        public Task<Sede?> ObtenerSedeAsync(
+            Guid empresaId,
+            Guid sedeId,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult(Sedes.SingleOrDefault(sede =>
+                sede.EmpresaId == empresaId &&
+                sede.Id == sedeId));
+        }
+
+        public Task<PuntoVenta?> ObtenerPuntoVentaAsync(
+            Guid empresaId,
+            Guid puntoVentaId,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult(PuntosVenta.SingleOrDefault(puntoVenta =>
+                puntoVenta.EmpresaId == empresaId &&
+                puntoVenta.Id == puntoVentaId));
+        }
+
         public Task AgregarEmpresaAsync(Empresa empresa, CancellationToken cancellationToken)
         {
             Empresas.Add(empresa);
@@ -218,6 +262,18 @@ public class DemoDataSeederTests
         public Task AgregarCredencialAsync(UsuarioCredencial credencial, CancellationToken cancellationToken)
         {
             Credenciales.Add(credencial);
+            return Task.CompletedTask;
+        }
+
+        public Task AgregarSedeAsync(Sede sede, CancellationToken cancellationToken)
+        {
+            Sedes.Add(sede);
+            return Task.CompletedTask;
+        }
+
+        public Task AgregarPuntoVentaAsync(PuntoVenta puntoVenta, CancellationToken cancellationToken)
+        {
+            PuntosVenta.Add(puntoVenta);
             return Task.CompletedTask;
         }
 

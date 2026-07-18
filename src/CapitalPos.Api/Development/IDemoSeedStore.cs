@@ -15,6 +15,16 @@ public interface IDemoSeedStore
 
     Task<UsuarioCredencial?> ObtenerCredencialAsync(Guid usuarioId, CancellationToken cancellationToken);
 
+    Task<Sede?> ObtenerSedeAsync(
+        Guid empresaId,
+        Guid sedeId,
+        CancellationToken cancellationToken);
+
+    Task<PuntoVenta?> ObtenerPuntoVentaAsync(
+        Guid empresaId,
+        Guid puntoVentaId,
+        CancellationToken cancellationToken);
+
     Task AgregarEmpresaAsync(Empresa empresa, CancellationToken cancellationToken);
 
     Task AgregarUsuarioAsync(Usuario usuario, CancellationToken cancellationToken);
@@ -22,6 +32,10 @@ public interface IDemoSeedStore
     Task AgregarUsuarioEmpresaAsync(UsuarioEmpresa usuarioEmpresa, CancellationToken cancellationToken);
 
     Task AgregarCredencialAsync(UsuarioCredencial credencial, CancellationToken cancellationToken);
+
+    Task AgregarSedeAsync(Sede sede, CancellationToken cancellationToken);
+
+    Task AgregarPuntoVentaAsync(PuntoVenta puntoVenta, CancellationToken cancellationToken);
 
     Task GuardarCambiosAsync(CancellationToken cancellationToken);
 }

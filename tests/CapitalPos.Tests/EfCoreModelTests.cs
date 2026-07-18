@@ -24,6 +24,8 @@ public class EfCoreModelTests
         Assert.NotNull(context.Model.FindEntityType(typeof(Comprobante)));
         Assert.NotNull(context.Model.FindEntityType(typeof(ConfiguracionFiscalEmpresa)));
         Assert.NotNull(context.Model.FindEntityType(typeof(StockProducto)));
+        Assert.NotNull(context.Model.FindEntityType(typeof(Sede)));
+        Assert.NotNull(context.Model.FindEntityType(typeof(PuntoVenta)));
     }
 
     [Fact]
@@ -471,6 +473,77 @@ public class EfCoreModelTests
             foreignKey.Properties.Select(property => property.Name).SequenceEqual([
                 nameof(StockProducto.ProductoVarianteId),
                 nameof(StockProducto.EmpresaId)
+            ]));
+    }
+
+    [Fact]
+    public void Sede_tiene_empresa_obligatoria_tipo_indices_y_relacion_restrictiva()
+    {
+        var entityType = ObtenerEntidad<Sede>();
+
+        Assert.Equal("sedes", entityType.GetTableName());
+        Assert.Equal(nameof(Sede.Id), entityType.FindPrimaryKey()?.Properties.Single().Name);
+        AssertPropiedad(entityType, nameof(Sede.EmpresaId), nullable: false);
+        AssertPropiedad(entityType, nameof(Sede.Nombre), maxLength: 160, nullable: false);
+        AssertPropiedad(entityType, nameof(Sede.Tipo), maxLength: 30, nullable: false);
+        AssertPropiedad(entityType, nameof(Sede.CodigoEstablecimiento), maxLength: 20, nullable: false);
+        AssertPropiedad(entityType, nameof(Sede.Direccion), maxLength: 250, nullable: false);
+        AssertPropiedad(entityType, nameof(Sede.Distrito), maxLength: 100, nullable: false);
+        AssertPropiedad(entityType, nameof(Sede.Provincia), maxLength: 100, nullable: false);
+        AssertPropiedad(entityType, nameof(Sede.Departamento), maxLength: 100, nullable: false);
+        AssertPropiedad(entityType, nameof(Sede.Activa), nullable: false);
+        AssertPropiedad(entityType, nameof(Sede.FechaCreacion), nullable: false);
+
+        var tipoProperty = entityType.FindProperty(nameof(Sede.Tipo));
+        Assert.Equal(typeof(string), tipoProperty?.GetProviderClrType());
+
+        Assert.Contains(entityType.GetIndexes(), index =>
+            index.Properties.Select(property => property.Name).SequenceEqual([nameof(Sede.EmpresaId)]));
+        Assert.Contains(entityType.GetIndexes(), index =>
+            index.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(Sede.EmpresaId),
+                nameof(Sede.Nombre)
+            ]));
+        Assert.Contains(entityType.GetForeignKeys(), foreignKey =>
+            foreignKey.PrincipalEntityType.ClrType == typeof(Empresa) &&
+            foreignKey.DeleteBehavior == DeleteBehavior.Restrict &&
+            foreignKey.Properties.Select(property => property.Name).SequenceEqual([nameof(Sede.EmpresaId)]));
+    }
+
+    [Fact]
+    public void Punto_venta_tiene_empresa_sede_obligatorias_indices_y_relaciones_compuestas()
+    {
+        var entityType = ObtenerEntidad<PuntoVenta>();
+
+        Assert.Equal("puntos_venta", entityType.GetTableName());
+        Assert.Equal(nameof(PuntoVenta.Id), entityType.FindPrimaryKey()?.Properties.Single().Name);
+        AssertPropiedad(entityType, nameof(PuntoVenta.EmpresaId), nullable: false);
+        AssertPropiedad(entityType, nameof(PuntoVenta.SedeId), nullable: false);
+        AssertPropiedad(entityType, nameof(PuntoVenta.Nombre), maxLength: 160, nullable: false);
+        AssertPropiedad(entityType, nameof(PuntoVenta.Activo), nullable: false);
+        AssertPropiedad(entityType, nameof(PuntoVenta.FechaCreacion), nullable: false);
+
+        Assert.Contains(entityType.GetIndexes(), index =>
+            index.Properties.Select(property => property.Name).SequenceEqual([nameof(PuntoVenta.EmpresaId)]));
+        Assert.Contains(entityType.GetIndexes(), index =>
+            index.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(PuntoVenta.EmpresaId),
+                nameof(PuntoVenta.SedeId)
+            ]));
+        Assert.Contains(entityType.GetForeignKeys(), foreignKey =>
+            foreignKey.PrincipalEntityType.ClrType == typeof(Empresa) &&
+            foreignKey.DeleteBehavior == DeleteBehavior.Restrict &&
+            foreignKey.Properties.Select(property => property.Name).SequenceEqual([nameof(PuntoVenta.EmpresaId)]));
+        Assert.Contains(entityType.GetForeignKeys(), foreignKey =>
+            foreignKey.PrincipalEntityType.ClrType == typeof(Sede) &&
+            foreignKey.DeleteBehavior == DeleteBehavior.Restrict &&
+            foreignKey.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(PuntoVenta.SedeId),
+                nameof(PuntoVenta.EmpresaId)
+            ]) &&
+            foreignKey.PrincipalKey.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(Sede.Id),
+                nameof(Sede.EmpresaId)
             ]));
     }
 

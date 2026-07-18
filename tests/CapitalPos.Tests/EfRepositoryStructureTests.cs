@@ -1,6 +1,7 @@
 using CapitalPos.Application.ConfiguracionFiscal;
 using CapitalPos.Application.Empresas;
 using CapitalPos.Application.Inventario;
+using CapitalPos.Application.Sedes;
 using CapitalPos.Application.Seguridad;
 using CapitalPos.Application.Usuarios;
 using CapitalPos.Infrastructure.Persistence.Repositories;
@@ -43,6 +44,30 @@ public class EfRepositoryStructureTests
     public void Ef_stock_producto_repository_implementa_puerto_de_aplicacion()
     {
         Assert.True(typeof(IStockProductoRepository).IsAssignableFrom(typeof(EfStockProductoRepository)));
+    }
+
+    [Fact]
+    public void Ef_sede_repository_implementa_puerto_de_aplicacion()
+    {
+        Assert.True(typeof(ISedeRepository).IsAssignableFrom(typeof(EfSedeRepository)));
+    }
+
+    [Fact]
+    public void Ef_punto_venta_repository_implementa_puerto_de_aplicacion()
+    {
+        Assert.True(typeof(IPuntoVentaRepository).IsAssignableFrom(typeof(EfPuntoVentaRepository)));
+    }
+
+    [Theory]
+    [InlineData("src/CapitalPos.Infrastructure/Persistence/Repositories/EfSedeRepository.cs")]
+    [InlineData("src/CapitalPos.Infrastructure/Persistence/Repositories/EfPuntoVentaRepository.cs")]
+    public void Repositorios_sede_punto_venta_filtran_por_empresa(string relativePath)
+    {
+        var source = File.ReadAllText(ResolverRutaRepo(relativePath));
+
+        Assert.Contains("AsNoTracking()", source);
+        Assert.Contains("EmpresaId", source);
+        Assert.Contains("== empresaId", source);
     }
 
     [Fact]

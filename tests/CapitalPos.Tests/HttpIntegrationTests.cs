@@ -14,6 +14,7 @@ using CapitalPos.Application.Inventario;
 using CapitalPos.Application.Persistence;
 using CapitalPos.Application.Productos;
 using CapitalPos.Application.Reportes;
+using CapitalPos.Application.Sedes;
 using CapitalPos.Application.Seguridad;
 using CapitalPos.Application.Usuarios;
 using CapitalPos.Application.Ventas;
@@ -1467,6 +1468,8 @@ public class HttpIntegrationTests
                 services.RemoveAll<IComprobanteRepository>();
                 services.RemoveAll<IConfiguracionFiscalEmpresaRepository>();
                 services.RemoveAll<IStockProductoRepository>();
+                services.RemoveAll<ISedeRepository>();
+                services.RemoveAll<IPuntoVentaRepository>();
                 services.RemoveAll<IUnitOfWork>();
                 services.RemoveAll<IDashboardComercialClock>();
 

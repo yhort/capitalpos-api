@@ -40,6 +40,8 @@ public sealed class DemoDataSeeder
         var empresa = await ObtenerOCrearEmpresaAsync(cancellationToken);
         var usuario = await ObtenerOCrearUsuarioAsync(cancellationToken);
         await ObtenerOCrearRelacionAsync(usuario.Id, empresa.Id, cancellationToken);
+        var sede = await ObtenerOCrearSedeAsync(empresa.Id, cancellationToken);
+        await ObtenerOCrearPuntoVentaAsync(empresa.Id, sede.Id, cancellationToken);
         await CrearCredencialSiCorrespondeAsync(usuario.Id, cancellationToken);
         await _store.GuardarCambiosAsync(cancellationToken);
 
@@ -140,5 +142,59 @@ public sealed class DemoDataSeeder
         credencial.CambiarPasswordHash(hash, DemoSeedData.CredencialAlgoritmo);
 
         await _store.AgregarCredencialAsync(credencial, cancellationToken);
+    }
+
+    private async Task<Sede> ObtenerOCrearSedeAsync(
+        Guid empresaId,
+        CancellationToken cancellationToken)
+    {
+        var sede = await _store.ObtenerSedeAsync(
+            empresaId,
+            DemoSeedData.SedeId,
+            cancellationToken);
+
+        if (sede is not null)
+        {
+            return sede;
+        }
+
+        sede = new Sede(
+            DemoSeedData.SedeId,
+            empresaId,
+            DemoSeedData.SedeNombre,
+            DemoSeedData.SedeTipo,
+            DemoSeedData.SedeCodigoEstablecimiento,
+            DemoSeedData.SedeDireccion,
+            DemoSeedData.SedeDistrito,
+            DemoSeedData.SedeProvincia,
+            DemoSeedData.SedeDepartamento);
+        await _store.AgregarSedeAsync(sede, cancellationToken);
+
+        return sede;
+    }
+
+    private async Task<PuntoVenta> ObtenerOCrearPuntoVentaAsync(
+        Guid empresaId,
+        Guid sedeId,
+        CancellationToken cancellationToken)
+    {
+        var puntoVenta = await _store.ObtenerPuntoVentaAsync(
+            empresaId,
+            DemoSeedData.PuntoVentaId,
+            cancellationToken);
+
+        if (puntoVenta is not null)
+        {
+            return puntoVenta;
+        }
+
+        puntoVenta = new PuntoVenta(
+            DemoSeedData.PuntoVentaId,
+            empresaId,
+            sedeId,
+            DemoSeedData.PuntoVentaNombre);
+        await _store.AgregarPuntoVentaAsync(puntoVenta, cancellationToken);
+
+        return puntoVenta;
     }
 }
