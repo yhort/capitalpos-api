@@ -279,7 +279,7 @@ public static class EndpointInputValidator
 
         if (request.PuntoVentaId == Guid.Empty)
         {
-            error = "El identificador del punto de venta no puede estar vacio.";
+            error = "El identificador del punto de venta es obligatorio.";
             return false;
         }
 

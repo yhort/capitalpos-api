@@ -1,6 +1,7 @@
 using CapitalPos.Application.Clientes;
 using CapitalPos.Application.Inventario;
 using CapitalPos.Application.Productos;
+using CapitalPos.Application.Sedes;
 using CapitalPos.Application.Seguridad;
 using CapitalPos.Domain;
 
@@ -12,6 +13,7 @@ public sealed class CrearVentaUseCase
     private readonly IEmpresaActivaContext _empresaActiva;
     private readonly IProductoRepository _productoRepository;
     private readonly IProductoVarianteRepository _productoVarianteRepository;
+    private readonly IPuntoVentaRepository _puntoVentaRepository;
     private readonly IStockProductoRepository _stockRepository;
     private readonly IVentaRepository _ventaRepository;
 
@@ -21,6 +23,7 @@ public sealed class CrearVentaUseCase
         IProductoVarianteRepository productoVarianteRepository,
         IClienteRepository clienteRepository,
         IStockProductoRepository stockRepository,
+        IPuntoVentaRepository puntoVentaRepository,
         IEmpresaActivaContext empresaActiva)
     {
         _ventaRepository = ventaRepository;
@@ -28,6 +31,7 @@ public sealed class CrearVentaUseCase
         _productoVarianteRepository = productoVarianteRepository;
         _clienteRepository = clienteRepository;
         _stockRepository = stockRepository;
+        _puntoVentaRepository = puntoVentaRepository;
         _empresaActiva = empresaActiva;
     }
 
@@ -40,6 +44,7 @@ public sealed class CrearVentaUseCase
         var canalVenta = NormalizarCanalVenta(request.CanalVenta);
 
         var empresaId = _empresaActiva.EmpresaId;
+        var puntoVenta = await ObtenerPuntoVentaAsync(empresaId, request.PuntoVentaId, cancellationToken);
         await ValidarClienteAsync(empresaId, request.ClienteId, cancellationToken);
 
         if (request.Detalles is null || request.Detalles.Count == 0)
@@ -68,9 +73,10 @@ public sealed class CrearVentaUseCase
             igv,
             total,
             detalles,
+            puntoVenta.SedeId,
+            puntoVenta.Id,
             request.ClienteId,
             canalVenta,
-            request.PuntoVentaId,
             request.VendedorId);
 
         try
@@ -119,6 +125,33 @@ public sealed class CrearVentaUseCase
         {
             throw new InvalidOperationException("El cliente no pertenece a la empresa activa.");
         }
+    }
+
+    private async Task<PuntoVenta> ObtenerPuntoVentaAsync(
+        Guid empresaId,
+        Guid puntoVentaId,
+        CancellationToken cancellationToken)
+    {
+        if (puntoVentaId == Guid.Empty)
+        {
+            throw new ArgumentException("El identificador del punto de venta es obligatorio.", nameof(puntoVentaId));
+        }
+
+        var puntoVenta = await _puntoVentaRepository.ObtenerPorEmpresaAsync(
+            empresaId,
+            puntoVentaId,
+            cancellationToken);
+        if (puntoVenta is null)
+        {
+            throw new InvalidOperationException("El punto de venta no pertenece a la empresa activa.");
+        }
+
+        if (!puntoVenta.Activo)
+        {
+            throw new InvalidOperationException("El punto de venta no esta activo.");
+        }
+
+        return puntoVenta;
     }
 
     private static CanalVenta NormalizarCanalVenta(string? canalVenta)

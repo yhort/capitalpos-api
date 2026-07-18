@@ -34,6 +34,8 @@ public class HttpIntegrationTests
 {
     private static readonly Guid UsuarioId = Guid.Parse("11111111-1111-1111-1111-111111111111");
     private static readonly Guid EmpresaId = Guid.Parse("22222222-2222-2222-2222-222222222222");
+    private static readonly Guid SedeId = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+    private static readonly Guid PuntoVentaId = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
     private const string SigningKey = "capitalpos-http-integration-tests-signing-key-2026";
     private const string Issuer = "CapitalPos.Api";
     private const string Audience = "CapitalPos.Web";
@@ -977,7 +979,8 @@ public class HttpIntegrationTests
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         Assert.NotNull(body);
         Assert.Equal("TIENDA", body.CanalVenta);
-        Assert.Null(body.PuntoVentaId);
+        Assert.Equal(SedeId, body.SedeId);
+        Assert.Equal(PuntoVentaId, body.PuntoVentaId);
         Assert.Null(body.VendedorId);
         Assert.Single(factory.VentaRepository.Ventas);
         Assert.Equal(3m, factory.StockRepository.Stocks.Single().CantidadDisponible);
@@ -990,7 +993,6 @@ public class HttpIntegrationTests
     public async Task Crear_venta_devuelve_dimensiones_comerciales(string canalVenta)
     {
         var productoId = Guid.NewGuid();
-        var puntoVentaId = Guid.NewGuid();
         var vendedorId = Guid.NewGuid();
         await using var factory = new CapitalPosHttpFactory();
         await factory.ProductoRepository.AgregarAsync(CrearProducto(EmpresaId, productoId));
@@ -1007,7 +1009,7 @@ public class HttpIntegrationTests
             null,
             1m,
             canalVenta,
-            puntoVentaId,
+            PuntoVentaId,
             vendedorId));
         var content = await response.Content.ReadAsStringAsync();
         var body = await response.Content.ReadFromJsonAsync<VentaResponse>();
@@ -1015,11 +1017,13 @@ public class HttpIntegrationTests
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         Assert.NotNull(body);
         Assert.Equal(canalVenta, body.CanalVenta);
-        Assert.Equal(puntoVentaId, body.PuntoVentaId);
+        Assert.Equal(SedeId, body.SedeId);
+        Assert.Equal(PuntoVentaId, body.PuntoVentaId);
         Assert.Equal(vendedorId, body.VendedorId);
         var venta = Assert.Single(factory.VentaRepository.Ventas);
         Assert.Equal(Enum.Parse<CanalVenta>(canalVenta), venta.CanalVenta);
-        Assert.Equal(puntoVentaId, venta.PuntoVentaId);
+        Assert.Equal(SedeId, venta.SedeId);
+        Assert.Equal(PuntoVentaId, venta.PuntoVentaId);
         Assert.Equal(vendedorId, venta.VendedorId);
         AssertSeguro(content);
     }
@@ -1047,6 +1051,54 @@ public class HttpIntegrationTests
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Contains("canal de venta", content, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(factory.VentaRepository.Ventas);
+        Assert.Equal(5m, factory.StockRepository.Stocks.Single().CantidadDisponible);
+        AssertSeguro(content);
+    }
+
+    [Fact]
+    public async Task Crear_venta_sin_punto_venta_devuelve_bad_request()
+    {
+        var productoId = Guid.NewGuid();
+        await using var factory = new CapitalPosHttpFactory();
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+
+        var response = await client.PostAsJsonAsync("/api/ventas/", CrearVentaRequest(
+            productoId,
+            null,
+            1m,
+            puntoVentaId: Guid.Empty));
+        var content = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("punto de venta", content, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(factory.VentaRepository.Ventas);
+        AssertSeguro(content);
+    }
+
+    [Fact]
+    public async Task Crear_venta_con_punto_venta_inexistente_devuelve_bad_request()
+    {
+        var productoId = Guid.NewGuid();
+        await using var factory = new CapitalPosHttpFactory();
+        await factory.ProductoRepository.AgregarAsync(CrearProducto(EmpresaId, productoId));
+        await factory.StockRepository.GuardarAsync(new StockProducto(
+            Guid.NewGuid(),
+            EmpresaId,
+            productoId,
+            null,
+            5m));
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+
+        var response = await client.PostAsJsonAsync("/api/ventas/", CrearVentaRequest(
+            productoId,
+            null,
+            1m,
+            puntoVentaId: Guid.NewGuid()));
+        var content = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("punto de venta", content, StringComparison.OrdinalIgnoreCase);
         Assert.Empty(factory.VentaRepository.Ventas);
         Assert.Equal(5m, factory.StockRepository.Stocks.Single().CantidadDisponible);
         AssertSeguro(content);
@@ -1312,8 +1364,8 @@ public class HttpIntegrationTests
             DateTimeOffset.UtcNow,
             null,
             [new CrearVentaDetalleRequest(productoId, productoVarianteId, cantidad, 10m, 0m, cantidad * 10m)],
+            puntoVentaId ?? PuntoVentaId,
             canalVenta,
-            puntoVentaId,
             vendedorId);
     }
 
@@ -1345,6 +1397,8 @@ public class HttpIntegrationTests
             0m,
             total,
             ventaDetalles,
+            SedeId,
+            PuntoVentaId,
             canalVenta: canalVenta);
     }
 
@@ -1377,6 +1431,8 @@ public class HttpIntegrationTests
             0m,
             total,
             ventaDetalles,
+            SedeId,
+            PuntoVentaId,
             canalVenta: canalVenta);
     }
 
@@ -1418,6 +1474,8 @@ public class HttpIntegrationTests
         public FakeProductoVarianteRepository ProductoVarianteRepository { get; } = new();
 
         public FakeStockProductoRepository StockRepository { get; } = new();
+
+        public FakePuntoVentaRepository PuntoVentaRepository { get; } = new();
 
         public FakeVentaRepository VentaRepository { get; } = new();
 
@@ -1484,6 +1542,7 @@ public class HttpIntegrationTests
                 services.AddSingleton<IComprobanteRepository, FakeComprobanteRepository>();
                 services.AddSingleton<IConfiguracionFiscalEmpresaRepository>(ConfiguracionFiscalRepository);
                 services.AddSingleton<IStockProductoRepository>(StockRepository);
+                services.AddSingleton<IPuntoVentaRepository>(PuntoVentaRepository);
                 services.AddSingleton<IUnitOfWork, FakeUnitOfWork>();
                 services.AddSingleton(DashboardClock);
             });
@@ -1789,6 +1848,50 @@ public class HttpIntegrationTests
             CancellationToken cancellationToken = default)
         {
             return Task.CompletedTask;
+        }
+    }
+
+    private sealed class FakePuntoVentaRepository : IPuntoVentaRepository
+    {
+        private readonly List<PuntoVenta> _puntosVenta =
+        [
+            new PuntoVenta(PuntoVentaId, EmpresaId, SedeId, "Caja principal")
+        ];
+
+        public Task AgregarAsync(PuntoVenta puntoVenta, CancellationToken cancellationToken = default)
+        {
+            _puntosVenta.Add(puntoVenta);
+
+            return Task.CompletedTask;
+        }
+
+        public Task<IReadOnlyCollection<PuntoVenta>> ListarPorEmpresaAsync(
+            Guid empresaId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyCollection<PuntoVenta>>(
+                _puntosVenta.Where(puntoVenta => puntoVenta.EmpresaId == empresaId).ToArray());
+        }
+
+        public Task<IReadOnlyCollection<PuntoVenta>> ListarPorSedeAsync(
+            Guid empresaId,
+            Guid sedeId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyCollection<PuntoVenta>>(
+                _puntosVenta
+                    .Where(puntoVenta => puntoVenta.EmpresaId == empresaId && puntoVenta.SedeId == sedeId)
+                    .ToArray());
+        }
+
+        public Task<PuntoVenta?> ObtenerPorEmpresaAsync(
+            Guid empresaId,
+            Guid id,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(_puntosVenta.FirstOrDefault(puntoVenta =>
+                puntoVenta.EmpresaId == empresaId &&
+                puntoVenta.Id == id));
         }
     }
 

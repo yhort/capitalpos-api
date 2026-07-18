@@ -238,9 +238,10 @@ public static class VentaEndpoints
 public sealed record VentaResponse(
     Guid Id,
     Guid EmpresaId,
+    Guid SedeId,
     Guid? ClienteId,
     string CanalVenta,
-    Guid? PuntoVentaId,
+    Guid PuntoVentaId,
     Guid? VendedorId,
     DateTimeOffset Fecha,
     decimal Subtotal,
@@ -255,6 +256,7 @@ public sealed record VentaResponse(
         return new VentaResponse(
             venta.Id,
             venta.EmpresaId,
+            venta.SedeId,
             venta.ClienteId,
             venta.CanalVenta.ToString(),
             venta.PuntoVentaId,

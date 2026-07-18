@@ -9,6 +9,9 @@ namespace CapitalPos.Tests;
 
 public class ApplicationDashboardComercialTests
 {
+    private static readonly Guid SedeIdPrueba = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+    private static readonly Guid PuntoVentaIdPrueba = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
+
     [Fact]
     public async Task Dashboard_comercial_resume_ventas_registradas_de_hoy_lima()
     {
@@ -444,6 +447,8 @@ public class ApplicationDashboardComercialTests
             0m,
             total,
             ventaDetalles,
+            SedeIdPrueba,
+            PuntoVentaIdPrueba,
             canalVenta: canalVenta,
             estado: estado);
     }

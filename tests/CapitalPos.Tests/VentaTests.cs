@@ -10,6 +10,8 @@ public class VentaTests
         var ventaId = Guid.NewGuid();
         var empresaId = Guid.NewGuid();
         var clienteId = Guid.NewGuid();
+        var sedeId = Guid.NewGuid();
+        var puntoVentaId = Guid.NewGuid();
         var fecha = DateTimeOffset.UtcNow;
         var fechaCreacion = DateTimeOffset.UtcNow;
         var detalle = CrearDetalle(ventaId, empresaId, total: 118m, igv: 18m);
@@ -22,14 +24,17 @@ public class VentaTests
             18m,
             118m,
             [detalle],
+            sedeId,
+            puntoVentaId,
             clienteId,
             fechaCreacion: fechaCreacion);
 
         Assert.Equal(ventaId, venta.Id);
         Assert.Equal(empresaId, venta.EmpresaId);
+        Assert.Equal(sedeId, venta.SedeId);
+        Assert.Equal(puntoVentaId, venta.PuntoVentaId);
         Assert.Equal(clienteId, venta.ClienteId);
         Assert.Equal(CanalVenta.TIENDA, venta.CanalVenta);
-        Assert.Null(venta.PuntoVentaId);
         Assert.Null(venta.VendedorId);
         Assert.Equal(fecha, venta.Fecha);
         Assert.Equal(100m, venta.Subtotal);
@@ -45,6 +50,8 @@ public class VentaTests
     {
         var ventaId = Guid.NewGuid();
         var empresaId = Guid.NewGuid();
+        var sedeId = Guid.NewGuid();
+        var puntoVentaId = Guid.NewGuid();
         var detalle = CrearDetalle(ventaId, empresaId, total: 10m, igv: 0m);
 
         var venta = new Venta(
@@ -54,17 +61,22 @@ public class VentaTests
             10m,
             0m,
             10m,
-            [detalle]);
+            [detalle],
+            sedeId,
+            puntoVentaId);
 
         Assert.Null(venta.ClienteId);
         Assert.Equal(CanalVenta.TIENDA, venta.CanalVenta);
+        Assert.Equal(sedeId, venta.SedeId);
+        Assert.Equal(puntoVentaId, venta.PuntoVentaId);
     }
 
     [Fact]
-    public void Permite_dimensiones_comerciales_opcionales()
+    public void Permite_dimensiones_comerciales_opcionales_excepto_punto_venta()
     {
         var ventaId = Guid.NewGuid();
         var empresaId = Guid.NewGuid();
+        var sedeId = Guid.NewGuid();
         var puntoVentaId = Guid.NewGuid();
         var vendedorId = Guid.NewGuid();
         var detalle = CrearDetalle(ventaId, empresaId, total: 10m, igv: 0m);
@@ -77,11 +89,13 @@ public class VentaTests
             0m,
             10m,
             [detalle],
+            sedeId,
+            puntoVentaId,
             canalVenta: CanalVenta.PROVINCIA,
-            puntoVentaId: puntoVentaId,
             vendedorId: vendedorId);
 
         Assert.Equal(CanalVenta.PROVINCIA, venta.CanalVenta);
+        Assert.Equal(sedeId, venta.SedeId);
         Assert.Equal(puntoVentaId, venta.PuntoVentaId);
         Assert.Equal(vendedorId, venta.VendedorId);
     }
@@ -101,6 +115,8 @@ public class VentaTests
                 0m,
                 10m,
                 [CrearDetalle(ventaId, empresaId, total: 10m, igv: 0m)],
+                Guid.NewGuid(),
+                Guid.NewGuid(),
                 canalVenta: (CanalVenta)999));
     }
 
@@ -117,7 +133,47 @@ public class VentaTests
                 10m,
                 0m,
                 10m,
-                [CrearDetalle(ventaId, Guid.NewGuid(), total: 10m, igv: 0m)]));
+                [CrearDetalle(ventaId, Guid.NewGuid(), total: 10m, igv: 0m)],
+                Guid.NewGuid(),
+                Guid.NewGuid()));
+    }
+
+    [Fact]
+    public void Rechaza_sede_id_vacio()
+    {
+        var ventaId = Guid.NewGuid();
+        var empresaId = Guid.NewGuid();
+
+        Assert.Throws<ArgumentException>(() =>
+            new Venta(
+                ventaId,
+                empresaId,
+                DateTimeOffset.UtcNow,
+                10m,
+                0m,
+                10m,
+                [CrearDetalle(ventaId, empresaId, total: 10m, igv: 0m)],
+                Guid.Empty,
+                Guid.NewGuid()));
+    }
+
+    [Fact]
+    public void Rechaza_punto_venta_id_vacio()
+    {
+        var ventaId = Guid.NewGuid();
+        var empresaId = Guid.NewGuid();
+
+        Assert.Throws<ArgumentException>(() =>
+            new Venta(
+                ventaId,
+                empresaId,
+                DateTimeOffset.UtcNow,
+                10m,
+                0m,
+                10m,
+                [CrearDetalle(ventaId, empresaId, total: 10m, igv: 0m)],
+                Guid.NewGuid(),
+                Guid.Empty));
     }
 
     [Fact]
@@ -131,7 +187,9 @@ public class VentaTests
                 10m,
                 0m,
                 10m,
-                []));
+                [],
+                Guid.NewGuid(),
+                Guid.NewGuid()));
     }
 
     [Fact]
@@ -149,7 +207,9 @@ public class VentaTests
                 10m,
                 0m,
                 10m,
-                [detalle]));
+                [detalle],
+                Guid.NewGuid(),
+                Guid.NewGuid()));
     }
 
     [Fact]
@@ -167,7 +227,9 @@ public class VentaTests
                 90m,
                 18m,
                 118m,
-                [detalle]));
+                [detalle],
+                Guid.NewGuid(),
+                Guid.NewGuid()));
     }
 
     [Fact]
@@ -175,6 +237,8 @@ public class VentaTests
     {
         var ventaId = Guid.NewGuid();
         var empresaId = Guid.NewGuid();
+        var sedeId = Guid.NewGuid();
+        var puntoVentaId = Guid.NewGuid();
         var venta = new Venta(
             ventaId,
             empresaId,
@@ -182,7 +246,9 @@ public class VentaTests
             10m,
             0m,
             10m,
-            [CrearDetalle(ventaId, empresaId, total: 10m, igv: 0m)]);
+            [CrearDetalle(ventaId, empresaId, total: 10m, igv: 0m)],
+            sedeId,
+            puntoVentaId);
 
         venta.Anular();
 

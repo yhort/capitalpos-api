@@ -16,9 +16,10 @@ public sealed class Venta
         decimal igv,
         decimal total,
         IReadOnlyCollection<VentaDetalle> detalles,
+        Guid sedeId,
+        Guid puntoVentaId,
         Guid? clienteId = null,
         CanalVenta canalVenta = CanalVenta.TIENDA,
-        Guid? puntoVentaId = null,
         Guid? vendedorId = null,
         EstadoVenta estado = EstadoVenta.Registrada,
         DateTimeOffset? fechaCreacion = null)
@@ -38,6 +39,16 @@ public sealed class Venta
             throw new ArgumentOutOfRangeException(nameof(fecha), "La fecha de venta no es valida.");
         }
 
+        if (sedeId == Guid.Empty)
+        {
+            throw new ArgumentException("El identificador de la sede es obligatorio.", nameof(sedeId));
+        }
+
+        if (puntoVentaId == Guid.Empty)
+        {
+            throw new ArgumentException("El identificador del punto de venta es obligatorio.", nameof(puntoVentaId));
+        }
+
         if (clienteId == Guid.Empty)
         {
             throw new ArgumentException("El identificador del cliente no puede estar vacio.", nameof(clienteId));
@@ -46,11 +57,6 @@ public sealed class Venta
         if (!Enum.IsDefined(canalVenta))
         {
             throw new ArgumentOutOfRangeException(nameof(canalVenta), "El canal de venta no es valido.");
-        }
-
-        if (puntoVentaId == Guid.Empty)
-        {
-            throw new ArgumentException("El identificador del punto de venta no puede estar vacio.", nameof(puntoVentaId));
         }
 
         if (vendedorId == Guid.Empty)
@@ -105,9 +111,10 @@ public sealed class Venta
 
         Id = id;
         EmpresaId = empresaId;
+        SedeId = sedeId;
+        PuntoVentaId = puntoVentaId;
         ClienteId = clienteId;
         CanalVenta = canalVenta;
-        PuntoVentaId = puntoVentaId;
         VendedorId = vendedorId;
         Fecha = fecha;
         Subtotal = subtotal;
@@ -122,11 +129,13 @@ public sealed class Venta
 
     public Guid EmpresaId { get; private set; }
 
+    public Guid SedeId { get; private set; }
+
+    public Guid PuntoVentaId { get; private set; }
+
     public Guid? ClienteId { get; private set; }
 
     public CanalVenta CanalVenta { get; private set; }
-
-    public Guid? PuntoVentaId { get; private set; }
 
     public Guid? VendedorId { get; private set; }
 

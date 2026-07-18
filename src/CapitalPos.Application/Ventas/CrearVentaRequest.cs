@@ -6,8 +6,8 @@ public sealed record CrearVentaRequest(
     DateTimeOffset? Fecha,
     Guid? ClienteId,
     IReadOnlyCollection<CrearVentaDetalleRequest> Detalles,
+    Guid PuntoVentaId,
     string? CanalVenta = null,
-    Guid? PuntoVentaId = null,
     Guid? VendedorId = null);
 
 public sealed record CrearVentaDetalleRequest(

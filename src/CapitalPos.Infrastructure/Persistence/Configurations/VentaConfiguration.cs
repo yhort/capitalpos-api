@@ -18,6 +18,9 @@ public sealed class VentaConfiguration : IEntityTypeConfiguration<Venta>
         builder.Property(venta => venta.EmpresaId)
             .IsRequired();
 
+        builder.Property(venta => venta.SedeId)
+            .IsRequired();
+
         builder.Property(venta => venta.ClienteId);
 
         builder.Property(venta => venta.CanalVenta)
@@ -25,7 +28,8 @@ public sealed class VentaConfiguration : IEntityTypeConfiguration<Venta>
             .HasMaxLength(30)
             .IsRequired();
 
-        builder.Property(venta => venta.PuntoVentaId);
+        builder.Property(venta => venta.PuntoVentaId)
+            .IsRequired();
 
         builder.Property(venta => venta.VendedorId);
 
@@ -57,6 +61,12 @@ public sealed class VentaConfiguration : IEntityTypeConfiguration<Venta>
         builder.HasIndex(venta => new
         {
             venta.EmpresaId,
+            venta.SedeId
+        });
+
+        builder.HasIndex(venta => new
+        {
+            venta.EmpresaId,
             venta.CanalVenta,
             venta.Fecha
         });
@@ -83,6 +93,34 @@ public sealed class VentaConfiguration : IEntityTypeConfiguration<Venta>
             {
                 cliente.Id,
                 cliente.EmpresaId
+            })
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne<Sede>()
+            .WithMany()
+            .HasForeignKey(venta => new
+            {
+                venta.SedeId,
+                venta.EmpresaId
+            })
+            .HasPrincipalKey(sede => new
+            {
+                sede.Id,
+                sede.EmpresaId
+            })
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne<PuntoVenta>()
+            .WithMany()
+            .HasForeignKey(venta => new
+            {
+                venta.PuntoVentaId,
+                venta.EmpresaId
+            })
+            .HasPrincipalKey(puntoVenta => new
+            {
+                puntoVenta.Id,
+                puntoVenta.EmpresaId
             })
             .OnDelete(DeleteBehavior.Restrict);
 

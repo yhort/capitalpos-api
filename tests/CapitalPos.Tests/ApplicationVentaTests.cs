@@ -4,6 +4,7 @@ using CapitalPos.Application.Clientes;
 using CapitalPos.Application.ConfiguracionFiscal;
 using CapitalPos.Application.Inventario;
 using CapitalPos.Application.Productos;
+using CapitalPos.Application.Sedes;
 using CapitalPos.Application.Seguridad;
 using CapitalPos.Application.Ventas;
 using CapitalPos.Domain;
@@ -12,6 +13,9 @@ namespace CapitalPos.Tests;
 
 public class ApplicationVentaTests
 {
+    private static readonly Guid SedeIdPrueba = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+    private static readonly Guid PuntoVentaIdPrueba = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
+
     [Fact]
     public async Task Crear_venta_use_case_asigna_empresa_id_desde_contexto_y_calcula_totales()
     {
@@ -43,14 +47,16 @@ public class ApplicationVentaTests
             [
                 new CrearVentaDetalleRequest(productoId, varianteId, 2m, 50m, 18m, 118m),
                 new CrearVentaDetalleRequest(productoId, null, 1m, 20m, 3.60m, 23.60m)
-            ]);
+            ],
+            PuntoVentaIdPrueba);
 
         var venta = await useCase.EjecutarAsync(request);
 
         Assert.Equal(empresaId, venta.EmpresaId);
+        Assert.Equal(SedeIdPrueba, venta.SedeId);
+        Assert.Equal(PuntoVentaIdPrueba, venta.PuntoVentaId);
         Assert.Equal(clienteId, venta.ClienteId);
         Assert.Equal(CanalVenta.TIENDA, venta.CanalVenta);
-        Assert.Null(venta.PuntoVentaId);
         Assert.Null(venta.VendedorId);
         Assert.Equal(fecha, venta.Fecha);
         Assert.Equal(120m, venta.Subtotal);
@@ -78,7 +84,8 @@ public class ApplicationVentaTests
         var request = new CrearVentaRequest(
             DateTimeOffset.UtcNow,
             null,
-            [new CrearVentaDetalleRequest(Guid.NewGuid(), null, 1m, 10m, 0m, 10m)]);
+            [new CrearVentaDetalleRequest(Guid.NewGuid(), null, 1m, 10m, 0m, 10m)],
+            PuntoVentaIdPrueba);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => useCase.EjecutarAsync(request));
     }
@@ -100,7 +107,8 @@ public class ApplicationVentaTests
         var request = new CrearVentaRequest(
             DateTimeOffset.UtcNow,
             null,
-            [new CrearVentaDetalleRequest(productoId, null, 1m, 10m, 0m, 10m)]);
+            [new CrearVentaDetalleRequest(productoId, null, 1m, 10m, 0m, 10m)],
+            PuntoVentaIdPrueba);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => useCase.EjecutarAsync(request));
     }
@@ -125,7 +133,8 @@ public class ApplicationVentaTests
         var request = new CrearVentaRequest(
             DateTimeOffset.UtcNow,
             clienteId,
-            [new CrearVentaDetalleRequest(productoId, null, 1m, 10m, 0m, 10m)]);
+            [new CrearVentaDetalleRequest(productoId, null, 1m, 10m, 0m, 10m)],
+            PuntoVentaIdPrueba);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => useCase.EjecutarAsync(request));
     }
@@ -150,7 +159,8 @@ public class ApplicationVentaTests
         var request = new CrearVentaRequest(
             DateTimeOffset.UtcNow,
             null,
-            [new CrearVentaDetalleRequest(productoId, varianteId, 1m, 10m, 0m, 10m)]);
+            [new CrearVentaDetalleRequest(productoId, varianteId, 1m, 10m, 0m, 10m)],
+            PuntoVentaIdPrueba);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => useCase.EjecutarAsync(request));
     }
@@ -188,24 +198,33 @@ public class ApplicationVentaTests
     }
 
     [Fact]
-    public async Task Crear_venta_use_case_persiste_punto_venta_y_vendedor_si_se_informan()
+    public async Task Crear_venta_use_case_resuelve_sede_desde_punto_venta_y_persiste_vendedor_si_se_informa()
     {
         var empresaId = Guid.NewGuid();
         var productoId = Guid.NewGuid();
+        var sedeId = Guid.NewGuid();
         var puntoVentaId = Guid.NewGuid();
         var vendedorId = Guid.NewGuid();
         var ventaRepository = new VentaRepositoryFake();
         var productoRepository = new ProductoRepositoryFake();
         var stockRepository = new StockProductoRepositoryFake();
+        var puntoVentaRepository = new PuntoVentaRepositoryFake();
         await productoRepository.AgregarAsync(new Producto(productoId, empresaId, "Polo", 59m));
         await stockRepository.GuardarAsync(new StockProducto(Guid.NewGuid(), empresaId, productoId, null, 5m));
+        await puntoVentaRepository.AgregarAsync(new PuntoVenta(
+            puntoVentaId,
+            empresaId,
+            sedeId,
+            "Caja principal"));
         var useCase = CrearUseCase(
             ventaRepository,
             productoRepository,
             new ProductoVarianteRepositoryFake(),
             new ClienteRepositoryFake(),
             stockRepository,
-            empresaId);
+            empresaId,
+            puntoVentaRepository,
+            agregarPuntoVentaDefault: false);
 
         var venta = await useCase.EjecutarAsync(CrearVentaRequest(
             productoId,
@@ -214,8 +233,118 @@ public class ApplicationVentaTests
             puntoVentaId: puntoVentaId,
             vendedorId: vendedorId));
 
+        Assert.Equal(sedeId, venta.SedeId);
         Assert.Equal(puntoVentaId, venta.PuntoVentaId);
         Assert.Equal(vendedorId, venta.VendedorId);
+    }
+
+    [Fact]
+    public async Task Crear_venta_use_case_exige_punto_venta()
+    {
+        var useCase = CrearUseCase(
+            new VentaRepositoryFake(),
+            new ProductoRepositoryFake(),
+            new ProductoVarianteRepositoryFake(),
+            new ClienteRepositoryFake(),
+            empresaId: Guid.NewGuid());
+
+        var exception = await Assert.ThrowsAsync<ArgumentException>(() =>
+            useCase.EjecutarAsync(CrearVentaRequest(
+                Guid.NewGuid(),
+                null,
+                1m,
+                puntoVentaId: Guid.Empty)));
+
+        Assert.Contains("punto de venta", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Crear_venta_use_case_rechaza_punto_venta_inexistente()
+    {
+        var empresaId = Guid.NewGuid();
+        var productoId = Guid.NewGuid();
+        var productoRepository = new ProductoRepositoryFake();
+        var stockRepository = new StockProductoRepositoryFake();
+        var puntoVentaRepository = new PuntoVentaRepositoryFake();
+        await productoRepository.AgregarAsync(new Producto(productoId, empresaId, "Polo", 59m));
+        await stockRepository.GuardarAsync(new StockProducto(Guid.NewGuid(), empresaId, productoId, null, 5m));
+        var useCase = CrearUseCase(
+            new VentaRepositoryFake(),
+            productoRepository,
+            new ProductoVarianteRepositoryFake(),
+            new ClienteRepositoryFake(),
+            stockRepository,
+            empresaId,
+            puntoVentaRepository,
+            agregarPuntoVentaDefault: false);
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            useCase.EjecutarAsync(CrearVentaRequest(productoId, null, 1m)));
+
+        Assert.Contains("punto de venta", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Crear_venta_use_case_rechaza_punto_venta_de_otra_empresa()
+    {
+        var empresaAId = Guid.NewGuid();
+        var empresaBId = Guid.NewGuid();
+        var productoId = Guid.NewGuid();
+        var productoRepository = new ProductoRepositoryFake();
+        var stockRepository = new StockProductoRepositoryFake();
+        var puntoVentaRepository = new PuntoVentaRepositoryFake();
+        await productoRepository.AgregarAsync(new Producto(productoId, empresaAId, "Polo", 59m));
+        await stockRepository.GuardarAsync(new StockProducto(Guid.NewGuid(), empresaAId, productoId, null, 5m));
+        await puntoVentaRepository.AgregarAsync(new PuntoVenta(
+            PuntoVentaIdPrueba,
+            empresaBId,
+            SedeIdPrueba,
+            "Caja externa"));
+        var useCase = CrearUseCase(
+            new VentaRepositoryFake(),
+            productoRepository,
+            new ProductoVarianteRepositoryFake(),
+            new ClienteRepositoryFake(),
+            stockRepository,
+            empresaAId,
+            puntoVentaRepository,
+            agregarPuntoVentaDefault: false);
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            useCase.EjecutarAsync(CrearVentaRequest(productoId, null, 1m)));
+
+        Assert.Contains("empresa activa", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Crear_venta_use_case_rechaza_punto_venta_inactivo()
+    {
+        var empresaId = Guid.NewGuid();
+        var productoId = Guid.NewGuid();
+        var productoRepository = new ProductoRepositoryFake();
+        var stockRepository = new StockProductoRepositoryFake();
+        var puntoVentaRepository = new PuntoVentaRepositoryFake();
+        await productoRepository.AgregarAsync(new Producto(productoId, empresaId, "Polo", 59m));
+        await stockRepository.GuardarAsync(new StockProducto(Guid.NewGuid(), empresaId, productoId, null, 5m));
+        await puntoVentaRepository.AgregarAsync(new PuntoVenta(
+            PuntoVentaIdPrueba,
+            empresaId,
+            SedeIdPrueba,
+            "Caja cerrada",
+            activo: false));
+        var useCase = CrearUseCase(
+            new VentaRepositoryFake(),
+            productoRepository,
+            new ProductoVarianteRepositoryFake(),
+            new ClienteRepositoryFake(),
+            stockRepository,
+            empresaId,
+            puntoVentaRepository);
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            useCase.EjecutarAsync(CrearVentaRequest(productoId, null, 1m)));
+
+        Assert.Contains("no esta activo", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -381,7 +510,8 @@ public class ApplicationVentaTests
             [
                 new CrearVentaDetalleRequest(productoAId, null, 2m, 10m, 0m, 20m),
                 new CrearVentaDetalleRequest(productoBId, null, 3m, 10m, 0m, 30m)
-            ]);
+            ],
+            PuntoVentaIdPrueba);
 
         await useCase.EjecutarAsync(request);
 
@@ -416,7 +546,8 @@ public class ApplicationVentaTests
             [
                 new CrearVentaDetalleRequest(productoAId, null, 2m, 10m, 0m, 20m),
                 new CrearVentaDetalleRequest(productoBId, null, 3m, 10m, 0m, 30m)
-            ]);
+            ],
+            PuntoVentaIdPrueba);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => useCase.EjecutarAsync(request));
 
@@ -521,6 +652,8 @@ public class ApplicationVentaTests
             18m,
             118m,
             [detalle],
+            SedeIdPrueba,
+            PuntoVentaIdPrueba,
             clienteId);
         await ventaRepository.AgregarAsync(venta);
         var useCase = new EmitirCpeDesdeVentaUseCase(
@@ -747,7 +880,9 @@ public class ApplicationVentaTests
             10m,
             0m,
             10m,
-            [detalle]));
+            [detalle],
+            SedeIdPrueba,
+            PuntoVentaIdPrueba));
         await configuracionFiscalRepository.GuardarAsync(new ConfiguracionFiscalEmpresa(
             empresaAId,
             "20601234567",
@@ -885,7 +1020,9 @@ public class ApplicationVentaTests
                     10m,
                     0m,
                     10m)
-            ]);
+            ],
+            SedeIdPrueba,
+            PuntoVentaIdPrueba);
     }
 
     private static async Task<EscenarioEmisionCpe> CrearEscenarioEmisionAsync(
@@ -931,6 +1068,8 @@ public class ApplicationVentaTests
             18m,
             118m,
             [detalle],
+            SedeIdPrueba,
+            PuntoVentaIdPrueba,
             clienteId));
 
         return new EscenarioEmisionCpe(
@@ -988,14 +1127,31 @@ public class ApplicationVentaTests
         ProductoVarianteRepositoryFake varianteRepository,
         ClienteRepositoryFake clienteRepository,
         StockProductoRepositoryFake? stockRepository = null,
-        Guid? empresaId = null)
+        Guid? empresaId = null,
+        PuntoVentaRepositoryFake? puntoVentaRepository = null,
+        bool agregarPuntoVentaDefault = true)
     {
+        puntoVentaRepository ??= new PuntoVentaRepositoryFake();
+        if (agregarPuntoVentaDefault &&
+            empresaId.HasValue &&
+            !puntoVentaRepository.PuntosVenta.Any(puntoVenta =>
+                puntoVenta.EmpresaId == empresaId.Value &&
+                puntoVenta.Id == PuntoVentaIdPrueba))
+        {
+            puntoVentaRepository.PuntosVenta.Add(new PuntoVenta(
+                PuntoVentaIdPrueba,
+                empresaId.Value,
+                SedeIdPrueba,
+                "Caja principal"));
+        }
+
         return new CrearVentaUseCase(
             ventaRepository,
             productoRepository,
             varianteRepository,
             clienteRepository,
             stockRepository ?? new StockProductoRepositoryFake(),
+            puntoVentaRepository,
             empresaId.HasValue
                 ? new EmpresaActivaContextFake(empresaId.Value)
                 : new EmpresaActivaContextFake());
@@ -1013,9 +1169,50 @@ public class ApplicationVentaTests
             DateTimeOffset.UtcNow,
             null,
             [new CrearVentaDetalleRequest(productoId, productoVarianteId, cantidad, 10m, 0m, cantidad * 10m)],
+            puntoVentaId ?? PuntoVentaIdPrueba,
             canalVenta,
-            puntoVentaId,
             vendedorId);
+    }
+
+    private sealed class PuntoVentaRepositoryFake : IPuntoVentaRepository
+    {
+        public List<PuntoVenta> PuntosVenta { get; } = new();
+
+        public Task AgregarAsync(PuntoVenta puntoVenta, CancellationToken cancellationToken = default)
+        {
+            PuntosVenta.Add(puntoVenta);
+
+            return Task.CompletedTask;
+        }
+
+        public Task<IReadOnlyCollection<PuntoVenta>> ListarPorEmpresaAsync(
+            Guid empresaId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyCollection<PuntoVenta>>(
+                PuntosVenta.Where(puntoVenta => puntoVenta.EmpresaId == empresaId).ToArray());
+        }
+
+        public Task<IReadOnlyCollection<PuntoVenta>> ListarPorSedeAsync(
+            Guid empresaId,
+            Guid sedeId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyCollection<PuntoVenta>>(
+                PuntosVenta
+                    .Where(puntoVenta => puntoVenta.EmpresaId == empresaId && puntoVenta.SedeId == sedeId)
+                    .ToArray());
+        }
+
+        public Task<PuntoVenta?> ObtenerPorEmpresaAsync(
+            Guid empresaId,
+            Guid id,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(PuntosVenta.FirstOrDefault(puntoVenta =>
+                puntoVenta.EmpresaId == empresaId &&
+                puntoVenta.Id == id));
+        }
     }
 
     private sealed class VentaRepositoryFake : IVentaRepository

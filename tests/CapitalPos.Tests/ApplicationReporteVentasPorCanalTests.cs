@@ -7,6 +7,9 @@ namespace CapitalPos.Tests;
 
 public class ApplicationReporteVentasPorCanalTests
 {
+    private static readonly Guid SedeIdPrueba = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+    private static readonly Guid PuntoVentaIdPrueba = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
+
     [Fact]
     public async Task Reporte_ventas_por_canal_agrupa_canales_y_total_general()
     {
@@ -140,6 +143,8 @@ public class ApplicationReporteVentasPorCanalTests
             0m,
             total,
             ventaDetalles,
+            SedeIdPrueba,
+            PuntoVentaIdPrueba,
             canalVenta: canalVenta);
     }
 
