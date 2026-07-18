@@ -9,6 +9,7 @@ public sealed class StockProducto
     public StockProducto(
         Guid id,
         Guid empresaId,
+        Guid sedeId,
         Guid productoId,
         Guid? productoVarianteId,
         decimal cantidadDisponible,
@@ -24,6 +25,11 @@ public sealed class StockProducto
         if (empresaId == Guid.Empty)
         {
             throw new ArgumentException("El identificador de la empresa es obligatorio.", nameof(empresaId));
+        }
+
+        if (sedeId == Guid.Empty)
+        {
+            throw new ArgumentException("El identificador de la sede es obligatorio.", nameof(sedeId));
         }
 
         if (productoId == Guid.Empty)
@@ -52,6 +58,7 @@ public sealed class StockProducto
 
         Id = id;
         EmpresaId = empresaId;
+        SedeId = sedeId;
         ProductoId = productoId;
         ProductoVarianteId = productoVarianteId;
         CantidadDisponible = cantidadDisponible;
@@ -63,6 +70,8 @@ public sealed class StockProducto
     public Guid Id { get; private set; }
 
     public Guid EmpresaId { get; private set; }
+
+    public Guid SedeId { get; private set; }
 
     public Guid ProductoId { get; private set; }
 

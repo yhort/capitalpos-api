@@ -18,6 +18,9 @@ public sealed class StockProductoConfiguration : IEntityTypeConfiguration<StockP
         builder.Property(stock => stock.EmpresaId)
             .IsRequired();
 
+        builder.Property(stock => stock.SedeId)
+            .IsRequired();
+
         builder.Property(stock => stock.ProductoId)
             .IsRequired();
 
@@ -44,12 +47,20 @@ public sealed class StockProductoConfiguration : IEntityTypeConfiguration<StockP
         builder.HasIndex(stock => new
         {
             stock.EmpresaId,
+            stock.SedeId
+        });
+
+        builder.HasIndex(stock => new
+        {
+            stock.EmpresaId,
+            stock.SedeId,
             stock.ProductoId
         });
 
         builder.HasIndex(stock => new
             {
                 stock.EmpresaId,
+                stock.SedeId,
                 stock.ProductoId
             })
             .IsUnique()
@@ -58,7 +69,7 @@ public sealed class StockProductoConfiguration : IEntityTypeConfiguration<StockP
         builder.HasIndex(stock => new
             {
                 stock.EmpresaId,
-                stock.ProductoId,
+                stock.SedeId,
                 stock.ProductoVarianteId
             })
             .IsUnique()
@@ -80,6 +91,20 @@ public sealed class StockProductoConfiguration : IEntityTypeConfiguration<StockP
             {
                 producto.Id,
                 producto.EmpresaId
+            })
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne<Sede>()
+            .WithMany()
+            .HasForeignKey(stock => new
+            {
+                stock.SedeId,
+                stock.EmpresaId
+            })
+            .HasPrincipalKey(sede => new
+            {
+                sede.Id,
+                sede.EmpresaId
             })
             .OnDelete(DeleteBehavior.Restrict);
 

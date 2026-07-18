@@ -446,13 +446,14 @@ public class EfCoreModelTests
     }
 
     [Fact]
-    public void Stock_producto_tiene_empresa_producto_variante_opcional_indices_y_relaciones()
+    public void Stock_producto_tiene_empresa_sede_producto_variante_opcional_indices_y_relaciones()
     {
         var entityType = ObtenerEntidad<StockProducto>();
 
         Assert.Equal("stocks_productos", entityType.GetTableName());
         Assert.Equal(nameof(StockProducto.Id), entityType.FindPrimaryKey()?.Properties.Single().Name);
         AssertPropiedad(entityType, nameof(StockProducto.EmpresaId), nullable: false);
+        AssertPropiedad(entityType, nameof(StockProducto.SedeId), nullable: false);
         AssertPropiedad(entityType, nameof(StockProducto.ProductoId), nullable: false);
         AssertPropiedad(entityType, nameof(StockProducto.ProductoVarianteId));
         AssertPropiedad(entityType, nameof(StockProducto.CantidadDisponible), nullable: false);
@@ -466,6 +467,12 @@ public class EfCoreModelTests
         Assert.Contains(entityType.GetIndexes(), index =>
             index.Properties.Select(property => property.Name).SequenceEqual([
                 nameof(StockProducto.EmpresaId),
+                nameof(StockProducto.SedeId)
+            ]));
+        Assert.Contains(entityType.GetIndexes(), index =>
+            index.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(StockProducto.EmpresaId),
+                nameof(StockProducto.SedeId),
                 nameof(StockProducto.ProductoId)
             ]));
         Assert.Contains(entityType.GetIndexes(), index =>
@@ -473,6 +480,7 @@ public class EfCoreModelTests
             index.GetFilter() == "\"ProductoVarianteId\" IS NULL" &&
             index.Properties.Select(property => property.Name).SequenceEqual([
                 nameof(StockProducto.EmpresaId),
+                nameof(StockProducto.SedeId),
                 nameof(StockProducto.ProductoId)
             ]));
         Assert.Contains(entityType.GetIndexes(), index =>
@@ -480,7 +488,7 @@ public class EfCoreModelTests
             index.GetFilter() == "\"ProductoVarianteId\" IS NOT NULL" &&
             index.Properties.Select(property => property.Name).SequenceEqual([
                 nameof(StockProducto.EmpresaId),
-                nameof(StockProducto.ProductoId),
+                nameof(StockProducto.SedeId),
                 nameof(StockProducto.ProductoVarianteId)
             ]));
 
@@ -493,6 +501,13 @@ public class EfCoreModelTests
             foreignKey.DeleteBehavior == DeleteBehavior.Restrict &&
             foreignKey.Properties.Select(property => property.Name).SequenceEqual([
                 nameof(StockProducto.ProductoId),
+                nameof(StockProducto.EmpresaId)
+            ]));
+        Assert.Contains(entityType.GetForeignKeys(), foreignKey =>
+            foreignKey.PrincipalEntityType.ClrType == typeof(Sede) &&
+            foreignKey.DeleteBehavior == DeleteBehavior.Restrict &&
+            foreignKey.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(StockProducto.SedeId),
                 nameof(StockProducto.EmpresaId)
             ]));
         Assert.Contains(entityType.GetForeignKeys(), foreignKey =>

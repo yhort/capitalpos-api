@@ -132,8 +132,9 @@ public class ApplicationDashboardComercialTests
             var productoId = Guid.NewGuid();
             repos.Productos.Productos.Add(new Producto(productoId, empresaId, $"Producto {index}", 10m));
             repos.Stocks.Stocks.Add(new StockProducto(
-                Guid.NewGuid(),
-                empresaId,
+            Guid.NewGuid(),
+            empresaId,
+            SedeIdPrueba,
                 productoId,
                 null,
                 index,
@@ -144,6 +145,7 @@ public class ApplicationDashboardComercialTests
         repos.Stocks.Stocks.Add(new StockProducto(
             Guid.NewGuid(),
             empresaId,
+            SedeIdPrueba,
             productoSinStockBajoId,
             null,
             6m));
@@ -318,6 +320,7 @@ public class ApplicationDashboardComercialTests
         repos.Stocks.Stocks.Add(new StockProducto(
             Guid.NewGuid(),
             otraEmpresaId,
+            SedeIdPrueba,
             productoOtraEmpresaId,
             null,
             1m));
@@ -340,7 +343,7 @@ public class ApplicationDashboardComercialTests
             CanalVenta.TIENDA,
             new DateTimeOffset(2026, 7, 17, 10, 0, 0, TimeSpan.FromHours(-5)),
             [(productoId, null, 1m, 10m)]));
-        repos.Stocks.Stocks.Add(new StockProducto(productoId, empresaId, productoId, null, 2m));
+        repos.Stocks.Stocks.Add(new StockProducto(productoId, empresaId, SedeIdPrueba, productoId, null, 2m));
         var useCase = CrearUseCase(repos, empresaId);
 
         var dashboard = await useCase.EjecutarAsync();
@@ -370,9 +373,18 @@ public class ApplicationDashboardComercialTests
         repos.Productos.Productos.Add(new Producto(productoAId, empresaId, "Igual", 10m));
         repos.Productos.Productos.Add(new Producto(productoBId, empresaId, "Igual", 10m));
         repos.Variantes.Variantes.Add(new ProductoVariante(varianteId, empresaId, productoAId, talla: "M"));
-        repos.Stocks.Stocks.Add(new StockProducto(Guid.NewGuid(), empresaId, productoAId, varianteId, 2m));
-        repos.Stocks.Stocks.Add(new StockProducto(Guid.NewGuid(), empresaId, productoBId, null, 2m));
-        repos.Stocks.Stocks.Add(new StockProducto(Guid.NewGuid(), empresaId, productoAId, null, 2m));
+        repos.Stocks.Stocks.Add(new StockProducto(
+            Guid.NewGuid(),
+            empresaId,
+            SedeIdPrueba, productoAId, varianteId, 2m));
+        repos.Stocks.Stocks.Add(new StockProducto(
+            Guid.NewGuid(),
+            empresaId,
+            SedeIdPrueba, productoBId, null, 2m));
+        repos.Stocks.Stocks.Add(new StockProducto(
+            Guid.NewGuid(),
+            empresaId,
+            SedeIdPrueba, productoAId, null, 2m));
         var useCase = CrearUseCase(repos, empresaId);
 
         var dashboard = await useCase.EjecutarAsync();
@@ -469,6 +481,7 @@ public class ApplicationDashboardComercialTests
         var stock = new StockProducto(
             Guid.NewGuid(),
             empresaId,
+            SedeIdPrueba,
             productoId,
             productoVarianteId,
             Math.Max(cantidadDisponible, cantidadReservada),
@@ -669,12 +682,14 @@ public class ApplicationDashboardComercialTests
 
         public Task<StockProducto?> ObtenerPorProductoAsync(
             Guid empresaId,
+            Guid sedeId,
             Guid productoId,
             Guid? productoVarianteId = null,
             CancellationToken cancellationToken = default)
         {
             return Task.FromResult(Stocks.FirstOrDefault(stock =>
                 stock.EmpresaId == empresaId &&
+                stock.SedeId == sedeId &&
                 stock.ProductoId == productoId &&
                 stock.ProductoVarianteId == productoVarianteId));
         }
@@ -685,6 +700,15 @@ public class ApplicationDashboardComercialTests
         {
             return Task.FromResult<IReadOnlyCollection<StockProducto>>(
                 Stocks.Where(stock => stock.EmpresaId == empresaId).ToArray());
+        }
+
+        public Task<IReadOnlyCollection<StockProducto>> ListarPorSedeAsync(
+            Guid empresaId,
+            Guid sedeId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyCollection<StockProducto>>(
+                Stocks.Where(stock => stock.EmpresaId == empresaId && stock.SedeId == sedeId).ToArray());
         }
 
         public Task GuardarAsync(StockProducto stock, CancellationToken cancellationToken = default)

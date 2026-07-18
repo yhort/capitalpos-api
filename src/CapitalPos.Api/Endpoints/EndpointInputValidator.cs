@@ -411,6 +411,12 @@ public static class EndpointInputValidator
 
     public static bool TryValidate(AjustarStockProductoRequest request, out string error)
     {
+        if (request.SedeId == Guid.Empty)
+        {
+            error = "El identificador de la sede es obligatorio.";
+            return false;
+        }
+
         if (request.ProductoId == Guid.Empty)
         {
             error = "El identificador del producto es obligatorio.";

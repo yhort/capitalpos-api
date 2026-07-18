@@ -65,6 +65,33 @@ public sealed class EfDemoSeedStore : IDemoSeedStore
                 cancellationToken);
     }
 
+    public Task<Producto?> ObtenerProductoAsync(
+        Guid empresaId,
+        Guid productoId,
+        CancellationToken cancellationToken)
+    {
+        return _dbContext.Productos
+            .SingleOrDefaultAsync(
+                producto => producto.EmpresaId == empresaId && producto.Id == productoId,
+                cancellationToken);
+    }
+
+    public Task<StockProducto?> ObtenerStockProductoAsync(
+        Guid empresaId,
+        Guid sedeId,
+        Guid productoId,
+        CancellationToken cancellationToken)
+    {
+        return _dbContext.StocksProductos
+            .SingleOrDefaultAsync(
+                stock =>
+                    stock.EmpresaId == empresaId &&
+                    stock.SedeId == sedeId &&
+                    stock.ProductoId == productoId &&
+                    stock.ProductoVarianteId == null,
+                cancellationToken);
+    }
+
     public async Task AgregarEmpresaAsync(Empresa empresa, CancellationToken cancellationToken)
     {
         await _dbContext.Empresas.AddAsync(empresa, cancellationToken);
@@ -93,6 +120,16 @@ public sealed class EfDemoSeedStore : IDemoSeedStore
     public async Task AgregarPuntoVentaAsync(PuntoVenta puntoVenta, CancellationToken cancellationToken)
     {
         await _dbContext.PuntosVenta.AddAsync(puntoVenta, cancellationToken);
+    }
+
+    public async Task AgregarProductoAsync(Producto producto, CancellationToken cancellationToken)
+    {
+        await _dbContext.Productos.AddAsync(producto, cancellationToken);
+    }
+
+    public async Task AgregarStockProductoAsync(StockProducto stock, CancellationToken cancellationToken)
+    {
+        await _dbContext.StocksProductos.AddAsync(stock, cancellationToken);
     }
 
     public Task GuardarCambiosAsync(CancellationToken cancellationToken)

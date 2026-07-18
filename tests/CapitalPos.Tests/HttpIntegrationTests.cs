@@ -543,6 +543,7 @@ public class HttpIntegrationTests
         await factory.StockRepository.GuardarAsync(new StockProducto(
             Guid.NewGuid(),
             EmpresaId,
+            SedeId,
             productoId,
             varianteId,
             4m,
@@ -550,6 +551,7 @@ public class HttpIntegrationTests
         await factory.StockRepository.GuardarAsync(new StockProducto(
             Guid.NewGuid(),
             EmpresaId,
+            SedeId,
             Guid.NewGuid(),
             null,
             10m));
@@ -603,7 +605,7 @@ public class HttpIntegrationTests
         await using var factory = new CapitalPosHttpFactory();
         using var client = factory.CreateClient();
 
-        var response = await client.GetAsync($"/api/stock/productos/{Guid.NewGuid()}");
+        var response = await client.GetAsync($"/api/stock/productos/{Guid.NewGuid()}?sedeId={SedeId}");
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
@@ -615,7 +617,7 @@ public class HttpIntegrationTests
         using var client = factory.CreateClient();
         client.DefaultRequestHeaders.Authorization = CrearAuthorizationHeader(UsuarioId);
 
-        var response = await client.GetAsync($"/api/stock/productos/{Guid.NewGuid()}");
+        var response = await client.GetAsync($"/api/stock/productos/{Guid.NewGuid()}?sedeId={SedeId}");
         var content = await response.Content.ReadAsStringAsync();
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
@@ -632,7 +634,7 @@ public class HttpIntegrationTests
         };
         using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
 
-        var response = await client.GetAsync($"/api/stock/productos/{Guid.NewGuid()}");
+        var response = await client.GetAsync($"/api/stock/productos/{Guid.NewGuid()}?sedeId={SedeId}");
         var content = await response.Content.ReadAsStringAsync();
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
@@ -649,19 +651,21 @@ public class HttpIntegrationTests
         await factory.StockRepository.GuardarAsync(new StockProducto(
             Guid.NewGuid(),
             EmpresaId,
+            SedeId,
             productoId,
             null,
             12m,
             2m));
         using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
 
-        var response = await client.GetAsync($"/api/stock/productos/{productoId}");
+        var response = await client.GetAsync($"/api/stock/productos/{productoId}?sedeId={SedeId}");
         var content = await response.Content.ReadAsStringAsync();
         var body = await response.Content.ReadFromJsonAsync<StockProductoResponse>();
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.NotNull(body);
         Assert.Equal(EmpresaId, body.EmpresaId);
+        Assert.Equal(SedeId, body.SedeId);
         Assert.Equal(productoId, body.ProductoId);
         Assert.Null(body.ProductoVarianteId);
         Assert.Equal(12m, body.CantidadDisponible);
@@ -681,18 +685,20 @@ public class HttpIntegrationTests
         await factory.StockRepository.GuardarAsync(new StockProducto(
             Guid.NewGuid(),
             EmpresaId,
+            SedeId,
             productoId,
             varianteId,
             8m));
         using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
 
-        var response = await client.GetAsync($"/api/stock/productos/{productoId}/variantes/{varianteId}");
+        var response = await client.GetAsync($"/api/stock/productos/{productoId}/variantes/{varianteId}?sedeId={SedeId}");
         var content = await response.Content.ReadAsStringAsync();
         var body = await response.Content.ReadFromJsonAsync<StockProductoResponse>();
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.NotNull(body);
         Assert.Equal(EmpresaId, body.EmpresaId);
+        Assert.Equal(SedeId, body.SedeId);
         Assert.Equal(productoId, body.ProductoId);
         Assert.Equal(varianteId, body.ProductoVarianteId);
         Assert.Equal(8m, body.CantidadDisponible);
@@ -707,7 +713,7 @@ public class HttpIntegrationTests
         await using var factory = new CapitalPosHttpFactory();
         await factory.ProductoRepository.AgregarAsync(CrearProducto(EmpresaId, productoId));
         using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
-        var request = new AjustarStockProductoRequest(productoId, null, 15m);
+        var request = new AjustarStockProductoRequest(SedeId, productoId, null, 15m);
 
         var response = await client.PutAsJsonAsync("/api/stock/ajustar", request);
         var content = await response.Content.ReadAsStringAsync();
@@ -716,6 +722,7 @@ public class HttpIntegrationTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.NotNull(body);
         Assert.Equal(EmpresaId, body.EmpresaId);
+        Assert.Equal(SedeId, body.SedeId);
         Assert.Equal(productoId, body.ProductoId);
         Assert.Equal(15m, body.CantidadDisponible);
         Assert.Contains(factory.StockRepository.Stocks, stock =>
@@ -735,16 +742,40 @@ public class HttpIntegrationTests
         await factory.StockRepository.GuardarAsync(new StockProducto(
             Guid.NewGuid(),
             otraEmpresaId,
+            SedeId,
             productoId,
             null,
             99m));
         using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
 
-        var response = await client.GetAsync($"/api/stock/productos/{productoId}");
+        var response = await client.GetAsync($"/api/stock/productos/{productoId}?sedeId={SedeId}");
         var content = await response.Content.ReadAsStringAsync();
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         Assert.DoesNotContain("99", content);
+        AssertSeguro(content);
+    }
+
+    [Fact]
+    public async Task Obtener_stock_con_sede_de_otra_empresa_devuelve_bad_request()
+    {
+        var otraEmpresaId = Guid.Parse("44444444-4444-4444-4444-444444444444");
+        var otraSedeId = Guid.NewGuid();
+        var productoId = Guid.NewGuid();
+        await using var factory = new CapitalPosHttpFactory();
+        await factory.ProductoRepository.AgregarAsync(CrearProducto(EmpresaId, productoId));
+        factory.SedeRepository.Sedes.Add(new Sede(
+            otraSedeId,
+            otraEmpresaId,
+            "Sede externa",
+            TipoSede.TIENDA));
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+
+        var response = await client.GetAsync($"/api/stock/productos/{productoId}?sedeId={otraSedeId}");
+        var content = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("sede", content, StringComparison.OrdinalIgnoreCase);
         AssertSeguro(content);
     }
 
@@ -756,7 +787,7 @@ public class HttpIntegrationTests
         await using var factory = new CapitalPosHttpFactory();
         await factory.ProductoRepository.AgregarAsync(CrearProducto(otraEmpresaId, productoId));
         using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
-        var request = new AjustarStockProductoRequest(productoId, null, 15m);
+        var request = new AjustarStockProductoRequest(SedeId, productoId, null, 15m);
 
         var response = await client.PutAsJsonAsync("/api/stock/ajustar", request);
         var content = await response.Content.ReadAsStringAsync();
@@ -772,7 +803,7 @@ public class HttpIntegrationTests
     {
         await using var factory = new CapitalPosHttpFactory();
         using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
-        var request = new AjustarStockProductoRequest(Guid.NewGuid(), null, -1m);
+        var request = new AjustarStockProductoRequest(SedeId, Guid.NewGuid(), null, -1m);
 
         var response = await client.PutAsJsonAsync("/api/stock/ajustar", request);
         var content = await response.Content.ReadAsStringAsync();
@@ -967,6 +998,7 @@ public class HttpIntegrationTests
         await factory.StockRepository.GuardarAsync(new StockProducto(
             Guid.NewGuid(),
             EmpresaId,
+            SedeId,
             productoId,
             null,
             5m));
@@ -999,6 +1031,7 @@ public class HttpIntegrationTests
         await factory.StockRepository.GuardarAsync(new StockProducto(
             Guid.NewGuid(),
             EmpresaId,
+            SedeId,
             productoId,
             null,
             5m));
@@ -1037,6 +1070,7 @@ public class HttpIntegrationTests
         await factory.StockRepository.GuardarAsync(new StockProducto(
             Guid.NewGuid(),
             EmpresaId,
+            SedeId,
             productoId,
             null,
             5m));
@@ -1085,6 +1119,7 @@ public class HttpIntegrationTests
         await factory.StockRepository.GuardarAsync(new StockProducto(
             Guid.NewGuid(),
             EmpresaId,
+            SedeId,
             productoId,
             null,
             5m));
@@ -1113,6 +1148,7 @@ public class HttpIntegrationTests
         await factory.StockRepository.GuardarAsync(new StockProducto(
             Guid.NewGuid(),
             EmpresaId,
+            SedeId,
             productoId,
             null,
             1m));
@@ -1138,6 +1174,7 @@ public class HttpIntegrationTests
         await factory.StockRepository.GuardarAsync(new StockProducto(
             Guid.NewGuid(),
             otraEmpresaId,
+            SedeId,
             productoId,
             null,
             5m));
@@ -1165,6 +1202,7 @@ public class HttpIntegrationTests
         await factory.StockRepository.GuardarAsync(new StockProducto(
             Guid.NewGuid(),
             otraEmpresaId,
+            SedeId,
             productoId,
             varianteId,
             5m));
@@ -1475,6 +1513,8 @@ public class HttpIntegrationTests
 
         public FakeStockProductoRepository StockRepository { get; } = new();
 
+        public FakeSedeRepository SedeRepository { get; } = new();
+
         public FakePuntoVentaRepository PuntoVentaRepository { get; } = new();
 
         public FakeVentaRepository VentaRepository { get; } = new();
@@ -1542,6 +1582,7 @@ public class HttpIntegrationTests
                 services.AddSingleton<IComprobanteRepository, FakeComprobanteRepository>();
                 services.AddSingleton<IConfiguracionFiscalEmpresaRepository>(ConfiguracionFiscalRepository);
                 services.AddSingleton<IStockProductoRepository>(StockRepository);
+                services.AddSingleton<ISedeRepository>(SedeRepository);
                 services.AddSingleton<IPuntoVentaRepository>(PuntoVentaRepository);
                 services.AddSingleton<IUnitOfWork, FakeUnitOfWork>();
                 services.AddSingleton(DashboardClock);
@@ -1851,6 +1892,39 @@ public class HttpIntegrationTests
         }
     }
 
+    private sealed class FakeSedeRepository : ISedeRepository
+    {
+        public List<Sede> Sedes { get; } =
+        [
+            new Sede(SedeId, EmpresaId, "Tienda demo", TipoSede.TIENDA)
+        ];
+
+        public Task AgregarAsync(Sede sede, CancellationToken cancellationToken = default)
+        {
+            Sedes.Add(sede);
+
+            return Task.CompletedTask;
+        }
+
+        public Task<IReadOnlyCollection<Sede>> ListarPorEmpresaAsync(
+            Guid empresaId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyCollection<Sede>>(
+                Sedes.Where(sede => sede.EmpresaId == empresaId).ToArray());
+        }
+
+        public Task<Sede?> ObtenerPorEmpresaAsync(
+            Guid empresaId,
+            Guid id,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(Sedes.FirstOrDefault(sede =>
+                sede.EmpresaId == empresaId &&
+                sede.Id == id));
+        }
+    }
+
     private sealed class FakePuntoVentaRepository : IPuntoVentaRepository
     {
         private readonly List<PuntoVenta> _puntosVenta =
@@ -1993,12 +2067,14 @@ public class HttpIntegrationTests
 
         public Task<StockProducto?> ObtenerPorProductoAsync(
             Guid empresaId,
+            Guid sedeId,
             Guid productoId,
             Guid? productoVarianteId = null,
             CancellationToken cancellationToken = default)
         {
             return Task.FromResult(Stocks.FirstOrDefault(stock =>
                 stock.EmpresaId == empresaId &&
+                stock.SedeId == sedeId &&
                 stock.ProductoId == productoId &&
                 stock.ProductoVarianteId == productoVarianteId));
         }
@@ -2011,12 +2087,22 @@ public class HttpIntegrationTests
                 Stocks.Where(stock => stock.EmpresaId == empresaId).ToArray());
         }
 
+        public Task<IReadOnlyCollection<StockProducto>> ListarPorSedeAsync(
+            Guid empresaId,
+            Guid sedeId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyCollection<StockProducto>>(
+                Stocks.Where(stock => stock.EmpresaId == empresaId && stock.SedeId == sedeId).ToArray());
+        }
+
         public Task GuardarAsync(
             StockProducto stock,
             CancellationToken cancellationToken = default)
         {
             var index = Stocks.FindIndex(actual =>
                 actual.EmpresaId == stock.EmpresaId &&
+                actual.SedeId == stock.SedeId &&
                 actual.ProductoId == stock.ProductoId &&
                 actual.ProductoVarianteId == stock.ProductoVarianteId);
             if (index >= 0)

@@ -4,6 +4,8 @@ namespace CapitalPos.Tests;
 
 public class StockProductoTests
 {
+    private static readonly Guid SedeIdPrueba = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+
     [Fact]
     public void Crear_stock_producto_valido()
     {
@@ -17,6 +19,7 @@ public class StockProductoTests
         var stock = new StockProducto(
             id,
             empresaId,
+            SedeIdPrueba,
             productoId,
             varianteId,
             10m,
@@ -26,6 +29,7 @@ public class StockProductoTests
 
         Assert.Equal(id, stock.Id);
         Assert.Equal(empresaId, stock.EmpresaId);
+        Assert.Equal(SedeIdPrueba, stock.SedeId);
         Assert.Equal(productoId, stock.ProductoId);
         Assert.Equal(varianteId, stock.ProductoVarianteId);
         Assert.Equal(10m, stock.CantidadDisponible);
@@ -42,6 +46,20 @@ public class StockProductoTests
             new StockProducto(
                 Guid.NewGuid(),
                 Guid.Empty,
+                SedeIdPrueba,
+                Guid.NewGuid(),
+                null,
+                10m));
+    }
+
+    [Fact]
+    public void Rechaza_sede_id_vacio()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            new StockProducto(
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                Guid.Empty,
                 Guid.NewGuid(),
                 null,
                 10m));
@@ -54,6 +72,7 @@ public class StockProductoTests
             new StockProducto(
                 Guid.NewGuid(),
                 Guid.NewGuid(),
+                SedeIdPrueba,
                 Guid.Empty,
                 null,
                 10m));
@@ -69,6 +88,7 @@ public class StockProductoTests
                 Guid.NewGuid(),
                 Guid.NewGuid(),
                 Guid.NewGuid(),
+                Guid.NewGuid(),
                 null,
                 disponible,
                 reservada));
@@ -79,6 +99,7 @@ public class StockProductoTests
     {
         Assert.Throws<ArgumentException>(() =>
             new StockProducto(
+                Guid.NewGuid(),
                 Guid.NewGuid(),
                 Guid.NewGuid(),
                 Guid.NewGuid(),
@@ -136,6 +157,7 @@ public class StockProductoTests
         return new StockProducto(
             Guid.NewGuid(),
             Guid.NewGuid(),
+            SedeIdPrueba,
             Guid.NewGuid(),
             null,
             cantidadDisponible,

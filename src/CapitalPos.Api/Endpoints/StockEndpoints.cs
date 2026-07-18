@@ -32,27 +32,35 @@ public static class StockEndpoints
 
     private static Task<IResult> ObtenerStockProductoAsync(
         Guid productoId,
+        Guid sedeId,
         ObtenerStockProductoUseCase useCase,
         CancellationToken cancellationToken)
     {
-        return ObtenerStockAsync(productoId, null, useCase, cancellationToken);
+        return ObtenerStockAsync(sedeId, productoId, null, useCase, cancellationToken);
     }
 
     private static Task<IResult> ObtenerStockProductoVarianteAsync(
         Guid productoId,
         Guid productoVarianteId,
+        Guid sedeId,
         ObtenerStockProductoUseCase useCase,
         CancellationToken cancellationToken)
     {
-        return ObtenerStockAsync(productoId, productoVarianteId, useCase, cancellationToken);
+        return ObtenerStockAsync(sedeId, productoId, productoVarianteId, useCase, cancellationToken);
     }
 
     private static async Task<IResult> ObtenerStockAsync(
+        Guid sedeId,
         Guid productoId,
         Guid? productoVarianteId,
         ObtenerStockProductoUseCase useCase,
         CancellationToken cancellationToken)
     {
+        if (sedeId == Guid.Empty)
+        {
+            return Results.BadRequest(ErrorResponse.From("El identificador de la sede es obligatorio."));
+        }
+
         if (productoId == Guid.Empty)
         {
             return Results.BadRequest(ErrorResponse.From("El identificador del producto es obligatorio."));
@@ -63,14 +71,26 @@ public static class StockEndpoints
             return Results.BadRequest(ErrorResponse.From("El identificador de la variante no puede estar vacio."));
         }
 
-        var stock = await useCase.EjecutarAsync(
-            productoId,
-            productoVarianteId,
-            cancellationToken);
+        try
+        {
+            var stock = await useCase.EjecutarAsync(
+                sedeId,
+                productoId,
+                productoVarianteId,
+                cancellationToken);
 
-        return stock is null
-            ? Results.NotFound()
-            : Results.Ok(StockProductoResponse.From(stock));
+            return stock is null
+                ? Results.NotFound()
+                : Results.Ok(StockProductoResponse.From(stock));
+        }
+        catch (ArgumentException ex)
+        {
+            return Results.BadRequest(ErrorResponse.From(ex.Message));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Results.BadRequest(ErrorResponse.From(ex.Message));
+        }
     }
 
     private static async Task<IResult> AjustarStockProductoAsync(
@@ -106,6 +126,7 @@ public static class StockEndpoints
 
 public sealed record StockProductoResponse(
     Guid EmpresaId,
+    Guid SedeId,
     Guid ProductoId,
     Guid? ProductoVarianteId,
     decimal CantidadDisponible,
@@ -117,6 +138,7 @@ public sealed record StockProductoResponse(
     {
         return new StockProductoResponse(
             stock.EmpresaId,
+            stock.SedeId,
             stock.ProductoId,
             stock.ProductoVarianteId,
             stock.CantidadDisponible,

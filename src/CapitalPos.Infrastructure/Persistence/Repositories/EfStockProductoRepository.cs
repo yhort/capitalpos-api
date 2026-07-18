@@ -15,6 +15,7 @@ public sealed class EfStockProductoRepository : IStockProductoRepository
 
     public Task<StockProducto?> ObtenerPorProductoAsync(
         Guid empresaId,
+        Guid sedeId,
         Guid productoId,
         Guid? productoVarianteId = null,
         CancellationToken cancellationToken = default)
@@ -22,9 +23,21 @@ public sealed class EfStockProductoRepository : IStockProductoRepository
         return _dbContext.StocksProductos.SingleOrDefaultAsync(
             stock =>
                 stock.EmpresaId == empresaId &&
+                stock.SedeId == sedeId &&
                 stock.ProductoId == productoId &&
                 stock.ProductoVarianteId == productoVarianteId,
             cancellationToken);
+    }
+
+    public async Task<IReadOnlyCollection<StockProducto>> ListarPorSedeAsync(
+        Guid empresaId,
+        Guid sedeId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.StocksProductos
+            .AsNoTracking()
+            .Where(stock => stock.EmpresaId == empresaId && stock.SedeId == sedeId)
+            .ToListAsync(cancellationToken);
     }
 
     public async Task<IReadOnlyCollection<StockProducto>> ListarPorEmpresaAsync(

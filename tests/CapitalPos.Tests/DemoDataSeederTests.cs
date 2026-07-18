@@ -26,6 +26,8 @@ public class DemoDataSeederTests
         Assert.Empty(store.Credenciales);
         Assert.Empty(store.Sedes);
         Assert.Empty(store.PuntosVenta);
+        Assert.Empty(store.Productos);
+        Assert.Empty(store.Stocks);
         Assert.Equal(0, store.SaveChangesCount);
     }
 
@@ -43,6 +45,8 @@ public class DemoDataSeederTests
         Assert.Empty(store.Credenciales);
         Assert.Empty(store.Sedes);
         Assert.Empty(store.PuntosVenta);
+        Assert.Empty(store.Productos);
+        Assert.Empty(store.Stocks);
         Assert.Equal(0, store.SaveChangesCount);
     }
 
@@ -80,6 +84,18 @@ public class DemoDataSeederTests
         Assert.Equal(DemoSeedData.PuntoVentaNombre, puntoVenta.Nombre);
         Assert.True(puntoVenta.Activo);
 
+        var producto = Assert.Single(store.Productos);
+        Assert.Equal(empresa.Id, producto.EmpresaId);
+        Assert.Equal(DemoSeedData.ProductoNombre, producto.Nombre);
+        Assert.Equal(DemoSeedData.ProductoCodigoSku, producto.CodigoSku);
+
+        var stock = Assert.Single(store.Stocks);
+        Assert.Equal(empresa.Id, stock.EmpresaId);
+        Assert.Equal(sede.Id, stock.SedeId);
+        Assert.Equal(producto.Id, stock.ProductoId);
+        Assert.Null(stock.ProductoVarianteId);
+        Assert.Equal(DemoSeedData.StockProductoCantidadDisponible, stock.CantidadDisponible);
+
         var credencial = Assert.Single(store.Credenciales);
         Assert.Equal(usuario.Id, credencial.UsuarioId);
         Assert.NotEqual(PasswordDemo, credencial.PasswordHash);
@@ -103,6 +119,8 @@ public class DemoDataSeederTests
         Assert.Single(store.Relaciones);
         Assert.Single(store.Sedes);
         Assert.Single(store.PuntosVenta);
+        Assert.Single(store.Productos);
+        Assert.Single(store.Stocks);
         Assert.Empty(store.Credenciales);
         Assert.Contains(logger.Messages, message => message.Contains("AdminPassword no esta configurado", StringComparison.Ordinal));
         Assert.DoesNotContain(logger.Messages, message => message.Contains("password", StringComparison.Ordinal) &&
@@ -126,6 +144,8 @@ public class DemoDataSeederTests
         Assert.Single(store.Relaciones);
         Assert.Single(store.Sedes);
         Assert.Single(store.PuntosVenta);
+        Assert.Single(store.Productos);
+        Assert.Single(store.Stocks);
         var credencial = Assert.Single(store.Credenciales);
         Assert.Equal(hashOriginal, credencial.PasswordHash);
         Assert.Equal(2, store.SaveChangesCount);
@@ -194,6 +214,10 @@ public class DemoDataSeederTests
 
         public List<PuntoVenta> PuntosVenta { get; } = [];
 
+        public List<Producto> Productos { get; } = [];
+
+        public List<StockProducto> Stocks { get; } = [];
+
         public int SaveChangesCount { get; private set; }
 
         public Task<Empresa?> ObtenerEmpresaPorRucAsync(string ruc, CancellationToken cancellationToken)
@@ -241,6 +265,29 @@ public class DemoDataSeederTests
                 puntoVenta.Id == puntoVentaId));
         }
 
+        public Task<Producto?> ObtenerProductoAsync(
+            Guid empresaId,
+            Guid productoId,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult(Productos.SingleOrDefault(producto =>
+                producto.EmpresaId == empresaId &&
+                producto.Id == productoId));
+        }
+
+        public Task<StockProducto?> ObtenerStockProductoAsync(
+            Guid empresaId,
+            Guid sedeId,
+            Guid productoId,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult(Stocks.SingleOrDefault(stock =>
+                stock.EmpresaId == empresaId &&
+                stock.SedeId == sedeId &&
+                stock.ProductoId == productoId &&
+                stock.ProductoVarianteId is null));
+        }
+
         public Task AgregarEmpresaAsync(Empresa empresa, CancellationToken cancellationToken)
         {
             Empresas.Add(empresa);
@@ -274,6 +321,18 @@ public class DemoDataSeederTests
         public Task AgregarPuntoVentaAsync(PuntoVenta puntoVenta, CancellationToken cancellationToken)
         {
             PuntosVenta.Add(puntoVenta);
+            return Task.CompletedTask;
+        }
+
+        public Task AgregarProductoAsync(Producto producto, CancellationToken cancellationToken)
+        {
+            Productos.Add(producto);
+            return Task.CompletedTask;
+        }
+
+        public Task AgregarStockProductoAsync(StockProducto stock, CancellationToken cancellationToken)
+        {
+            Stocks.Add(stock);
             return Task.CompletedTask;
         }
 

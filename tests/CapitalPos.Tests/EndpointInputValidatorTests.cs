@@ -212,7 +212,7 @@ public class EndpointInputValidatorTests
     [Fact]
     public void AjustarStockProducto_acepta_request_valido()
     {
-        var request = new AjustarStockProductoRequest(Guid.NewGuid(), null, 10m);
+        var request = new AjustarStockProductoRequest(Guid.NewGuid(), Guid.NewGuid(), null, 10m);
 
         var esValido = EndpointInputValidator.TryValidate(request, out var error);
 
@@ -221,9 +221,20 @@ public class EndpointInputValidatorTests
     }
 
     [Fact]
+    public void AjustarStockProducto_rechaza_sede_vacia()
+    {
+        var request = new AjustarStockProductoRequest(Guid.Empty, Guid.NewGuid(), null, 10m);
+
+        var esValido = EndpointInputValidator.TryValidate(request, out var error);
+
+        Assert.False(esValido);
+        Assert.Contains("sede", error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void AjustarStockProducto_rechaza_producto_vacio()
     {
-        var request = new AjustarStockProductoRequest(Guid.Empty, null, 10m);
+        var request = new AjustarStockProductoRequest(Guid.NewGuid(), Guid.Empty, null, 10m);
 
         var esValido = EndpointInputValidator.TryValidate(request, out var error);
 
@@ -234,7 +245,7 @@ public class EndpointInputValidatorTests
     [Fact]
     public void AjustarStockProducto_rechaza_variante_vacia()
     {
-        var request = new AjustarStockProductoRequest(Guid.NewGuid(), Guid.Empty, 10m);
+        var request = new AjustarStockProductoRequest(Guid.NewGuid(), Guid.NewGuid(), Guid.Empty, 10m);
 
         var esValido = EndpointInputValidator.TryValidate(request, out var error);
 
@@ -245,7 +256,7 @@ public class EndpointInputValidatorTests
     [Fact]
     public void AjustarStockProducto_rechaza_cantidad_negativa()
     {
-        var request = new AjustarStockProductoRequest(Guid.NewGuid(), null, -1m);
+        var request = new AjustarStockProductoRequest(Guid.NewGuid(), Guid.NewGuid(), null, -1m);
 
         var esValido = EndpointInputValidator.TryValidate(request, out var error);
 

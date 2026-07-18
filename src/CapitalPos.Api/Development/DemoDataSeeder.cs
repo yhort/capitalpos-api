@@ -42,6 +42,8 @@ public sealed class DemoDataSeeder
         await ObtenerOCrearRelacionAsync(usuario.Id, empresa.Id, cancellationToken);
         var sede = await ObtenerOCrearSedeAsync(empresa.Id, cancellationToken);
         await ObtenerOCrearPuntoVentaAsync(empresa.Id, sede.Id, cancellationToken);
+        var producto = await ObtenerOCrearProductoAsync(empresa.Id, cancellationToken);
+        await ObtenerOCrearStockProductoAsync(empresa.Id, sede.Id, producto.Id, cancellationToken);
         await CrearCredencialSiCorrespondeAsync(usuario.Id, cancellationToken);
         await _store.GuardarCambiosAsync(cancellationToken);
 
@@ -196,5 +198,59 @@ public sealed class DemoDataSeeder
         await _store.AgregarPuntoVentaAsync(puntoVenta, cancellationToken);
 
         return puntoVenta;
+    }
+
+    private async Task<Producto> ObtenerOCrearProductoAsync(
+        Guid empresaId,
+        CancellationToken cancellationToken)
+    {
+        var producto = await _store.ObtenerProductoAsync(
+            empresaId,
+            DemoSeedData.ProductoId,
+            cancellationToken);
+
+        if (producto is not null)
+        {
+            return producto;
+        }
+
+        producto = new Producto(
+            DemoSeedData.ProductoId,
+            empresaId,
+            DemoSeedData.ProductoNombre,
+            DemoSeedData.ProductoPrecioVenta,
+            DemoSeedData.ProductoCodigoSku);
+        await _store.AgregarProductoAsync(producto, cancellationToken);
+
+        return producto;
+    }
+
+    private async Task<StockProducto> ObtenerOCrearStockProductoAsync(
+        Guid empresaId,
+        Guid sedeId,
+        Guid productoId,
+        CancellationToken cancellationToken)
+    {
+        var stock = await _store.ObtenerStockProductoAsync(
+            empresaId,
+            sedeId,
+            productoId,
+            cancellationToken);
+
+        if (stock is not null)
+        {
+            return stock;
+        }
+
+        stock = new StockProducto(
+            DemoSeedData.StockProductoId,
+            empresaId,
+            sedeId,
+            productoId,
+            null,
+            DemoSeedData.StockProductoCantidadDisponible);
+        await _store.AgregarStockProductoAsync(stock, cancellationToken);
+
+        return stock;
     }
 }

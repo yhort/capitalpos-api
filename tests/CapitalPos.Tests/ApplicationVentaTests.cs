@@ -31,8 +31,14 @@ public class ApplicationVentaTests
         await clienteRepository.AgregarAsync(new Cliente(clienteId, empresaId, "DNI", "12345678", "Juan Perez"));
         await productoRepository.AgregarAsync(new Producto(productoId, empresaId, "Polo", 59m));
         await varianteRepository.AgregarAsync(new ProductoVariante(varianteId, empresaId, productoId, talla: "M"));
-        await stockRepository.GuardarAsync(new StockProducto(Guid.NewGuid(), empresaId, productoId, varianteId, 10m));
-        await stockRepository.GuardarAsync(new StockProducto(Guid.NewGuid(), empresaId, productoId, null, 10m));
+        await stockRepository.GuardarAsync(new StockProducto(
+            Guid.NewGuid(),
+            empresaId,
+            SedeIdPrueba, productoId, varianteId, 10m));
+        await stockRepository.GuardarAsync(new StockProducto(
+            Guid.NewGuid(),
+            empresaId,
+            SedeIdPrueba, productoId, null, 10m));
         var useCase = CrearUseCase(
             ventaRepository,
             productoRepository,
@@ -179,7 +185,13 @@ public class ApplicationVentaTests
         var productoRepository = new ProductoRepositoryFake();
         var stockRepository = new StockProductoRepositoryFake();
         await productoRepository.AgregarAsync(new Producto(productoId, empresaId, "Polo", 59m));
-        await stockRepository.GuardarAsync(new StockProducto(Guid.NewGuid(), empresaId, productoId, null, 5m));
+        await stockRepository.GuardarAsync(new StockProducto(
+            Guid.NewGuid(),
+            empresaId,
+            SedeIdPrueba,
+            productoId,
+            null,
+            5m));
         var useCase = CrearUseCase(
             ventaRepository,
             productoRepository,
@@ -210,7 +222,13 @@ public class ApplicationVentaTests
         var stockRepository = new StockProductoRepositoryFake();
         var puntoVentaRepository = new PuntoVentaRepositoryFake();
         await productoRepository.AgregarAsync(new Producto(productoId, empresaId, "Polo", 59m));
-        await stockRepository.GuardarAsync(new StockProducto(Guid.NewGuid(), empresaId, productoId, null, 5m));
+        await stockRepository.GuardarAsync(new StockProducto(
+            Guid.NewGuid(),
+            empresaId,
+            sedeId,
+            productoId,
+            null,
+            5m));
         await puntoVentaRepository.AgregarAsync(new PuntoVenta(
             puntoVentaId,
             empresaId,
@@ -267,7 +285,10 @@ public class ApplicationVentaTests
         var stockRepository = new StockProductoRepositoryFake();
         var puntoVentaRepository = new PuntoVentaRepositoryFake();
         await productoRepository.AgregarAsync(new Producto(productoId, empresaId, "Polo", 59m));
-        await stockRepository.GuardarAsync(new StockProducto(Guid.NewGuid(), empresaId, productoId, null, 5m));
+        await stockRepository.GuardarAsync(new StockProducto(
+            Guid.NewGuid(),
+            empresaId,
+            SedeIdPrueba, productoId, null, 5m));
         var useCase = CrearUseCase(
             new VentaRepositoryFake(),
             productoRepository,
@@ -294,7 +315,10 @@ public class ApplicationVentaTests
         var stockRepository = new StockProductoRepositoryFake();
         var puntoVentaRepository = new PuntoVentaRepositoryFake();
         await productoRepository.AgregarAsync(new Producto(productoId, empresaAId, "Polo", 59m));
-        await stockRepository.GuardarAsync(new StockProducto(Guid.NewGuid(), empresaAId, productoId, null, 5m));
+        await stockRepository.GuardarAsync(new StockProducto(
+            Guid.NewGuid(),
+            empresaAId,
+            SedeIdPrueba, productoId, null, 5m));
         await puntoVentaRepository.AgregarAsync(new PuntoVenta(
             PuntoVentaIdPrueba,
             empresaBId,
@@ -325,7 +349,10 @@ public class ApplicationVentaTests
         var stockRepository = new StockProductoRepositoryFake();
         var puntoVentaRepository = new PuntoVentaRepositoryFake();
         await productoRepository.AgregarAsync(new Producto(productoId, empresaId, "Polo", 59m));
-        await stockRepository.GuardarAsync(new StockProducto(Guid.NewGuid(), empresaId, productoId, null, 5m));
+        await stockRepository.GuardarAsync(new StockProducto(
+            Guid.NewGuid(),
+            empresaId,
+            SedeIdPrueba, productoId, null, 5m));
         await puntoVentaRepository.AgregarAsync(new PuntoVenta(
             PuntoVentaIdPrueba,
             empresaId,
@@ -356,7 +383,10 @@ public class ApplicationVentaTests
         var productoRepository = new ProductoRepositoryFake();
         var stockRepository = new StockProductoRepositoryFake();
         await productoRepository.AgregarAsync(new Producto(productoId, empresaId, "Polo", 59m));
-        await stockRepository.GuardarAsync(new StockProducto(Guid.NewGuid(), empresaId, productoId, null, 5m));
+        await stockRepository.GuardarAsync(new StockProducto(
+            Guid.NewGuid(),
+            empresaId,
+            SedeIdPrueba, productoId, null, 5m));
         var useCase = CrearUseCase(
             ventaRepository,
             productoRepository,
@@ -384,7 +414,10 @@ public class ApplicationVentaTests
         var productoRepository = new ProductoRepositoryFake();
         var stockRepository = new StockProductoRepositoryFake();
         await productoRepository.AgregarAsync(new Producto(productoId, empresaId, "Polo", 59m));
-        await stockRepository.GuardarAsync(new StockProducto(Guid.NewGuid(), empresaId, productoId, null, 5m));
+        await stockRepository.GuardarAsync(new StockProducto(
+            Guid.NewGuid(),
+            empresaId,
+            SedeIdPrueba, productoId, null, 5m));
         var useCase = CrearUseCase(
             ventaRepository,
             productoRepository,
@@ -436,6 +469,7 @@ public class ApplicationVentaTests
         await stockRepository.GuardarAsync(new StockProducto(
             Guid.NewGuid(),
             empresaId,
+            SedeIdPrueba,
             productoId,
             null,
             5m,
@@ -469,7 +503,10 @@ public class ApplicationVentaTests
         var stockRepository = new StockProductoRepositoryFake();
         await productoRepository.AgregarAsync(new Producto(productoId, empresaId, "Polo", 59m));
         await varianteRepository.AgregarAsync(new ProductoVariante(varianteId, empresaId, productoId, talla: "M"));
-        await stockRepository.GuardarAsync(new StockProducto(Guid.NewGuid(), empresaId, productoId, varianteId, 7m));
+        await stockRepository.GuardarAsync(new StockProducto(
+            Guid.NewGuid(),
+            empresaId,
+            SedeIdPrueba, productoId, varianteId, 7m));
         var useCase = CrearUseCase(
             ventaRepository,
             productoRepository,
@@ -495,8 +532,14 @@ public class ApplicationVentaTests
         var stockRepository = new StockProductoRepositoryFake();
         await productoRepository.AgregarAsync(new Producto(productoAId, empresaId, "Polo", 59m));
         await productoRepository.AgregarAsync(new Producto(productoBId, empresaId, "Gorra", 25m));
-        await stockRepository.GuardarAsync(new StockProducto(Guid.NewGuid(), empresaId, productoAId, null, 8m));
-        await stockRepository.GuardarAsync(new StockProducto(Guid.NewGuid(), empresaId, productoBId, null, 6m));
+        await stockRepository.GuardarAsync(new StockProducto(
+            Guid.NewGuid(),
+            empresaId,
+            SedeIdPrueba, productoAId, null, 8m));
+        await stockRepository.GuardarAsync(new StockProducto(
+            Guid.NewGuid(),
+            empresaId,
+            SedeIdPrueba, productoBId, null, 6m));
         var useCase = CrearUseCase(
             ventaRepository,
             productoRepository,
@@ -531,8 +574,14 @@ public class ApplicationVentaTests
         var stockRepository = new StockProductoRepositoryFake();
         await productoRepository.AgregarAsync(new Producto(productoAId, empresaId, "Polo", 59m));
         await productoRepository.AgregarAsync(new Producto(productoBId, empresaId, "Gorra", 25m));
-        await stockRepository.GuardarAsync(new StockProducto(Guid.NewGuid(), empresaId, productoAId, null, 8m));
-        await stockRepository.GuardarAsync(new StockProducto(Guid.NewGuid(), empresaId, productoBId, null, 2m));
+        await stockRepository.GuardarAsync(new StockProducto(
+            Guid.NewGuid(),
+            empresaId,
+            SedeIdPrueba, productoAId, null, 8m));
+        await stockRepository.GuardarAsync(new StockProducto(
+            Guid.NewGuid(),
+            empresaId,
+            SedeIdPrueba, productoBId, null, 2m));
         var useCase = CrearUseCase(
             ventaRepository,
             productoRepository,
@@ -568,7 +617,10 @@ public class ApplicationVentaTests
         var productoRepository = new ProductoRepositoryFake();
         var stockRepository = new StockProductoRepositoryFake();
         await productoRepository.AgregarAsync(new Producto(productoId, empresaId, "Polo", 59m));
-        await stockRepository.GuardarAsync(new StockProducto(Guid.NewGuid(), empresaId, productoId, null, 5m));
+        await stockRepository.GuardarAsync(new StockProducto(
+            Guid.NewGuid(),
+            empresaId,
+            SedeIdPrueba, productoId, null, 5m));
         var useCase = CrearUseCase(
             ventaRepository,
             productoRepository,
@@ -594,7 +646,10 @@ public class ApplicationVentaTests
         var productoRepository = new ProductoRepositoryFake();
         var stockRepository = new StockProductoRepositoryFake();
         await productoRepository.AgregarAsync(new Producto(productoId, empresaAId, "Polo", 59m));
-        await stockRepository.GuardarAsync(new StockProducto(Guid.NewGuid(), empresaBId, productoId, null, 10m));
+        await stockRepository.GuardarAsync(new StockProducto(
+            Guid.NewGuid(),
+            empresaBId,
+            SedeIdPrueba, productoId, null, 10m));
         var useCase = CrearUseCase(
             ventaRepository,
             productoRepository,
@@ -606,6 +661,39 @@ public class ApplicationVentaTests
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             useCase.EjecutarAsync(CrearVentaRequest(productoId, null, 1m)));
 
+        Assert.Empty(ventaRepository.Ventas);
+        Assert.Equal(10m, stockRepository.Stocks.Single().CantidadDisponible);
+    }
+
+    [Fact]
+    public async Task Crear_venta_falla_si_stock_existe_en_otra_sede_pero_no_en_sede_de_venta()
+    {
+        var empresaId = Guid.NewGuid();
+        var productoId = Guid.NewGuid();
+        var otraSedeId = Guid.NewGuid();
+        var ventaRepository = new VentaRepositoryFake();
+        var productoRepository = new ProductoRepositoryFake();
+        var stockRepository = new StockProductoRepositoryFake();
+        await productoRepository.AgregarAsync(new Producto(productoId, empresaId, "Polo", 59m));
+        await stockRepository.GuardarAsync(new StockProducto(
+            Guid.NewGuid(),
+            empresaId,
+            otraSedeId,
+            productoId,
+            null,
+            10m));
+        var useCase = CrearUseCase(
+            ventaRepository,
+            productoRepository,
+            new ProductoVarianteRepositoryFake(),
+            new ClienteRepositoryFake(),
+            stockRepository,
+            empresaId);
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            useCase.EjecutarAsync(CrearVentaRequest(productoId, null, 1m)));
+
+        Assert.Contains("stock", exception.Message, StringComparison.OrdinalIgnoreCase);
         Assert.Empty(ventaRepository.Ventas);
         Assert.Equal(10m, stockRepository.Stocks.Single().CantidadDisponible);
     }
@@ -1463,16 +1551,27 @@ public class ApplicationVentaTests
 
         public Task<StockProducto?> ObtenerPorProductoAsync(
             Guid empresaId,
+            Guid sedeId,
             Guid productoId,
             Guid? productoVarianteId = null,
             CancellationToken cancellationToken = default)
         {
             var stock = Stocks.SingleOrDefault(stock =>
                 stock.EmpresaId == empresaId &&
+                stock.SedeId == sedeId &&
                 stock.ProductoId == productoId &&
                 stock.ProductoVarianteId == productoVarianteId);
 
             return Task.FromResult(stock);
+        }
+
+        public Task<IReadOnlyCollection<StockProducto>> ListarPorSedeAsync(
+            Guid empresaId,
+            Guid sedeId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyCollection<StockProducto>>(
+                Stocks.Where(stock => stock.EmpresaId == empresaId && stock.SedeId == sedeId).ToArray());
         }
 
         public Task<IReadOnlyCollection<StockProducto>> ListarPorEmpresaAsync(

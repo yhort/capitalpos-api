@@ -1,6 +1,7 @@
 using CapitalPos.Application.Inventario;
 using CapitalPos.Application.Persistence;
 using CapitalPos.Application.Productos;
+using CapitalPos.Application.Sedes;
 using CapitalPos.Application.Seguridad;
 using CapitalPos.Domain;
 
@@ -8,6 +9,9 @@ namespace CapitalPos.Tests;
 
 public class ApplicationStockProductoTests
 {
+    private static readonly Guid SedeIdPrueba = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+    private static readonly Guid OtraSedeIdPrueba = Guid.Parse("cccccccc-cccc-cccc-cccc-cccccccccccc");
+
     [Fact]
     public async Task Ajustar_stock_crea_stock_para_empresa_activa()
     {
@@ -20,15 +24,18 @@ public class ApplicationStockProductoTests
             repository,
             productoRepository,
             new ProductoVarianteRepositoryFake(),
+            CrearSedeRepository(empresaId),
             new UnitOfWorkFake(),
             new EmpresaActivaContextFake(empresaId));
 
         var stock = await useCase.EjecutarAsync(new AjustarStockProductoRequest(
+            SedeIdPrueba,
             productoId,
             null,
             12m));
 
         Assert.Equal(empresaId, stock.EmpresaId);
+        Assert.Equal(SedeIdPrueba, stock.SedeId);
         Assert.Equal(productoId, stock.ProductoId);
         Assert.Equal(12m, stock.CantidadDisponible);
         Assert.Same(stock, repository.Stocks.Single());
@@ -45,6 +52,7 @@ public class ApplicationStockProductoTests
         var existente = new StockProducto(
             Guid.NewGuid(),
             empresaId,
+            SedeIdPrueba,
             productoId,
             null,
             5m);
@@ -53,10 +61,12 @@ public class ApplicationStockProductoTests
             repository,
             productoRepository,
             new ProductoVarianteRepositoryFake(),
+            CrearSedeRepository(empresaId),
             new UnitOfWorkFake(),
             new EmpresaActivaContextFake(empresaId));
 
         var stock = await useCase.EjecutarAsync(new AjustarStockProductoRequest(
+            SedeIdPrueba,
             productoId,
             null,
             15m));
@@ -74,11 +84,13 @@ public class ApplicationStockProductoTests
             repository,
             new ProductoRepositoryFake(),
             new ProductoVarianteRepositoryFake(),
+            new SedeRepositoryFake(),
             new UnitOfWorkFake(),
             new EmpresaActivaContextFake());
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             useCase.EjecutarAsync(new AjustarStockProductoRequest(
+                SedeIdPrueba,
                 Guid.NewGuid(),
                 null,
                 10m)));
@@ -98,11 +110,13 @@ public class ApplicationStockProductoTests
             repository,
             productoRepository,
             new ProductoVarianteRepositoryFake(),
+            CrearSedeRepository(empresaActivaId),
             new UnitOfWorkFake(),
             new EmpresaActivaContextFake(empresaActivaId));
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             useCase.EjecutarAsync(new AjustarStockProductoRequest(
+                SedeIdPrueba,
                 productoId,
                 null,
                 10m)));
@@ -131,11 +145,13 @@ public class ApplicationStockProductoTests
             repository,
             productoRepository,
             varianteRepository,
+            CrearSedeRepository(empresaId),
             new UnitOfWorkFake(),
             new EmpresaActivaContextFake(empresaId));
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             useCase.EjecutarAsync(new AjustarStockProductoRequest(
+                SedeIdPrueba,
                 productoId,
                 varianteId,
                 10m)));
@@ -145,21 +161,80 @@ public class ApplicationStockProductoTests
     }
 
     [Fact]
+    public async Task Ajustar_stock_falla_si_sede_no_pertenece_a_empresa_activa()
+    {
+        var empresaId = Guid.NewGuid();
+        var productoId = Guid.NewGuid();
+        var repository = new StockProductoRepositoryFake();
+        var productoRepository = new ProductoRepositoryFake();
+        await productoRepository.AgregarAsync(CrearProducto(empresaId, productoId));
+        var useCase = new AjustarStockProductoUseCase(
+            repository,
+            productoRepository,
+            new ProductoVarianteRepositoryFake(),
+            new SedeRepositoryFake(),
+            new UnitOfWorkFake(),
+            new EmpresaActivaContextFake(empresaId));
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            useCase.EjecutarAsync(new AjustarStockProductoRequest(
+                SedeIdPrueba,
+                productoId,
+                null,
+                10m)));
+
+        Assert.Contains("sede", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(repository.Stocks);
+    }
+
+    [Fact]
+    public async Task Ajustar_stock_en_sede_a_no_afecta_sede_b()
+    {
+        var empresaId = Guid.NewGuid();
+        var productoId = Guid.NewGuid();
+        var repository = new StockProductoRepositoryFake();
+        var productoRepository = new ProductoRepositoryFake();
+        await productoRepository.AgregarAsync(CrearProducto(empresaId, productoId));
+        var stockA = new StockProducto(Guid.NewGuid(), empresaId, SedeIdPrueba, productoId, null, 10m);
+        var stockB = new StockProducto(Guid.NewGuid(), empresaId, OtraSedeIdPrueba, productoId, null, 20m);
+        await repository.GuardarAsync(stockA);
+        await repository.GuardarAsync(stockB);
+        var useCase = new AjustarStockProductoUseCase(
+            repository,
+            productoRepository,
+            new ProductoVarianteRepositoryFake(),
+            CrearSedeRepository(empresaId, OtraSedeIdPrueba),
+            new UnitOfWorkFake(),
+            new EmpresaActivaContextFake(empresaId));
+
+        var stock = await useCase.EjecutarAsync(new AjustarStockProductoRequest(
+            OtraSedeIdPrueba,
+            productoId,
+            null,
+            30m));
+
+        Assert.Same(stockB, stock);
+        Assert.Equal(10m, stockA.CantidadDisponible);
+        Assert.Equal(30m, stockB.CantidadDisponible);
+    }
+
+    [Fact]
     public async Task Obtener_stock_usa_empresa_activa()
     {
         var empresaAId = Guid.NewGuid();
         var empresaBId = Guid.NewGuid();
         var productoId = Guid.NewGuid();
         var repository = new StockProductoRepositoryFake();
-        var stockA = new StockProducto(Guid.NewGuid(), empresaAId, productoId, null, 10m);
-        var stockB = new StockProducto(Guid.NewGuid(), empresaBId, productoId, null, 20m);
+        var stockA = new StockProducto(Guid.NewGuid(), empresaAId, SedeIdPrueba, productoId, null, 10m);
+        var stockB = new StockProducto(Guid.NewGuid(), empresaBId, SedeIdPrueba, productoId, null, 20m);
         await repository.GuardarAsync(stockA);
         await repository.GuardarAsync(stockB);
         var useCase = new ObtenerStockProductoUseCase(
             repository,
+            CrearSedeRepository(empresaAId),
             new EmpresaActivaContextFake(empresaAId));
 
-        var stock = await useCase.EjecutarAsync(productoId);
+        var stock = await useCase.EjecutarAsync(SedeIdPrueba, productoId);
 
         Assert.Same(stockA, stock);
         Assert.NotSame(stockB, stock);
@@ -170,10 +245,23 @@ public class ApplicationStockProductoTests
     {
         var useCase = new ObtenerStockProductoUseCase(
             new StockProductoRepositoryFake(),
+            new SedeRepositoryFake(),
             new EmpresaActivaContextFake());
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            useCase.EjecutarAsync(Guid.NewGuid()));
+            useCase.EjecutarAsync(SedeIdPrueba, Guid.NewGuid()));
+    }
+
+    private static SedeRepositoryFake CrearSedeRepository(Guid empresaId, Guid? sedeId = null)
+    {
+        var repository = new SedeRepositoryFake();
+        repository.Sedes.Add(new Sede(
+            sedeId ?? SedeIdPrueba,
+            empresaId,
+            "Sede prueba",
+            TipoSede.TIENDA));
+
+        return repository;
     }
 
     private static Producto CrearProducto(Guid empresaId, Guid productoId)
@@ -296,18 +384,50 @@ public class ApplicationStockProductoTests
         }
     }
 
+    private sealed class SedeRepositoryFake : ISedeRepository
+    {
+        public List<Sede> Sedes { get; } = new();
+
+        public Task AgregarAsync(Sede sede, CancellationToken cancellationToken = default)
+        {
+            Sedes.Add(sede);
+
+            return Task.CompletedTask;
+        }
+
+        public Task<IReadOnlyCollection<Sede>> ListarPorEmpresaAsync(
+            Guid empresaId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyCollection<Sede>>(
+                Sedes.Where(sede => sede.EmpresaId == empresaId).ToArray());
+        }
+
+        public Task<Sede?> ObtenerPorEmpresaAsync(
+            Guid empresaId,
+            Guid id,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(Sedes.FirstOrDefault(sede =>
+                sede.EmpresaId == empresaId &&
+                sede.Id == id));
+        }
+    }
+
     private sealed class StockProductoRepositoryFake : IStockProductoRepository
     {
         public List<StockProducto> Stocks { get; } = new();
 
         public Task<StockProducto?> ObtenerPorProductoAsync(
             Guid empresaId,
+            Guid sedeId,
             Guid productoId,
             Guid? productoVarianteId = null,
             CancellationToken cancellationToken = default)
         {
             var stock = Stocks.SingleOrDefault(stock =>
                 stock.EmpresaId == empresaId &&
+                stock.SedeId == sedeId &&
                 stock.ProductoId == productoId &&
                 stock.ProductoVarianteId == productoVarianteId);
 
@@ -320,6 +440,15 @@ public class ApplicationStockProductoTests
         {
             return Task.FromResult<IReadOnlyCollection<StockProducto>>(
                 Stocks.Where(stock => stock.EmpresaId == empresaId).ToArray());
+        }
+
+        public Task<IReadOnlyCollection<StockProducto>> ListarPorSedeAsync(
+            Guid empresaId,
+            Guid sedeId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyCollection<StockProducto>>(
+                Stocks.Where(stock => stock.EmpresaId == empresaId && stock.SedeId == sedeId).ToArray());
         }
 
         public Task GuardarAsync(

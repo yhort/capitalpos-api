@@ -60,7 +60,7 @@ public sealed class CrearVentaUseCase
             detalles.Add(detalleRequest.CrearDetalle(empresaId, ventaId));
         }
 
-        var stocksADescontar = await ValidarStockAsync(empresaId, detalles, cancellationToken);
+        var stocksADescontar = await ValidarStockAsync(empresaId, puntoVenta.SedeId, detalles, cancellationToken);
 
         var total = detalles.Sum(detalle => detalle.Total);
         var igv = detalles.Sum(detalle => detalle.Igv);
@@ -204,6 +204,7 @@ public sealed class CrearVentaUseCase
 
     private async Task<IReadOnlyCollection<StockADescontar>> ValidarStockAsync(
         Guid empresaId,
+        Guid sedeId,
         IReadOnlyCollection<VentaDetalle> detalles,
         CancellationToken cancellationToken)
     {
@@ -220,6 +221,7 @@ public sealed class CrearVentaUseCase
         {
             var stock = await _stockRepository.ObtenerPorProductoAsync(
                 empresaId,
+                sedeId,
                 item.ProductoId,
                 item.ProductoVarianteId,
                 cancellationToken);
