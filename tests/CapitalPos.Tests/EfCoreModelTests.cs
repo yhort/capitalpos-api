@@ -26,6 +26,7 @@ public class EfCoreModelTests
         Assert.NotNull(context.Model.FindEntityType(typeof(StockProducto)));
         Assert.NotNull(context.Model.FindEntityType(typeof(Sede)));
         Assert.NotNull(context.Model.FindEntityType(typeof(PuntoVenta)));
+        Assert.NotNull(context.Model.FindEntityType(typeof(SerieComprobante)));
     }
 
     [Fact]
@@ -583,6 +584,53 @@ public class EfCoreModelTests
             foreignKey.Properties.Select(property => property.Name).SequenceEqual([
                 nameof(PuntoVenta.SedeId),
                 nameof(PuntoVenta.EmpresaId)
+            ]) &&
+            foreignKey.PrincipalKey.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(Sede.Id),
+                nameof(Sede.EmpresaId)
+            ]));
+    }
+
+    [Fact]
+    public void Serie_comprobante_tiene_empresa_sede_tipo_serie_correlativo_indices_y_relaciones()
+    {
+        var entityType = ObtenerEntidad<SerieComprobante>();
+
+        Assert.Equal("series_comprobante", entityType.GetTableName());
+        Assert.Equal(nameof(SerieComprobante.Id), entityType.FindPrimaryKey()?.Properties.Single().Name);
+        AssertPropiedad(entityType, nameof(SerieComprobante.EmpresaId), nullable: false);
+        AssertPropiedad(entityType, nameof(SerieComprobante.SedeId), nullable: false);
+        AssertPropiedad(entityType, nameof(SerieComprobante.TipoComprobante), maxLength: 10, nullable: false);
+        AssertPropiedad(entityType, nameof(SerieComprobante.Serie), maxLength: 20, nullable: false);
+        AssertPropiedad(entityType, nameof(SerieComprobante.CorrelativoActual), nullable: false);
+        AssertPropiedad(entityType, nameof(SerieComprobante.Activa), nullable: false);
+        AssertPropiedad(entityType, nameof(SerieComprobante.FechaCreacion), nullable: false);
+
+        Assert.Contains(entityType.GetIndexes(), index =>
+            index.Properties.Select(property => property.Name).SequenceEqual([nameof(SerieComprobante.EmpresaId)]));
+        Assert.Contains(entityType.GetIndexes(), index =>
+            index.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(SerieComprobante.EmpresaId),
+                nameof(SerieComprobante.SedeId)
+            ]));
+        Assert.Contains(entityType.GetIndexes(), index =>
+            index.IsUnique &&
+            index.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(SerieComprobante.EmpresaId),
+                nameof(SerieComprobante.SedeId),
+                nameof(SerieComprobante.TipoComprobante),
+                nameof(SerieComprobante.Serie)
+            ]));
+        Assert.Contains(entityType.GetForeignKeys(), foreignKey =>
+            foreignKey.PrincipalEntityType.ClrType == typeof(Empresa) &&
+            foreignKey.DeleteBehavior == DeleteBehavior.Restrict &&
+            foreignKey.Properties.Select(property => property.Name).SequenceEqual([nameof(SerieComprobante.EmpresaId)]));
+        Assert.Contains(entityType.GetForeignKeys(), foreignKey =>
+            foreignKey.PrincipalEntityType.ClrType == typeof(Sede) &&
+            foreignKey.DeleteBehavior == DeleteBehavior.Restrict &&
+            foreignKey.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(SerieComprobante.SedeId),
+                nameof(SerieComprobante.EmpresaId)
             ]) &&
             foreignKey.PrincipalKey.Properties.Select(property => property.Name).SequenceEqual([
                 nameof(Sede.Id),

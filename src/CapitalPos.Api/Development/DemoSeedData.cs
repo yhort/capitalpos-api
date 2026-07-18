@@ -11,6 +11,7 @@ public static class DemoSeedData
     public static readonly Guid PuntoVentaId = Guid.Parse("10000000-0000-0000-0000-000000000005");
     public static readonly Guid ProductoId = Guid.Parse("10000000-0000-0000-0000-000000000006");
     public static readonly Guid StockProductoId = Guid.Parse("10000000-0000-0000-0000-000000000007");
+    public static readonly Guid SerieComprobanteId = Guid.Parse("10000000-0000-0000-0000-000000000008");
 
     public const string EmpresaRuc = "20600000001";
     public const string EmpresaRazonSocial = "CapitalPOS Demo S.A.C.";
@@ -32,4 +33,7 @@ public static class DemoSeedData
     public const string ProductoCodigoSku = "DEMO-001";
     public const decimal ProductoPrecioVenta = 10m;
     public const decimal StockProductoCantidadDisponible = 20m;
+    public const string SerieComprobanteTipo = "03";
+    public const string SerieComprobanteSerie = "B001";
+    public const int SerieComprobanteCorrelativoActual = 0;
 }

@@ -3,6 +3,7 @@ using CapitalPos.Application.Empresas;
 using CapitalPos.Application.Inventario;
 using CapitalPos.Application.Sedes;
 using CapitalPos.Application.Seguridad;
+using CapitalPos.Application.Series;
 using CapitalPos.Application.Usuarios;
 using CapitalPos.Infrastructure.Persistence.Repositories;
 
@@ -58,9 +59,16 @@ public class EfRepositoryStructureTests
         Assert.True(typeof(IPuntoVentaRepository).IsAssignableFrom(typeof(EfPuntoVentaRepository)));
     }
 
+    [Fact]
+    public void Ef_serie_comprobante_repository_implementa_puerto_de_aplicacion()
+    {
+        Assert.True(typeof(ISerieComprobanteRepository).IsAssignableFrom(typeof(EfSerieComprobanteRepository)));
+    }
+
     [Theory]
     [InlineData("src/CapitalPos.Infrastructure/Persistence/Repositories/EfSedeRepository.cs")]
     [InlineData("src/CapitalPos.Infrastructure/Persistence/Repositories/EfPuntoVentaRepository.cs")]
+    [InlineData("src/CapitalPos.Infrastructure/Persistence/Repositories/EfSerieComprobanteRepository.cs")]
     public void Repositorios_sede_punto_venta_filtran_por_empresa(string relativePath)
     {
         var source = File.ReadAllText(ResolverRutaRepo(relativePath));

@@ -28,6 +28,7 @@ public class DemoDataSeederTests
         Assert.Empty(store.PuntosVenta);
         Assert.Empty(store.Productos);
         Assert.Empty(store.Stocks);
+        Assert.Empty(store.SeriesComprobante);
         Assert.Equal(0, store.SaveChangesCount);
     }
 
@@ -47,6 +48,7 @@ public class DemoDataSeederTests
         Assert.Empty(store.PuntosVenta);
         Assert.Empty(store.Productos);
         Assert.Empty(store.Stocks);
+        Assert.Empty(store.SeriesComprobante);
         Assert.Equal(0, store.SaveChangesCount);
     }
 
@@ -96,6 +98,14 @@ public class DemoDataSeederTests
         Assert.Null(stock.ProductoVarianteId);
         Assert.Equal(DemoSeedData.StockProductoCantidadDisponible, stock.CantidadDisponible);
 
+        var serie = Assert.Single(store.SeriesComprobante);
+        Assert.Equal(empresa.Id, serie.EmpresaId);
+        Assert.Equal(sede.Id, serie.SedeId);
+        Assert.Equal(DemoSeedData.SerieComprobanteTipo, serie.TipoComprobante);
+        Assert.Equal(DemoSeedData.SerieComprobanteSerie, serie.Serie);
+        Assert.Equal(DemoSeedData.SerieComprobanteCorrelativoActual, serie.CorrelativoActual);
+        Assert.True(serie.Activa);
+
         var credencial = Assert.Single(store.Credenciales);
         Assert.Equal(usuario.Id, credencial.UsuarioId);
         Assert.NotEqual(PasswordDemo, credencial.PasswordHash);
@@ -121,6 +131,7 @@ public class DemoDataSeederTests
         Assert.Single(store.PuntosVenta);
         Assert.Single(store.Productos);
         Assert.Single(store.Stocks);
+        Assert.Single(store.SeriesComprobante);
         Assert.Empty(store.Credenciales);
         Assert.Contains(logger.Messages, message => message.Contains("AdminPassword no esta configurado", StringComparison.Ordinal));
         Assert.DoesNotContain(logger.Messages, message => message.Contains("password", StringComparison.Ordinal) &&
@@ -146,6 +157,7 @@ public class DemoDataSeederTests
         Assert.Single(store.PuntosVenta);
         Assert.Single(store.Productos);
         Assert.Single(store.Stocks);
+        Assert.Single(store.SeriesComprobante);
         var credencial = Assert.Single(store.Credenciales);
         Assert.Equal(hashOriginal, credencial.PasswordHash);
         Assert.Equal(2, store.SaveChangesCount);
@@ -218,6 +230,8 @@ public class DemoDataSeederTests
 
         public List<StockProducto> Stocks { get; } = [];
 
+        public List<SerieComprobante> SeriesComprobante { get; } = [];
+
         public int SaveChangesCount { get; private set; }
 
         public Task<Empresa?> ObtenerEmpresaPorRucAsync(string ruc, CancellationToken cancellationToken)
@@ -288,6 +302,23 @@ public class DemoDataSeederTests
                 stock.ProductoVarianteId is null));
         }
 
+        public Task<SerieComprobante?> ObtenerSerieComprobanteAsync(
+            Guid empresaId,
+            Guid sedeId,
+            string tipoComprobante,
+            string serie,
+            CancellationToken cancellationToken)
+        {
+            var tipoNormalizado = tipoComprobante.Trim().ToUpperInvariant();
+            var serieNormalizada = serie.Trim().ToUpperInvariant();
+
+            return Task.FromResult(SeriesComprobante.SingleOrDefault(serieComprobante =>
+                serieComprobante.EmpresaId == empresaId &&
+                serieComprobante.SedeId == sedeId &&
+                serieComprobante.TipoComprobante == tipoNormalizado &&
+                serieComprobante.Serie == serieNormalizada));
+        }
+
         public Task AgregarEmpresaAsync(Empresa empresa, CancellationToken cancellationToken)
         {
             Empresas.Add(empresa);
@@ -333,6 +364,12 @@ public class DemoDataSeederTests
         public Task AgregarStockProductoAsync(StockProducto stock, CancellationToken cancellationToken)
         {
             Stocks.Add(stock);
+            return Task.CompletedTask;
+        }
+
+        public Task AgregarSerieComprobanteAsync(SerieComprobante serie, CancellationToken cancellationToken)
+        {
+            SeriesComprobante.Add(serie);
             return Task.CompletedTask;
         }
 

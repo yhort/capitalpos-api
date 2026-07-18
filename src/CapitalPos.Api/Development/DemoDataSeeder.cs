@@ -44,6 +44,7 @@ public sealed class DemoDataSeeder
         await ObtenerOCrearPuntoVentaAsync(empresa.Id, sede.Id, cancellationToken);
         var producto = await ObtenerOCrearProductoAsync(empresa.Id, cancellationToken);
         await ObtenerOCrearStockProductoAsync(empresa.Id, sede.Id, producto.Id, cancellationToken);
+        await ObtenerOCrearSerieComprobanteAsync(empresa.Id, sede.Id, cancellationToken);
         await CrearCredencialSiCorrespondeAsync(usuario.Id, cancellationToken);
         await _store.GuardarCambiosAsync(cancellationToken);
 
@@ -252,5 +253,34 @@ public sealed class DemoDataSeeder
         await _store.AgregarStockProductoAsync(stock, cancellationToken);
 
         return stock;
+    }
+
+    private async Task<SerieComprobante> ObtenerOCrearSerieComprobanteAsync(
+        Guid empresaId,
+        Guid sedeId,
+        CancellationToken cancellationToken)
+    {
+        var serie = await _store.ObtenerSerieComprobanteAsync(
+            empresaId,
+            sedeId,
+            DemoSeedData.SerieComprobanteTipo,
+            DemoSeedData.SerieComprobanteSerie,
+            cancellationToken);
+
+        if (serie is not null)
+        {
+            return serie;
+        }
+
+        serie = new SerieComprobante(
+            DemoSeedData.SerieComprobanteId,
+            empresaId,
+            sedeId,
+            DemoSeedData.SerieComprobanteTipo,
+            DemoSeedData.SerieComprobanteSerie,
+            DemoSeedData.SerieComprobanteCorrelativoActual);
+        await _store.AgregarSerieComprobanteAsync(serie, cancellationToken);
+
+        return serie;
     }
 }

@@ -36,6 +36,13 @@ public interface IDemoSeedStore
         Guid productoId,
         CancellationToken cancellationToken);
 
+    Task<SerieComprobante?> ObtenerSerieComprobanteAsync(
+        Guid empresaId,
+        Guid sedeId,
+        string tipoComprobante,
+        string serie,
+        CancellationToken cancellationToken);
+
     Task AgregarEmpresaAsync(Empresa empresa, CancellationToken cancellationToken);
 
     Task AgregarUsuarioAsync(Usuario usuario, CancellationToken cancellationToken);
@@ -51,6 +58,8 @@ public interface IDemoSeedStore
     Task AgregarProductoAsync(Producto producto, CancellationToken cancellationToken);
 
     Task AgregarStockProductoAsync(StockProducto stock, CancellationToken cancellationToken);
+
+    Task AgregarSerieComprobanteAsync(SerieComprobante serie, CancellationToken cancellationToken);
 
     Task GuardarCambiosAsync(CancellationToken cancellationToken);
 }

@@ -8,6 +8,7 @@ using CapitalPos.Application.Persistence;
 using CapitalPos.Application.Productos;
 using CapitalPos.Application.Sedes;
 using CapitalPos.Application.Seguridad;
+using CapitalPos.Application.Series;
 using CapitalPos.Application.Usuarios;
 using CapitalPos.Application.Ventas;
 using CapitalPos.Infrastructure.Auditing;
@@ -50,6 +51,7 @@ public static class DependencyInjection
         services.AddScoped<IStockProductoRepository, EfStockProductoRepository>();
         services.AddScoped<ISedeRepository, EfSedeRepository>();
         services.AddScoped<IPuntoVentaRepository, EfPuntoVentaRepository>();
+        services.AddScoped<ISerieComprobanteRepository, EfSerieComprobanteRepository>();
         services.AddScoped<IUnitOfWork, EfUnitOfWork>();
         services.AddScoped<IAuditoriaOperaciones, LoggerAuditoriaOperaciones>();
         services.AddScoped<IPasswordHasher, AspNetCoreIdentityPasswordHasher>();

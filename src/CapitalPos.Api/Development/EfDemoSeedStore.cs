@@ -92,6 +92,26 @@ public sealed class EfDemoSeedStore : IDemoSeedStore
                 cancellationToken);
     }
 
+    public Task<SerieComprobante?> ObtenerSerieComprobanteAsync(
+        Guid empresaId,
+        Guid sedeId,
+        string tipoComprobante,
+        string serie,
+        CancellationToken cancellationToken)
+    {
+        var tipoNormalizado = NormalizarTexto(tipoComprobante).ToUpperInvariant();
+        var serieNormalizada = NormalizarTexto(serie).ToUpperInvariant();
+
+        return _dbContext.SeriesComprobante
+            .SingleOrDefaultAsync(
+                serieComprobante =>
+                    serieComprobante.EmpresaId == empresaId &&
+                    serieComprobante.SedeId == sedeId &&
+                    serieComprobante.TipoComprobante == tipoNormalizado &&
+                    serieComprobante.Serie == serieNormalizada,
+                cancellationToken);
+    }
+
     public async Task AgregarEmpresaAsync(Empresa empresa, CancellationToken cancellationToken)
     {
         await _dbContext.Empresas.AddAsync(empresa, cancellationToken);
@@ -132,8 +152,18 @@ public sealed class EfDemoSeedStore : IDemoSeedStore
         await _dbContext.StocksProductos.AddAsync(stock, cancellationToken);
     }
 
+    public async Task AgregarSerieComprobanteAsync(SerieComprobante serie, CancellationToken cancellationToken)
+    {
+        await _dbContext.SeriesComprobante.AddAsync(serie, cancellationToken);
+    }
+
     public Task GuardarCambiosAsync(CancellationToken cancellationToken)
     {
         return _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private static string NormalizarTexto(string? valor)
+    {
+        return valor?.Trim() ?? string.Empty;
     }
 }

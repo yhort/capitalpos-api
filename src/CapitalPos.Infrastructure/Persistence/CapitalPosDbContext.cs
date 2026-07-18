@@ -38,6 +38,8 @@ public sealed class CapitalPosDbContext : DbContext
 
     public DbSet<PuntoVenta> PuntosVenta => Set<PuntoVenta>();
 
+    public DbSet<SerieComprobante> SeriesComprobante => Set<SerieComprobante>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(CapitalPosDbContext).Assembly);

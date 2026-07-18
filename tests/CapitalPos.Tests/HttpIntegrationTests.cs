@@ -16,6 +16,7 @@ using CapitalPos.Application.Productos;
 using CapitalPos.Application.Reportes;
 using CapitalPos.Application.Sedes;
 using CapitalPos.Application.Seguridad;
+using CapitalPos.Application.Series;
 using CapitalPos.Application.Usuarios;
 using CapitalPos.Application.Ventas;
 using CapitalPos.Domain;
@@ -1663,6 +1664,8 @@ public class HttpIntegrationTests
 
         public FakePuntoVentaRepository PuntoVentaRepository { get; } = new();
 
+        public FakeSerieComprobanteRepository SerieComprobanteRepository { get; } = new();
+
         public FakeVentaRepository VentaRepository { get; } = new();
 
         public IDashboardComercialClock DashboardClock { get; set; } =
@@ -1714,6 +1717,7 @@ public class HttpIntegrationTests
                 services.RemoveAll<IStockProductoRepository>();
                 services.RemoveAll<ISedeRepository>();
                 services.RemoveAll<IPuntoVentaRepository>();
+                services.RemoveAll<ISerieComprobanteRepository>();
                 services.RemoveAll<IUnitOfWork>();
                 services.RemoveAll<IDashboardComercialClock>();
 
@@ -1730,6 +1734,7 @@ public class HttpIntegrationTests
                 services.AddSingleton<IStockProductoRepository>(StockRepository);
                 services.AddSingleton<ISedeRepository>(SedeRepository);
                 services.AddSingleton<IPuntoVentaRepository>(PuntoVentaRepository);
+                services.AddSingleton<ISerieComprobanteRepository>(SerieComprobanteRepository);
                 services.AddSingleton<IUnitOfWork, FakeUnitOfWork>();
                 services.AddSingleton(DashboardClock);
             });
@@ -2261,6 +2266,44 @@ public class HttpIntegrationTests
             }
 
             return Task.CompletedTask;
+        }
+    }
+
+    private sealed class FakeSerieComprobanteRepository : ISerieComprobanteRepository
+    {
+        public List<SerieComprobante> Series { get; } = [];
+
+        public Task AgregarAsync(SerieComprobante serie, CancellationToken cancellationToken = default)
+        {
+            Series.Add(serie);
+            return Task.CompletedTask;
+        }
+
+        public Task<IReadOnlyCollection<SerieComprobante>> ListarPorSedeAsync(
+            Guid empresaId,
+            Guid sedeId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyCollection<SerieComprobante>>(
+                Series.Where(serie => serie.EmpresaId == empresaId && serie.SedeId == sedeId).ToArray());
+        }
+
+        public Task<SerieComprobante?> ObtenerActivaAsync(
+            Guid empresaId,
+            Guid sedeId,
+            string tipoComprobante,
+            string serie,
+            CancellationToken cancellationToken = default)
+        {
+            var tipoNormalizado = tipoComprobante.Trim().ToUpperInvariant();
+            var serieNormalizada = serie.Trim().ToUpperInvariant();
+
+            return Task.FromResult(Series.SingleOrDefault(serieComprobante =>
+                serieComprobante.EmpresaId == empresaId &&
+                serieComprobante.SedeId == sedeId &&
+                serieComprobante.TipoComprobante == tipoNormalizado &&
+                serieComprobante.Serie == serieNormalizada &&
+                serieComprobante.Activa));
         }
     }
 }
