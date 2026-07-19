@@ -17,4 +17,12 @@ public interface ISerieComprobanteRepository
         string tipoComprobante,
         string serie,
         CancellationToken cancellationToken = default);
+
+    Task<SerieComprobante?> ObtenerActivaPorSedeYTipoAsync(
+        Guid empresaId,
+        Guid sedeId,
+        string tipoComprobante,
+        CancellationToken cancellationToken = default);
+
+    Task GuardarAsync(SerieComprobante serie, CancellationToken cancellationToken = default);
 }

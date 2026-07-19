@@ -55,6 +55,33 @@ public sealed class EfSerieComprobanteRepository : ISerieComprobanteRepository
                 cancellationToken);
     }
 
+    public Task<SerieComprobante?> ObtenerActivaPorSedeYTipoAsync(
+        Guid empresaId,
+        Guid sedeId,
+        string tipoComprobante,
+        CancellationToken cancellationToken = default)
+    {
+        var tipoNormalizado = NormalizarTexto(tipoComprobante).ToUpperInvariant();
+
+        return _dbContext.SeriesComprobante
+            .Where(serieComprobante =>
+                serieComprobante.EmpresaId == empresaId &&
+                serieComprobante.SedeId == sedeId &&
+                serieComprobante.TipoComprobante == tipoNormalizado &&
+                serieComprobante.Activa)
+            .OrderBy(serieComprobante => serieComprobante.Serie)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task GuardarAsync(
+        SerieComprobante serie,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(serie);
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
     private static string NormalizarTexto(string? valor)
     {
         return valor?.Trim() ?? string.Empty;

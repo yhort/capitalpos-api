@@ -6,6 +6,7 @@ using CapitalPos.Application.Inventario;
 using CapitalPos.Application.Productos;
 using CapitalPos.Application.Sedes;
 using CapitalPos.Application.Seguridad;
+using CapitalPos.Application.Series;
 using CapitalPos.Application.Ventas;
 using CapitalPos.Domain;
 
@@ -710,6 +711,7 @@ public class ApplicationVentaTests
         var clienteRepository = new ClienteRepositoryFake();
         var productoRepository = new ProductoRepositoryFake();
         var varianteRepository = new ProductoVarianteRepositoryFake();
+        var serieRepository = new SerieComprobanteRepositoryFake();
         var gateway = new CpeGatewayFake();
         await configuracionFiscalRepository.GuardarAsync(new ConfiguracionFiscalEmpresa(
             empresaId,
@@ -723,6 +725,13 @@ public class ApplicationVentaTests
             "ANCON"));
         await clienteRepository.AgregarAsync(new Cliente(clienteId, empresaId, "DNI", "12345678", "Cliente Demo"));
         await productoRepository.AgregarAsync(new Producto(productoId, empresaId, "Producto gravado", 59m, "SKU-001"));
+        await serieRepository.GuardarAsync(new SerieComprobante(
+            Guid.NewGuid(),
+            empresaId,
+            SedeIdPrueba,
+            "03",
+            "B123",
+            41));
         var detalle = new VentaDetalle(
             Guid.NewGuid(),
             empresaId,
@@ -750,17 +759,21 @@ public class ApplicationVentaTests
             clienteRepository,
             productoRepository,
             varianteRepository,
+            serieRepository,
             gateway,
             new EmpresaActivaContextFake(empresaId));
-        var request = new EmitirCpeDesdeVentaRequest("03", "B001", 7, "20601234567");
+        var request = new EmitirCpeDesdeVentaRequest("03", "B999", 7, "20601234567");
 
         var response = await useCase.EjecutarAsync(ventaId, request);
 
         Assert.NotNull(response);
         Assert.NotNull(gateway.UltimoRequest);
         Assert.Equal("03", gateway.UltimoRequest.Value.GetProperty("tipoComprobante").GetString());
-        Assert.Equal("B001", gateway.UltimoRequest.Value.GetProperty("serie").GetString());
-        Assert.Equal(7, gateway.UltimoRequest.Value.GetProperty("correlativo").GetInt32());
+        Assert.Equal("B123", gateway.UltimoRequest.Value.GetProperty("serie").GetString());
+        Assert.Equal(42, gateway.UltimoRequest.Value.GetProperty("correlativo").GetInt32());
+        Assert.Equal("B123", response.Serie);
+        Assert.Equal(42, response.Correlativo);
+        Assert.Equal(42, serieRepository.Series.Single().CorrelativoActual);
         Assert.Equal("20601234567", gateway.UltimoRequest.Value.GetProperty("rucEmisor").GetString());
         Assert.Equal("PEN", gateway.UltimoRequest.Value.GetProperty("moneda").GetString());
         Assert.Equal("0101", gateway.UltimoRequest.Value.GetProperty("tipoOperacion").GetString());
@@ -852,6 +865,139 @@ public class ApplicationVentaTests
     }
 
     [Fact]
+    public async Task Emitir_cpe_desde_venta_use_case_falla_si_no_existe_serie_activa()
+    {
+        var escenario = await CrearEscenarioEmisionAsync();
+        escenario.SerieRepository.Series.Clear();
+        var configuracionFiscalRepository = new ConfiguracionFiscalEmpresaRepositoryFake();
+        await GuardarConfiguracionFiscalAsync(configuracionFiscalRepository, escenario.EmpresaId);
+        var useCase = CrearUseCaseEmision(
+            escenario,
+            configuracionFiscalRepository);
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            useCase.EjecutarAsync(
+                escenario.VentaId,
+                new EmitirCpeDesdeVentaRequest("03", "B001", 7, "20601234567")));
+
+        Assert.Contains("serie activa", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Null(escenario.Gateway.UltimoRequest);
+    }
+
+    [Fact]
+    public async Task Emitir_cpe_desde_venta_use_case_falla_si_serie_es_de_otra_sede()
+    {
+        var escenario = await CrearEscenarioEmisionAsync();
+        escenario.SerieRepository.Series.Clear();
+        await escenario.SerieRepository.GuardarAsync(new SerieComprobante(
+            Guid.NewGuid(),
+            escenario.EmpresaId,
+            Guid.NewGuid(),
+            "03",
+            "B777",
+            10));
+        var configuracionFiscalRepository = new ConfiguracionFiscalEmpresaRepositoryFake();
+        await GuardarConfiguracionFiscalAsync(configuracionFiscalRepository, escenario.EmpresaId);
+        var useCase = CrearUseCaseEmision(
+            escenario,
+            configuracionFiscalRepository);
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            useCase.EjecutarAsync(
+                escenario.VentaId,
+                new EmitirCpeDesdeVentaRequest("03", "B001", 7, "20601234567")));
+
+        Assert.Contains("serie activa", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Null(escenario.Gateway.UltimoRequest);
+    }
+
+    [Fact]
+    public async Task Emitir_cpe_desde_venta_use_case_incrementa_correlativo_en_aceptado()
+    {
+        var escenario = await CrearEscenarioEmisionAsync();
+        escenario.Gateway.Response = new CpeGatewayResponse(
+            200,
+            true,
+            """
+            {
+              "ok": true,
+              "data": {
+                "ok": true,
+                "estado": "ACEPTADO",
+                "mensaje": "Aceptado por SUNAT."
+              }
+            }
+            """,
+            "application/json");
+        var configuracionFiscalRepository = new ConfiguracionFiscalEmpresaRepositoryFake();
+        await GuardarConfiguracionFiscalAsync(configuracionFiscalRepository, escenario.EmpresaId);
+        var useCase = CrearUseCaseEmision(
+            escenario,
+            configuracionFiscalRepository);
+
+        var result = await useCase.EjecutarAsync(
+            escenario.VentaId,
+            new EmitirCpeDesdeVentaRequest("03", "B001", 7, "20601234567"));
+
+        Assert.NotNull(result);
+        Assert.Equal(7, result.Correlativo);
+        Assert.Equal(7, escenario.SerieRepository.Series.Single().CorrelativoActual);
+    }
+
+    [Fact]
+    public async Task Emitir_cpe_desde_venta_use_case_no_incrementa_si_gateway_falla_antes_de_responder()
+    {
+        var escenario = await CrearEscenarioEmisionAsync();
+        escenario.Gateway.LanzarExcepcionAlEmitir = true;
+        var configuracionFiscalRepository = new ConfiguracionFiscalEmpresaRepositoryFake();
+        await GuardarConfiguracionFiscalAsync(configuracionFiscalRepository, escenario.EmpresaId);
+        var useCase = CrearUseCaseEmision(
+            escenario,
+            configuracionFiscalRepository);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            useCase.EjecutarAsync(
+                escenario.VentaId,
+                new EmitirCpeDesdeVentaRequest("03", "B001", 7, "20601234567")));
+
+        Assert.Equal(6, escenario.SerieRepository.Series.Single().CorrelativoActual);
+        Assert.Null(escenario.Gateway.UltimoRequest);
+    }
+
+    [Fact]
+    public async Task Emitir_cpe_desde_venta_use_case_no_incrementa_correlativo_en_rechazado()
+    {
+        var escenario = await CrearEscenarioEmisionAsync();
+        escenario.Gateway.Response = new CpeGatewayResponse(
+            400,
+            false,
+            """
+            {
+              "ok": false,
+              "data": {
+                "ok": false,
+                "estado": "RECHAZADO",
+                "mensaje": "Comprobante rechazado."
+              }
+            }
+            """,
+            "application/json");
+        var configuracionFiscalRepository = new ConfiguracionFiscalEmpresaRepositoryFake();
+        await GuardarConfiguracionFiscalAsync(configuracionFiscalRepository, escenario.EmpresaId);
+        var useCase = CrearUseCaseEmision(
+            escenario,
+            configuracionFiscalRepository);
+
+        var result = await useCase.EjecutarAsync(
+            escenario.VentaId,
+            new EmitirCpeDesdeVentaRequest("03", "B001", 7, "20601234567"));
+
+        Assert.NotNull(result);
+        Assert.Equal(7, result.Correlativo);
+        Assert.Equal(6, escenario.SerieRepository.Series.Single().CorrelativoActual);
+    }
+
+    [Fact]
     public async Task Emitir_cpe_desde_venta_use_case_falla_si_no_existe_configuracion_fiscal()
     {
         var escenario = await CrearEscenarioEmisionAsync();
@@ -861,6 +1007,7 @@ public class ApplicationVentaTests
             escenario.ClienteRepository,
             escenario.ProductoRepository,
             escenario.VarianteRepository,
+            escenario.SerieRepository,
             escenario.Gateway,
             new EmpresaActivaContextFake(escenario.EmpresaId));
 
@@ -895,6 +1042,7 @@ public class ApplicationVentaTests
             escenario.ClienteRepository,
             escenario.ProductoRepository,
             escenario.VarianteRepository,
+            escenario.SerieRepository,
             escenario.Gateway,
             new EmpresaActivaContextFake(escenario.EmpresaId));
 
@@ -928,6 +1076,7 @@ public class ApplicationVentaTests
             escenario.ClienteRepository,
             escenario.ProductoRepository,
             escenario.VarianteRepository,
+            escenario.SerieRepository,
             escenario.Gateway,
             new EmpresaActivaContextFake(escenario.EmpresaId));
 
@@ -951,6 +1100,7 @@ public class ApplicationVentaTests
         var clienteRepository = new ClienteRepositoryFake();
         var productoRepository = new ProductoRepositoryFake();
         var varianteRepository = new ProductoVarianteRepositoryFake();
+        var serieRepository = new SerieComprobanteRepositoryFake();
         var gateway = new CpeGatewayFake();
         var detalle = new VentaDetalle(
             Guid.NewGuid(),
@@ -987,6 +1137,7 @@ public class ApplicationVentaTests
             clienteRepository,
             productoRepository,
             varianteRepository,
+            new SerieComprobanteRepositoryFake(),
             gateway,
             new EmpresaActivaContextFake(empresaAId));
 
@@ -1124,6 +1275,7 @@ public class ApplicationVentaTests
         var clienteRepository = new ClienteRepositoryFake();
         var productoRepository = new ProductoRepositoryFake();
         var varianteRepository = new ProductoVarianteRepositoryFake();
+        var serieRepository = new SerieComprobanteRepositoryFake();
         var gateway = new CpeGatewayFake();
 
         await clienteRepository.AgregarAsync(new Cliente(
@@ -1138,6 +1290,13 @@ public class ApplicationVentaTests
             "Producto gravado",
             59m,
             "SKU-001"));
+        await serieRepository.GuardarAsync(new SerieComprobante(
+            Guid.NewGuid(),
+            empresaId,
+            SedeIdPrueba,
+            "03",
+            "B001",
+            6));
 
         var detalle = new VentaDetalle(
             Guid.NewGuid(),
@@ -1167,6 +1326,7 @@ public class ApplicationVentaTests
             clienteRepository,
             productoRepository,
             varianteRepository,
+            serieRepository,
             gateway);
     }
 
@@ -1196,6 +1356,7 @@ public class ApplicationVentaTests
             escenario.ClienteRepository,
             escenario.ProductoRepository,
             escenario.VarianteRepository,
+            escenario.SerieRepository,
             escenario.Gateway,
             new EmpresaActivaContextFake(escenario.EmpresaId));
     }
@@ -1207,6 +1368,7 @@ public class ApplicationVentaTests
         ClienteRepositoryFake ClienteRepository,
         ProductoRepositoryFake ProductoRepository,
         ProductoVarianteRepositoryFake VarianteRepository,
+        SerieComprobanteRepositoryFake SerieRepository,
         CpeGatewayFake Gateway);
 
     private static CrearVentaUseCase CrearUseCase(
@@ -1635,9 +1797,79 @@ public class ApplicationVentaTests
         }
     }
 
+    private sealed class SerieComprobanteRepositoryFake : ISerieComprobanteRepository
+    {
+        public List<SerieComprobante> Series { get; } = new();
+
+        public Task AgregarAsync(SerieComprobante serie, CancellationToken cancellationToken = default)
+        {
+            Series.Add(serie);
+            return Task.CompletedTask;
+        }
+
+        public Task<IReadOnlyCollection<SerieComprobante>> ListarPorSedeAsync(
+            Guid empresaId,
+            Guid sedeId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyCollection<SerieComprobante>>(
+                Series.Where(serie => serie.EmpresaId == empresaId && serie.SedeId == sedeId).ToArray());
+        }
+
+        public Task<SerieComprobante?> ObtenerActivaAsync(
+            Guid empresaId,
+            Guid sedeId,
+            string tipoComprobante,
+            string serie,
+            CancellationToken cancellationToken = default)
+        {
+            var tipoNormalizado = tipoComprobante.Trim().ToUpperInvariant();
+            var serieNormalizada = serie.Trim().ToUpperInvariant();
+
+            return Task.FromResult(Series.SingleOrDefault(serieComprobante =>
+                serieComprobante.EmpresaId == empresaId &&
+                serieComprobante.SedeId == sedeId &&
+                serieComprobante.TipoComprobante == tipoNormalizado &&
+                serieComprobante.Serie == serieNormalizada &&
+                serieComprobante.Activa));
+        }
+
+        public Task<SerieComprobante?> ObtenerActivaPorSedeYTipoAsync(
+            Guid empresaId,
+            Guid sedeId,
+            string tipoComprobante,
+            CancellationToken cancellationToken = default)
+        {
+            var tipoNormalizado = tipoComprobante.Trim().ToUpperInvariant();
+
+            return Task.FromResult(Series
+                .Where(serieComprobante =>
+                    serieComprobante.EmpresaId == empresaId &&
+                    serieComprobante.SedeId == sedeId &&
+                    serieComprobante.TipoComprobante == tipoNormalizado &&
+                    serieComprobante.Activa)
+                .OrderBy(serieComprobante => serieComprobante.Serie, StringComparer.Ordinal)
+                .FirstOrDefault());
+        }
+
+        public Task GuardarAsync(SerieComprobante serie, CancellationToken cancellationToken = default)
+        {
+            if (!Series.Contains(serie))
+            {
+                Series.Add(serie);
+            }
+
+            return Task.CompletedTask;
+        }
+    }
+
     private sealed class CpeGatewayFake : ICpeGateway
     {
         public JsonElement? UltimoRequest { get; private set; }
+
+        public bool LanzarExcepcionAlEmitir { get; set; }
+
+        public CpeGatewayResponse? Response { get; set; }
 
         public Task<CpeGatewayResponse> ObtenerEstadoAsync(CancellationToken cancellationToken = default)
         {
@@ -1652,9 +1884,14 @@ public class ApplicationVentaTests
             JsonElement request,
             CancellationToken cancellationToken = default)
         {
+            if (LanzarExcepcionAlEmitir)
+            {
+                throw new InvalidOperationException("Fallo simulado del gateway CPE.");
+            }
+
             UltimoRequest = request.Clone();
 
-            return Task.FromResult(new CpeGatewayResponse(
+            return Task.FromResult(Response ?? new CpeGatewayResponse(
                 200,
                 true,
                 """

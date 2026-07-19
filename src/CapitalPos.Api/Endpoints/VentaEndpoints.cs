@@ -150,8 +150,8 @@ public static class VentaEndpoints
                 return Results.BadRequest(ErrorResponse.From(error));
             }
 
-            var response = await useCase.EjecutarAsync(id, request, cancellationToken);
-            if (response is null)
+            var result = await useCase.EjecutarAsync(id, request, cancellationToken);
+            if (result is null)
             {
                 await AuditoriaEndpointHelper.AuditarAsync(
                     auditoria,
@@ -167,15 +167,16 @@ public static class VentaEndpoints
                 return Results.NotFound();
             }
 
+            var response = result.GatewayResponse;
             LogDiagnosticoEmisionCpe(loggerFactory, response);
             var normalizedResponse = EmitirCpeResponseNormalizer.Normalizar(response);
             var publicResponse = EmitirCpeApiResponse.From(normalizedResponse.Body);
             await registrarComprobanteUseCase.EjecutarAsync(
                 new RegistrarComprobanteCpeRequest(
                     id,
-                    request.TipoComprobante,
-                    request.Serie,
-                    request.Correlativo,
+                    result.TipoComprobante,
+                    result.Serie,
+                    result.Correlativo,
                     normalizedResponse.Body.Estado,
                     normalizedResponse.Body.Mensaje,
                     normalizedResponse.Body.Hash,

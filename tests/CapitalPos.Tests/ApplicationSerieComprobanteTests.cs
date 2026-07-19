@@ -183,5 +183,28 @@ public class ApplicationSerieComprobanteTests
                 serieComprobante.Serie == serieNormalizada &&
                 serieComprobante.Activa));
         }
+
+        public Task<SerieComprobante?> ObtenerActivaPorSedeYTipoAsync(
+            Guid empresaId,
+            Guid sedeId,
+            string tipoComprobante,
+            CancellationToken cancellationToken = default)
+        {
+            var tipoNormalizado = tipoComprobante.Trim().ToUpperInvariant();
+
+            return Task.FromResult(Series
+                .Where(serieComprobante =>
+                    serieComprobante.EmpresaId == empresaId &&
+                    serieComprobante.SedeId == sedeId &&
+                    serieComprobante.TipoComprobante == tipoNormalizado &&
+                    serieComprobante.Activa)
+                .OrderBy(serieComprobante => serieComprobante.Serie, StringComparer.Ordinal)
+                .FirstOrDefault());
+        }
+
+        public Task GuardarAsync(SerieComprobante serie, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
     }
 }

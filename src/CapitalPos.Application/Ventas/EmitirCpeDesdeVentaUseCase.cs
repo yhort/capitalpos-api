@@ -4,6 +4,7 @@ using CapitalPos.Application.ConfiguracionFiscal;
 using CapitalPos.Application.Cpe;
 using CapitalPos.Application.Productos;
 using CapitalPos.Application.Seguridad;
+using CapitalPos.Application.Series;
 using CapitalPos.Domain;
 
 namespace CapitalPos.Application.Ventas;
@@ -18,6 +19,7 @@ public sealed class EmitirCpeDesdeVentaUseCase
     private readonly IEmpresaActivaContext _empresaActiva;
     private readonly IProductoRepository _productoRepository;
     private readonly IProductoVarianteRepository _productoVarianteRepository;
+    private readonly ISerieComprobanteRepository _serieRepository;
     private readonly IVentaRepository _ventaRepository;
 
     public EmitirCpeDesdeVentaUseCase(
@@ -26,6 +28,7 @@ public sealed class EmitirCpeDesdeVentaUseCase
         IClienteRepository clienteRepository,
         IProductoRepository productoRepository,
         IProductoVarianteRepository productoVarianteRepository,
+        ISerieComprobanteRepository serieRepository,
         ICpeGateway cpeGateway,
         IEmpresaActivaContext empresaActiva)
     {
@@ -34,11 +37,12 @@ public sealed class EmitirCpeDesdeVentaUseCase
         _clienteRepository = clienteRepository;
         _productoRepository = productoRepository;
         _productoVarianteRepository = productoVarianteRepository;
+        _serieRepository = serieRepository;
         _cpeGateway = cpeGateway;
         _empresaActiva = empresaActiva;
     }
 
-    public async Task<CpeGatewayResponse?> EjecutarAsync(
+    public async Task<EmitirCpeDesdeVentaResult?> EjecutarAsync(
         Guid ventaId,
         EmitirCpeDesdeVentaRequest request,
         CancellationToken cancellationToken = default)
@@ -56,11 +60,24 @@ public sealed class EmitirCpeDesdeVentaUseCase
         }
 
         var configuracionFiscal = await ObtenerConfiguracionFiscalAsync(request, cancellationToken);
+        var serie = await ObtenerSerieComprobanteAsync(venta, request, cancellationToken);
+        var correlativo = serie.ObtenerSiguienteCorrelativo();
         var cliente = await ObtenerClienteAsync(venta, cancellationToken);
         var items = await CrearItemsAsync(venta, cancellationToken);
-        var payload = CrearPayload(venta, request, configuracionFiscal, cliente, items);
+        var payload = CrearPayload(venta, request, serie, correlativo, configuracionFiscal, cliente, items);
+        var response = await _cpeGateway.EmitirAsync(payload, cancellationToken);
 
-        return await _cpeGateway.EmitirAsync(payload, cancellationToken);
+        if (EsEmisionExitosaParaCorrelativo(response))
+        {
+            serie.IncrementarCorrelativo();
+            await _serieRepository.GuardarAsync(serie, cancellationToken);
+        }
+
+        return new EmitirCpeDesdeVentaResult(
+            response,
+            request.TipoComprobante.Trim().ToUpperInvariant(),
+            serie.Serie,
+            correlativo);
     }
 
     private async Task<ConfiguracionFiscalEmpresa> ObtenerConfiguracionFiscalAsync(
@@ -89,6 +106,22 @@ public sealed class EmitirCpeDesdeVentaUseCase
         }
 
         return configuracion;
+    }
+
+    private async Task<SerieComprobante> ObtenerSerieComprobanteAsync(
+        Venta venta,
+        EmitirCpeDesdeVentaRequest request,
+        CancellationToken cancellationToken)
+    {
+        var tipoComprobante = request.TipoComprobante.Trim().ToUpperInvariant();
+        var serie = await _serieRepository.ObtenerActivaPorSedeYTipoAsync(
+            _empresaActiva.EmpresaId,
+            venta.SedeId,
+            tipoComprobante,
+            cancellationToken);
+
+        return serie
+            ?? throw new InvalidOperationException("No existe una serie activa para la sede y tipo de comprobante de la venta.");
     }
 
     private async Task<Cliente> ObtenerClienteAsync(
@@ -158,6 +191,8 @@ public sealed class EmitirCpeDesdeVentaUseCase
     private static JsonElement CrearPayload(
         Venta venta,
         EmitirCpeDesdeVentaRequest request,
+        SerieComprobante serie,
+        int correlativo,
         ConfiguracionFiscalEmpresa configuracionFiscal,
         Cliente cliente,
         IReadOnlyCollection<CpeItemPayload> items)
@@ -180,9 +215,9 @@ public sealed class EmitirCpeDesdeVentaUseCase
                 provincia = configuracionFiscal.Provincia,
                 distrito = configuracionFiscal.Distrito
             },
-            tipoComprobante = request.TipoComprobante,
-            serie = request.Serie,
-            correlativo = request.Correlativo,
+            tipoComprobante = request.TipoComprobante.Trim().ToUpperInvariant(),
+            serie = serie.Serie,
+            correlativo,
             fechaEmision = ConvertirFechaEmisionPeru(venta.Fecha),
             moneda = "PEN",
             tipoOperacion = "0101",
@@ -218,6 +253,95 @@ public sealed class EmitirCpeDesdeVentaUseCase
             empresaId = venta.EmpresaId,
             clienteId = venta.ClienteId
         });
+    }
+
+    private static bool EsEmisionExitosaParaCorrelativo(CpeGatewayResponse response)
+    {
+        if (!response.IsSuccessStatusCode || string.IsNullOrWhiteSpace(response.Content))
+        {
+            return false;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(response.Content);
+            var root = document.RootElement;
+            if (root.ValueKind != JsonValueKind.Object)
+            {
+                return false;
+            }
+
+            var rootOk = TryGetBoolean(root, "ok");
+            var data = TryGetProperty(root, "data", out var dataElement) &&
+                dataElement.ValueKind == JsonValueKind.Object
+                    ? dataElement
+                    : default;
+            var dataOk = data.ValueKind == JsonValueKind.Object
+                ? TryGetBoolean(data, "ok")
+                : null;
+            var estado = data.ValueKind == JsonValueKind.Object
+                ? TryGetString(data, "estado")
+                : TryGetString(root, "estado");
+
+            return (dataOk ?? rootOk) == true &&
+                EsEstadoQueConsumeCorrelativo(estado);
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
+    private static bool EsEstadoQueConsumeCorrelativo(string? estado)
+    {
+        return string.Equals(estado, "SIMULADO", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(estado, "ACEPTADO", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string? TryGetString(JsonElement source, string propertyName)
+    {
+        if (!TryGetProperty(source, propertyName, out var value) ||
+            value.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
+        {
+            return null;
+        }
+
+        return value.ValueKind == JsonValueKind.String
+            ? value.GetString()
+            : value.ToString();
+    }
+
+    private static bool? TryGetBoolean(JsonElement source, string propertyName)
+    {
+        if (!TryGetProperty(source, propertyName, out var value))
+        {
+            return null;
+        }
+
+        return value.ValueKind switch
+        {
+            JsonValueKind.True => true,
+            JsonValueKind.False => false,
+            _ => null
+        };
+    }
+
+    private static bool TryGetProperty(
+        JsonElement source,
+        string propertyName,
+        out JsonElement value)
+    {
+        foreach (var property in source.EnumerateObject())
+        {
+            if (string.Equals(property.Name, propertyName, StringComparison.OrdinalIgnoreCase))
+            {
+                value = property.Value;
+                return true;
+            }
+        }
+
+        value = default;
+        return false;
     }
 
     private static DateTime ConvertirFechaEmisionPeru(DateTimeOffset fecha)

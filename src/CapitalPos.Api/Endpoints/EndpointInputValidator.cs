@@ -315,24 +315,6 @@ public static class EndpointInputValidator
             return false;
         }
 
-        if (string.IsNullOrWhiteSpace(request.Serie))
-        {
-            error = "La serie del comprobante es obligatoria.";
-            return false;
-        }
-
-        if (request.Serie.Length > 4)
-        {
-            error = "La serie del comprobante no debe exceder 4 caracteres.";
-            return false;
-        }
-
-        if (request.Correlativo <= 0)
-        {
-            error = "El correlativo del comprobante debe ser mayor que cero.";
-            return false;
-        }
-
         if (string.IsNullOrWhiteSpace(request.RucEmisor))
         {
             error = "El RUC emisor es obligatorio.";
