@@ -16,11 +16,16 @@ public sealed class ListarMarcasUseCase
         _empresaActiva = empresaActiva;
     }
 
-    public Task<IReadOnlyCollection<Marca>> EjecutarAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyCollection<Marca>> EjecutarAsync(CancellationToken cancellationToken = default)
     {
         ValidarEmpresaActiva();
 
-        return _marcaRepository.ListarPorEmpresaAsync(_empresaActiva.EmpresaId, cancellationToken);
+        var marcas = await _marcaRepository.ListarPorEmpresaAsync(_empresaActiva.EmpresaId, cancellationToken);
+
+        return marcas
+            .Where(marca => marca.Activa)
+            .OrderBy(marca => marca.Nombre, StringComparer.Ordinal)
+            .ToArray();
     }
 
     private void ValidarEmpresaActiva()

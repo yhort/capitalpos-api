@@ -64,6 +64,7 @@ public class ApplicationCatalogoTests
         var otraEmpresaId = Guid.NewGuid();
         var repository = new CategoriaRepositoryFake();
         await repository.AgregarAsync(new Categoria(Guid.NewGuid(), empresaId, "Polos"));
+        await repository.AgregarAsync(new Categoria(Guid.NewGuid(), empresaId, "Inactiva", activa: false));
         await repository.AgregarAsync(new Categoria(Guid.NewGuid(), otraEmpresaId, "Ajena"));
         var useCase = new ListarCategoriasUseCase(
             repository,
@@ -72,6 +73,23 @@ public class ApplicationCatalogoTests
         var categorias = await useCase.EjecutarAsync();
 
         Assert.Equal("Polos", Assert.Single(categorias).Nombre);
+    }
+
+    [Fact]
+    public async Task Crear_categoria_use_case_rechaza_nombre_duplicado_por_empresa()
+    {
+        var empresaId = Guid.NewGuid();
+        var repository = new CategoriaRepositoryFake();
+        await repository.AgregarAsync(new Categoria(Guid.NewGuid(), empresaId, "Polos"));
+        var useCase = new CrearCategoriaUseCase(
+            repository,
+            new EmpresaActivaContextFake(empresaId));
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            useCase.EjecutarAsync(new CrearCategoriaRequest(" Polos ")));
+
+        Assert.Contains("Ya existe", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Single(repository.Categorias);
     }
 
     [Fact]
@@ -97,6 +115,7 @@ public class ApplicationCatalogoTests
         var otraEmpresaId = Guid.NewGuid();
         var repository = new MarcaRepositoryFake();
         await repository.AgregarAsync(new Marca(Guid.NewGuid(), empresaId, "Brooklyn"));
+        await repository.AgregarAsync(new Marca(Guid.NewGuid(), empresaId, "Inactiva", activa: false));
         await repository.AgregarAsync(new Marca(Guid.NewGuid(), otraEmpresaId, "Ajena"));
         var useCase = new ListarMarcasUseCase(
             repository,
@@ -105,6 +124,23 @@ public class ApplicationCatalogoTests
         var marcas = await useCase.EjecutarAsync();
 
         Assert.Equal("Brooklyn", Assert.Single(marcas).Nombre);
+    }
+
+    [Fact]
+    public async Task Crear_marca_use_case_rechaza_nombre_duplicado_por_empresa()
+    {
+        var empresaId = Guid.NewGuid();
+        var repository = new MarcaRepositoryFake();
+        await repository.AgregarAsync(new Marca(Guid.NewGuid(), empresaId, "Brooklyn"));
+        var useCase = new CrearMarcaUseCase(
+            repository,
+            new EmpresaActivaContextFake(empresaId));
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            useCase.EjecutarAsync(new CrearMarcaRequest(" Brooklyn ")));
+
+        Assert.Contains("Ya existe", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Single(repository.Marcas);
     }
 
     private sealed class CategoriaRepositoryFake : ICategoriaRepository
@@ -134,6 +170,18 @@ public class ApplicationCatalogoTests
                 categoria.EmpresaId == empresaId &&
                 categoria.Id == id));
         }
+
+        public Task<bool> ExisteNombreAsync(
+            Guid empresaId,
+            string nombre,
+            CancellationToken cancellationToken = default)
+        {
+            var nombreNormalizado = nombre.Trim();
+
+            return Task.FromResult(Categorias.Any(categoria =>
+                categoria.EmpresaId == empresaId &&
+                categoria.Nombre == nombreNormalizado));
+        }
     }
 
     private sealed class MarcaRepositoryFake : IMarcaRepository
@@ -162,6 +210,18 @@ public class ApplicationCatalogoTests
             return Task.FromResult(Marcas.SingleOrDefault(marca =>
                 marca.EmpresaId == empresaId &&
                 marca.Id == id));
+        }
+
+        public Task<bool> ExisteNombreAsync(
+            Guid empresaId,
+            string nombre,
+            CancellationToken cancellationToken = default)
+        {
+            var nombreNormalizado = nombre.Trim();
+
+            return Task.FromResult(Marcas.Any(marca =>
+                marca.EmpresaId == empresaId &&
+                marca.Nombre == nombreNormalizado));
         }
     }
 

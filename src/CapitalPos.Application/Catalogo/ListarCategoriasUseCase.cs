@@ -16,11 +16,16 @@ public sealed class ListarCategoriasUseCase
         _empresaActiva = empresaActiva;
     }
 
-    public Task<IReadOnlyCollection<Categoria>> EjecutarAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyCollection<Categoria>> EjecutarAsync(CancellationToken cancellationToken = default)
     {
         ValidarEmpresaActiva();
 
-        return _categoriaRepository.ListarPorEmpresaAsync(_empresaActiva.EmpresaId, cancellationToken);
+        var categorias = await _categoriaRepository.ListarPorEmpresaAsync(_empresaActiva.EmpresaId, cancellationToken);
+
+        return categorias
+            .Where(categoria => categoria.Activa)
+            .OrderBy(categoria => categoria.Nombre, StringComparer.Ordinal)
+            .ToArray();
     }
 
     private void ValidarEmpresaActiva()

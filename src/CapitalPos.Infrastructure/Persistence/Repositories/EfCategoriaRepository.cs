@@ -43,4 +43,16 @@ public sealed class EfCategoriaRepository : ICategoriaRepository
                 categoria => categoria.EmpresaId == empresaId && categoria.Id == id,
                 cancellationToken);
     }
+
+    public Task<bool> ExisteNombreAsync(
+        Guid empresaId,
+        string nombre,
+        CancellationToken cancellationToken = default)
+    {
+        var nombreNormalizado = nombre.Trim();
+
+        return _dbContext.Categorias.AnyAsync(
+            categoria => categoria.EmpresaId == empresaId && categoria.Nombre == nombreNormalizado,
+            cancellationToken);
+    }
 }

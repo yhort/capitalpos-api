@@ -316,6 +316,18 @@ public class ApplicationProductoTests
                 categoria.EmpresaId == empresaId &&
                 categoria.Id == id));
         }
+
+        public Task<bool> ExisteNombreAsync(
+            Guid empresaId,
+            string nombre,
+            CancellationToken cancellationToken = default)
+        {
+            var nombreNormalizado = nombre.Trim();
+
+            return Task.FromResult(Categorias.Any(categoria =>
+                categoria.EmpresaId == empresaId &&
+                categoria.Nombre == nombreNormalizado));
+        }
     }
 
     private sealed class MarcaRepositoryFake : IMarcaRepository
@@ -344,6 +356,18 @@ public class ApplicationProductoTests
             return Task.FromResult(Marcas.SingleOrDefault(marca =>
                 marca.EmpresaId == empresaId &&
                 marca.Id == id));
+        }
+
+        public Task<bool> ExisteNombreAsync(
+            Guid empresaId,
+            string nombre,
+            CancellationToken cancellationToken = default)
+        {
+            var nombreNormalizado = nombre.Trim();
+
+            return Task.FromResult(Marcas.Any(marca =>
+                marca.EmpresaId == empresaId &&
+                marca.Nombre == nombreNormalizado));
         }
     }
 

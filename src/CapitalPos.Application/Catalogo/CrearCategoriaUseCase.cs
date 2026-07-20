@@ -23,6 +23,14 @@ public sealed class CrearCategoriaUseCase
         ArgumentNullException.ThrowIfNull(request);
         ValidarEmpresaActiva();
 
+        if (await _categoriaRepository.ExisteNombreAsync(
+            _empresaActiva.EmpresaId,
+            request.Nombre,
+            cancellationToken))
+        {
+            throw new InvalidOperationException("Ya existe una categoria con el mismo nombre en la empresa activa.");
+        }
+
         if (request.CategoriaPadreId is not null)
         {
             var padre = await _categoriaRepository.ObtenerPorEmpresaAsync(

@@ -23,6 +23,14 @@ public sealed class CrearMarcaUseCase
         ArgumentNullException.ThrowIfNull(request);
         ValidarEmpresaActiva();
 
+        if (await _marcaRepository.ExisteNombreAsync(
+            _empresaActiva.EmpresaId,
+            request.Nombre,
+            cancellationToken))
+        {
+            throw new InvalidOperationException("Ya existe una marca con el mismo nombre en la empresa activa.");
+        }
+
         var marca = request.CrearMarca(_empresaActiva.EmpresaId);
         await _marcaRepository.AgregarAsync(marca, cancellationToken);
 

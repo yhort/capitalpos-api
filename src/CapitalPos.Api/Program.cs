@@ -114,6 +114,7 @@ app.MapGet("/api/health", () =>
 app.MapAuthEndpoints();
 app.MapEmpresaEndpoints();
 app.MapUsuarioEndpoints();
+app.MapCatalogoEndpoints();
 app.MapProductoEndpoints();
 app.MapStockEndpoints();
 app.MapSedeEndpoints();

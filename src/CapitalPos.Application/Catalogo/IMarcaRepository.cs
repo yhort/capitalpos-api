@@ -14,4 +14,9 @@ public interface IMarcaRepository
         Guid empresaId,
         Guid id,
         CancellationToken cancellationToken = default);
+
+    Task<bool> ExisteNombreAsync(
+        Guid empresaId,
+        string nombre,
+        CancellationToken cancellationToken = default);
 }

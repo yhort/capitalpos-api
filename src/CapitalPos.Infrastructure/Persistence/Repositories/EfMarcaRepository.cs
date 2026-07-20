@@ -43,4 +43,16 @@ public sealed class EfMarcaRepository : IMarcaRepository
                 marca => marca.EmpresaId == empresaId && marca.Id == id,
                 cancellationToken);
     }
+
+    public Task<bool> ExisteNombreAsync(
+        Guid empresaId,
+        string nombre,
+        CancellationToken cancellationToken = default)
+    {
+        var nombreNormalizado = nombre.Trim();
+
+        return _dbContext.Marcas.AnyAsync(
+            marca => marca.EmpresaId == empresaId && marca.Nombre == nombreNormalizado,
+            cancellationToken);
+    }
 }

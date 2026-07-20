@@ -331,6 +331,315 @@ public class HttpIntegrationTests
     }
 
     [Fact]
+    public async Task Categorias_sin_jwt_devuelve_unauthorized()
+    {
+        await using var factory = new CapitalPosHttpFactory();
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync("/api/categorias");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Categorias_con_jwt_sin_empresa_activa_devuelve_bad_request()
+    {
+        await using var factory = new CapitalPosHttpFactory();
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = CrearAuthorizationHeader(UsuarioId);
+
+        var response = await client.GetAsync("/api/categorias");
+        var content = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains(EmpresaActivaHeaders.HeaderName, content);
+        AssertSeguro(content);
+    }
+
+    [Fact]
+    public async Task Categorias_usuario_sin_permiso_devuelve_forbidden()
+    {
+        await using var factory = new CapitalPosHttpFactory
+        {
+            UsuarioEmpresa = CrearUsuarioEmpresa(RolEmpresa.Vendedor)
+        };
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+
+        var response = await client.GetAsync("/api/categorias");
+        var content = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Contains("permiso requerido", content);
+        AssertSeguro(content);
+    }
+
+    [Fact]
+    public async Task Listar_categorias_devuelve_solo_activas_de_empresa_activa()
+    {
+        var categoriaActivaId = Guid.NewGuid();
+        var categoriaInactivaId = Guid.NewGuid();
+        var categoriaOtraEmpresaId = Guid.NewGuid();
+        var otraEmpresaId = Guid.Parse("44444444-4444-4444-4444-444444444444");
+        await using var factory = new CapitalPosHttpFactory();
+        await factory.CategoriaRepository.AgregarAsync(new Categoria(categoriaActivaId, EmpresaId, "Polos"));
+        await factory.CategoriaRepository.AgregarAsync(new Categoria(categoriaInactivaId, EmpresaId, "Inactiva", activa: false));
+        await factory.CategoriaRepository.AgregarAsync(new Categoria(categoriaOtraEmpresaId, otraEmpresaId, "Ajena"));
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+
+        var response = await client.GetAsync("/api/categorias");
+        var content = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadFromJsonAsync<CategoriaResponse[]>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(body);
+        var categoria = Assert.Single(body);
+        Assert.Equal(categoriaActivaId, categoria.Id);
+        Assert.Equal(EmpresaId, categoria.EmpresaId);
+        Assert.Null(categoria.CategoriaPadreId);
+        Assert.Equal("Polos", categoria.Nombre);
+        Assert.True(categoria.Activa);
+        Assert.DoesNotContain(categoriaInactivaId.ToString(), content, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(categoriaOtraEmpresaId.ToString(), content, StringComparison.OrdinalIgnoreCase);
+        AssertSeguro(content);
+    }
+
+    [Fact]
+    public async Task Crear_categoria_guarda_en_empresa_activa_e_ignora_empresa_id_libre()
+    {
+        var otraEmpresaId = Guid.Parse("44444444-4444-4444-4444-444444444444");
+        await using var factory = new CapitalPosHttpFactory();
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+        var request = new
+        {
+            EmpresaId = otraEmpresaId,
+            Nombre = " Polos ",
+            CategoriaPadreId = (Guid?)null
+        };
+
+        var response = await client.PostAsJsonAsync("/api/categorias", request);
+        var content = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadFromJsonAsync<CategoriaResponse>();
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.NotNull(body);
+        Assert.Equal(EmpresaId, body.EmpresaId);
+        Assert.Equal("Polos", body.Nombre);
+        Assert.DoesNotContain(otraEmpresaId.ToString(), content, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(factory.CategoriaRepository.Categorias, categoria =>
+            categoria.EmpresaId == EmpresaId &&
+            categoria.Nombre == "Polos");
+        Assert.DoesNotContain(factory.CategoriaRepository.Categorias, categoria =>
+            categoria.EmpresaId == otraEmpresaId);
+        AssertSeguro(content);
+    }
+
+    [Fact]
+    public async Task Crear_categoria_con_padre_de_otra_empresa_falla()
+    {
+        var otraEmpresaId = Guid.Parse("44444444-4444-4444-4444-444444444444");
+        var categoriaPadreId = Guid.NewGuid();
+        await using var factory = new CapitalPosHttpFactory();
+        await factory.CategoriaRepository.AgregarAsync(new Categoria(categoriaPadreId, otraEmpresaId, "Ajena"));
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+        var request = new CrearCategoriaRequest("Polos", categoriaPadreId);
+
+        var response = await client.PostAsJsonAsync("/api/categorias", request);
+        var content = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("categoria padre", content, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(factory.CategoriaRepository.Categorias, categoria =>
+            categoria.EmpresaId == EmpresaId);
+        AssertSeguro(content);
+    }
+
+    [Fact]
+    public async Task Crear_categoria_de_segundo_nivel_falla()
+    {
+        var abueloId = Guid.NewGuid();
+        var categoriaPadreId = Guid.NewGuid();
+        await using var factory = new CapitalPosHttpFactory();
+        await factory.CategoriaRepository.AgregarAsync(new Categoria(categoriaPadreId, EmpresaId, "Polos", abueloId));
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+        var request = new CrearCategoriaRequest("Manga corta", categoriaPadreId);
+
+        var response = await client.PostAsJsonAsync("/api/categorias", request);
+        var content = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("un nivel", content, StringComparison.OrdinalIgnoreCase);
+        Assert.Single(factory.CategoriaRepository.Categorias);
+        AssertSeguro(content);
+    }
+
+    [Fact]
+    public async Task Crear_categoria_duplicada_por_empresa_falla()
+    {
+        await using var factory = new CapitalPosHttpFactory();
+        await factory.CategoriaRepository.AgregarAsync(new Categoria(Guid.NewGuid(), EmpresaId, "Polos"));
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+        var request = new CrearCategoriaRequest(" Polos ");
+
+        var response = await client.PostAsJsonAsync("/api/categorias", request);
+        var content = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("Ya existe", content, StringComparison.OrdinalIgnoreCase);
+        Assert.Single(factory.CategoriaRepository.Categorias);
+        AssertSeguro(content);
+    }
+
+    [Fact]
+    public async Task Crear_categoria_valida_nombre_obligatorio()
+    {
+        await using var factory = new CapitalPosHttpFactory();
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+        var request = new CrearCategoriaRequest(" ");
+
+        var response = await client.PostAsJsonAsync("/api/categorias", request);
+        var content = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("nombre", content, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(factory.CategoriaRepository.Categorias);
+        AssertSeguro(content);
+    }
+
+    [Fact]
+    public async Task Marcas_sin_jwt_devuelve_unauthorized()
+    {
+        await using var factory = new CapitalPosHttpFactory();
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync("/api/marcas");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Marcas_con_jwt_sin_empresa_activa_devuelve_bad_request()
+    {
+        await using var factory = new CapitalPosHttpFactory();
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = CrearAuthorizationHeader(UsuarioId);
+
+        var response = await client.GetAsync("/api/marcas");
+        var content = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains(EmpresaActivaHeaders.HeaderName, content);
+        AssertSeguro(content);
+    }
+
+    [Fact]
+    public async Task Marcas_usuario_sin_permiso_devuelve_forbidden()
+    {
+        await using var factory = new CapitalPosHttpFactory
+        {
+            UsuarioEmpresa = CrearUsuarioEmpresa(RolEmpresa.Vendedor)
+        };
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+
+        var response = await client.GetAsync("/api/marcas");
+        var content = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Contains("permiso requerido", content);
+        AssertSeguro(content);
+    }
+
+    [Fact]
+    public async Task Listar_marcas_devuelve_solo_activas_de_empresa_activa()
+    {
+        var marcaActivaId = Guid.NewGuid();
+        var marcaInactivaId = Guid.NewGuid();
+        var marcaOtraEmpresaId = Guid.NewGuid();
+        var otraEmpresaId = Guid.Parse("44444444-4444-4444-4444-444444444444");
+        await using var factory = new CapitalPosHttpFactory();
+        await factory.MarcaRepository.AgregarAsync(new Marca(marcaActivaId, EmpresaId, "Brooklyn"));
+        await factory.MarcaRepository.AgregarAsync(new Marca(marcaInactivaId, EmpresaId, "Inactiva", activa: false));
+        await factory.MarcaRepository.AgregarAsync(new Marca(marcaOtraEmpresaId, otraEmpresaId, "Ajena"));
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+
+        var response = await client.GetAsync("/api/marcas");
+        var content = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadFromJsonAsync<MarcaResponse[]>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(body);
+        var marca = Assert.Single(body);
+        Assert.Equal(marcaActivaId, marca.Id);
+        Assert.Equal(EmpresaId, marca.EmpresaId);
+        Assert.Equal("Brooklyn", marca.Nombre);
+        Assert.True(marca.Activa);
+        Assert.DoesNotContain(marcaInactivaId.ToString(), content, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(marcaOtraEmpresaId.ToString(), content, StringComparison.OrdinalIgnoreCase);
+        AssertSeguro(content);
+    }
+
+    [Fact]
+    public async Task Crear_marca_guarda_en_empresa_activa_e_ignora_empresa_id_libre()
+    {
+        var otraEmpresaId = Guid.Parse("44444444-4444-4444-4444-444444444444");
+        await using var factory = new CapitalPosHttpFactory();
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+        var request = new
+        {
+            EmpresaId = otraEmpresaId,
+            Nombre = " Brooklyn "
+        };
+
+        var response = await client.PostAsJsonAsync("/api/marcas", request);
+        var content = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadFromJsonAsync<MarcaResponse>();
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.NotNull(body);
+        Assert.Equal(EmpresaId, body.EmpresaId);
+        Assert.Equal("Brooklyn", body.Nombre);
+        Assert.DoesNotContain(otraEmpresaId.ToString(), content, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(factory.MarcaRepository.Marcas, marca =>
+            marca.EmpresaId == EmpresaId &&
+            marca.Nombre == "Brooklyn");
+        Assert.DoesNotContain(factory.MarcaRepository.Marcas, marca =>
+            marca.EmpresaId == otraEmpresaId);
+        AssertSeguro(content);
+    }
+
+    [Fact]
+    public async Task Crear_marca_duplicada_por_empresa_falla()
+    {
+        await using var factory = new CapitalPosHttpFactory();
+        await factory.MarcaRepository.AgregarAsync(new Marca(Guid.NewGuid(), EmpresaId, "Brooklyn"));
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+        var request = new CrearMarcaRequest(" Brooklyn ");
+
+        var response = await client.PostAsJsonAsync("/api/marcas", request);
+        var content = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("Ya existe", content, StringComparison.OrdinalIgnoreCase);
+        Assert.Single(factory.MarcaRepository.Marcas);
+        AssertSeguro(content);
+    }
+
+    [Fact]
+    public async Task Crear_marca_valida_nombre_obligatorio()
+    {
+        await using var factory = new CapitalPosHttpFactory();
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+        var request = new CrearMarcaRequest(" ");
+
+        var response = await client.PostAsJsonAsync("/api/marcas", request);
+        var content = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("nombre", content, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(factory.MarcaRepository.Marcas);
+        AssertSeguro(content);
+    }
+
+    [Fact]
     public async Task Reporte_ventas_por_canal_sin_jwt_devuelve_unauthorized()
     {
         await using var factory = new CapitalPosHttpFactory();
@@ -1942,6 +2251,18 @@ public class HttpIntegrationTests
                 categoria.EmpresaId == empresaId &&
                 categoria.Id == id));
         }
+
+        public Task<bool> ExisteNombreAsync(
+            Guid empresaId,
+            string nombre,
+            CancellationToken cancellationToken = default)
+        {
+            var nombreNormalizado = nombre.Trim();
+
+            return Task.FromResult(Categorias.Any(categoria =>
+                categoria.EmpresaId == empresaId &&
+                categoria.Nombre == nombreNormalizado));
+        }
     }
 
     private sealed class FakeMarcaRepository : IMarcaRepository
@@ -1970,6 +2291,18 @@ public class HttpIntegrationTests
             return Task.FromResult(Marcas.FirstOrDefault(marca =>
                 marca.EmpresaId == empresaId &&
                 marca.Id == id));
+        }
+
+        public Task<bool> ExisteNombreAsync(
+            Guid empresaId,
+            string nombre,
+            CancellationToken cancellationToken = default)
+        {
+            var nombreNormalizado = nombre.Trim();
+
+            return Task.FromResult(Marcas.Any(marca =>
+                marca.EmpresaId == empresaId &&
+                marca.Nombre == nombreNormalizado));
         }
     }
 

@@ -1,3 +1,4 @@
+using CapitalPos.Application.Catalogo;
 using CapitalPos.Application.Empresas;
 using CapitalPos.Application.Clientes;
 using CapitalPos.Application.ConfiguracionFiscal;
@@ -158,6 +159,48 @@ public static class EndpointInputValidator
         if (request.MarcaId == Guid.Empty)
         {
             error = "El identificador de la marca no puede ser vacio.";
+            return false;
+        }
+
+        error = string.Empty;
+        return true;
+    }
+
+    public static bool TryValidate(CrearCategoriaRequest request, out string error)
+    {
+        if (string.IsNullOrWhiteSpace(request.Nombre))
+        {
+            error = "El nombre de la categoria es obligatorio.";
+            return false;
+        }
+
+        if (request.Nombre.Length > 160)
+        {
+            error = "El nombre de la categoria no debe exceder 160 caracteres.";
+            return false;
+        }
+
+        if (request.CategoriaPadreId == Guid.Empty)
+        {
+            error = "El identificador de la categoria padre no puede ser vacio.";
+            return false;
+        }
+
+        error = string.Empty;
+        return true;
+    }
+
+    public static bool TryValidate(CrearMarcaRequest request, out string error)
+    {
+        if (string.IsNullOrWhiteSpace(request.Nombre))
+        {
+            error = "El nombre de la marca es obligatorio.";
+            return false;
+        }
+
+        if (request.Nombre.Length > 160)
+        {
+            error = "El nombre de la marca no debe exceder 160 caracteres.";
             return false;
         }
 
