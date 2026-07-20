@@ -42,7 +42,13 @@ public sealed class DemoDataSeeder
         await ObtenerOCrearRelacionAsync(usuario.Id, empresa.Id, cancellationToken);
         var sede = await ObtenerOCrearSedeAsync(empresa.Id, cancellationToken);
         await ObtenerOCrearPuntoVentaAsync(empresa.Id, sede.Id, cancellationToken);
-        var producto = await ObtenerOCrearProductoAsync(empresa.Id, cancellationToken);
+        var categoria = await ObtenerOCrearCategoriaAsync(empresa.Id, cancellationToken);
+        var marca = await ObtenerOCrearMarcaAsync(empresa.Id, cancellationToken);
+        var producto = await ObtenerOCrearProductoAsync(
+            empresa.Id,
+            categoria.Id,
+            marca.Id,
+            cancellationToken);
         await ObtenerOCrearStockProductoAsync(empresa.Id, sede.Id, producto.Id, cancellationToken);
         await ObtenerOCrearSerieComprobanteAsync(empresa.Id, sede.Id, cancellationToken);
         await CrearCredencialSiCorrespondeAsync(usuario.Id, cancellationToken);
@@ -201,8 +207,56 @@ public sealed class DemoDataSeeder
         return puntoVenta;
     }
 
+    private async Task<Categoria> ObtenerOCrearCategoriaAsync(
+        Guid empresaId,
+        CancellationToken cancellationToken)
+    {
+        var categoria = await _store.ObtenerCategoriaAsync(
+            empresaId,
+            DemoSeedData.CategoriaNombre,
+            cancellationToken);
+
+        if (categoria is not null)
+        {
+            return categoria;
+        }
+
+        categoria = new Categoria(
+            DemoSeedData.CategoriaId,
+            empresaId,
+            DemoSeedData.CategoriaNombre);
+        await _store.AgregarCategoriaAsync(categoria, cancellationToken);
+
+        return categoria;
+    }
+
+    private async Task<Marca> ObtenerOCrearMarcaAsync(
+        Guid empresaId,
+        CancellationToken cancellationToken)
+    {
+        var marca = await _store.ObtenerMarcaAsync(
+            empresaId,
+            DemoSeedData.MarcaNombre,
+            cancellationToken);
+
+        if (marca is not null)
+        {
+            return marca;
+        }
+
+        marca = new Marca(
+            DemoSeedData.MarcaId,
+            empresaId,
+            DemoSeedData.MarcaNombre);
+        await _store.AgregarMarcaAsync(marca, cancellationToken);
+
+        return marca;
+    }
+
     private async Task<Producto> ObtenerOCrearProductoAsync(
         Guid empresaId,
+        Guid categoriaId,
+        Guid marcaId,
         CancellationToken cancellationToken)
     {
         var producto = await _store.ObtenerProductoAsync(
@@ -220,7 +274,9 @@ public sealed class DemoDataSeeder
             empresaId,
             DemoSeedData.ProductoNombre,
             DemoSeedData.ProductoPrecioVenta,
-            DemoSeedData.ProductoCodigoSku);
+            DemoSeedData.ProductoCodigoSku,
+            categoriaId: categoriaId,
+            marcaId: marcaId);
         await _store.AgregarProductoAsync(producto, cancellationToken);
 
         return producto;

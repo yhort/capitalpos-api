@@ -7,6 +7,8 @@ public static class DemoSeedData
     public static readonly Guid EmpresaId = Guid.Parse("10000000-0000-0000-0000-000000000001");
     public static readonly Guid UsuarioId = Guid.Parse("10000000-0000-0000-0000-000000000002");
     public static readonly Guid UsuarioEmpresaId = Guid.Parse("10000000-0000-0000-0000-000000000003");
+    public static readonly Guid CategoriaId = Guid.Parse("10000000-0000-0000-0000-000000000009");
+    public static readonly Guid MarcaId = Guid.Parse("10000000-0000-0000-0000-000000000010");
     public static readonly Guid SedeId = Guid.Parse("10000000-0000-0000-0000-000000000004");
     public static readonly Guid PuntoVentaId = Guid.Parse("10000000-0000-0000-0000-000000000005");
     public static readonly Guid ProductoId = Guid.Parse("10000000-0000-0000-0000-000000000006");
@@ -21,6 +23,8 @@ public static class DemoSeedData
     public const string AdminCorreo = "admin@capitalpos.test";
     public const string CredencialAlgoritmo = "ASP.NET Core Identity PasswordHasher";
     public const RolEmpresa AdminRol = RolEmpresa.Administrador;
+    public const string CategoriaNombre = "General";
+    public const string MarcaNombre = "Demo";
     public const string SedeNombre = "Tienda Demo";
     public const string SedeCodigoEstablecimiento = "0000";
     public const string SedeDireccion = "Av. Demo 123";

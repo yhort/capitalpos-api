@@ -337,6 +337,8 @@ public sealed record ProductoResponse(
     string CodigoBarras,
     decimal PrecioVenta,
     decimal? Costo,
+    Guid? CategoriaId,
+    Guid? MarcaId,
     bool Activo,
     DateTimeOffset FechaCreacion)
 {
@@ -350,6 +352,8 @@ public sealed record ProductoResponse(
             producto.CodigoBarras,
             producto.PrecioVenta,
             producto.Costo,
+            producto.CategoriaId,
+            producto.MarcaId,
             producto.Activo,
             producto.FechaCreacion);
     }

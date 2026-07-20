@@ -9,6 +9,8 @@ public class ProductoTests
     {
         var id = Guid.NewGuid();
         var empresaId = Guid.NewGuid();
+        var categoriaId = Guid.NewGuid();
+        var marcaId = Guid.NewGuid();
         var fechaCreacion = DateTimeOffset.UtcNow;
 
         var producto = new Producto(
@@ -19,7 +21,9 @@ public class ProductoTests
             " SKU-001 ",
             " 7750000000012 ",
             3.25m,
-            fechaCreacion: fechaCreacion);
+            fechaCreacion: fechaCreacion,
+            categoriaId: categoriaId,
+            marcaId: marcaId);
 
         Assert.Equal(id, producto.Id);
         Assert.Equal(empresaId, producto.EmpresaId);
@@ -28,6 +32,8 @@ public class ProductoTests
         Assert.Equal("7750000000012", producto.CodigoBarras);
         Assert.Equal(8.50m, producto.PrecioVenta);
         Assert.Equal(3.25m, producto.Costo);
+        Assert.Equal(categoriaId, producto.CategoriaId);
+        Assert.Equal(marcaId, producto.MarcaId);
         Assert.True(producto.Activo);
         Assert.Equal(fechaCreacion, producto.FechaCreacion);
     }
@@ -44,6 +50,8 @@ public class ProductoTests
         Assert.Equal(string.Empty, producto.CodigoSku);
         Assert.Equal(string.Empty, producto.CodigoBarras);
         Assert.Null(producto.Costo);
+        Assert.Null(producto.CategoriaId);
+        Assert.Null(producto.MarcaId);
     }
 
     [Fact]
@@ -105,8 +113,34 @@ public class ProductoTests
     }
 
     [Fact]
+    public void Rechaza_categoria_id_vacia()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            new Producto(
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                "Producto",
+                10m,
+                categoriaId: Guid.Empty));
+    }
+
+    [Fact]
+    public void Rechaza_marca_id_vacia()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            new Producto(
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                "Producto",
+                10m,
+                marcaId: Guid.Empty));
+    }
+
+    [Fact]
     public void Actualizar_datos_basicos_normaliza_y_actualiza_campos()
     {
+        var categoriaId = Guid.NewGuid();
+        var marcaId = Guid.NewGuid();
         var producto = new Producto(
             Guid.NewGuid(),
             Guid.NewGuid(),
@@ -118,13 +152,17 @@ public class ProductoTests
             12.50m,
             " SKU-002 ",
             " 7750000000029 ",
-            4.10m);
+            4.10m,
+            categoriaId: categoriaId,
+            marcaId: marcaId);
 
         Assert.Equal("Cafe Latte", producto.Nombre);
         Assert.Equal("SKU-002", producto.CodigoSku);
         Assert.Equal("7750000000029", producto.CodigoBarras);
         Assert.Equal(12.50m, producto.PrecioVenta);
         Assert.Equal(4.10m, producto.Costo);
+        Assert.Equal(categoriaId, producto.CategoriaId);
+        Assert.Equal(marcaId, producto.MarcaId);
     }
 
     [Fact]

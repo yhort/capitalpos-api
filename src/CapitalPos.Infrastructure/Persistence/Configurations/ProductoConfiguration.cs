@@ -37,6 +37,10 @@ public sealed class ProductoConfiguration : IEntityTypeConfiguration<Producto>
         builder.Property(producto => producto.Costo)
             .HasPrecision(18, 2);
 
+        builder.Property(producto => producto.CategoriaId);
+
+        builder.Property(producto => producto.MarcaId);
+
         builder.Property(producto => producto.Activo)
             .IsRequired();
 
@@ -70,6 +74,34 @@ public sealed class ProductoConfiguration : IEntityTypeConfiguration<Producto>
         builder.HasOne<Empresa>()
             .WithMany()
             .HasForeignKey(producto => producto.EmpresaId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne<Categoria>()
+            .WithMany()
+            .HasForeignKey(producto => new
+            {
+                producto.CategoriaId,
+                producto.EmpresaId
+            })
+            .HasPrincipalKey(categoria => new
+            {
+                categoria.Id,
+                categoria.EmpresaId
+            })
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne<Marca>()
+            .WithMany()
+            .HasForeignKey(producto => new
+            {
+                producto.MarcaId,
+                producto.EmpresaId
+            })
+            .HasPrincipalKey(marca => new
+            {
+                marca.Id,
+                marca.EmpresaId
+            })
             .OnDelete(DeleteBehavior.Restrict);
     }
 }

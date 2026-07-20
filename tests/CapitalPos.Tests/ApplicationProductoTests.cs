@@ -1,3 +1,4 @@
+using CapitalPos.Application.Catalogo;
 using CapitalPos.Application.Productos;
 using CapitalPos.Application.Seguridad;
 using CapitalPos.Domain;
@@ -10,15 +11,23 @@ public class ApplicationProductoTests
     public async Task Crear_producto_use_case_asigna_empresa_id_desde_contexto_activo()
     {
         var empresaId = Guid.NewGuid();
+        var categoriaId = Guid.NewGuid();
+        var marcaId = Guid.NewGuid();
         var repository = new ProductoRepositoryFake();
+        var categoriaRepository = new CategoriaRepositoryFake();
+        var marcaRepository = new MarcaRepositoryFake();
+        await categoriaRepository.AgregarAsync(new Categoria(categoriaId, empresaId, "Bebidas"));
+        await marcaRepository.AgregarAsync(new Marca(marcaId, empresaId, "CapitalPOS"));
         var empresaActiva = new EmpresaActivaContextFake(empresaId);
-        var useCase = new CrearProductoUseCase(repository, empresaActiva);
+        var useCase = new CrearProductoUseCase(repository, empresaActiva, categoriaRepository, marcaRepository);
         var request = new CrearProductoRequest(
             " Cafe Americano ",
             8.50m,
             " SKU-001 ",
             " 7750000000012 ",
-            3.25m);
+            3.25m,
+            CategoriaId: categoriaId,
+            MarcaId: marcaId);
 
         var producto = await useCase.EjecutarAsync(request);
 
@@ -29,7 +38,23 @@ public class ApplicationProductoTests
         Assert.Equal("7750000000012", producto.CodigoBarras);
         Assert.Equal(8.50m, producto.PrecioVenta);
         Assert.Equal(3.25m, producto.Costo);
+        Assert.Equal(categoriaId, producto.CategoriaId);
+        Assert.Equal(marcaId, producto.MarcaId);
         Assert.Same(producto, repository.Productos.Single());
+    }
+
+    [Fact]
+    public async Task Crear_producto_use_case_permite_categoria_y_marca_nulas()
+    {
+        var empresaId = Guid.NewGuid();
+        var repository = new ProductoRepositoryFake();
+        var useCase = CrearUseCase(repository, empresaId);
+        var request = new CrearProductoRequest("Cafe Americano", 8.50m);
+
+        var producto = await useCase.EjecutarAsync(request);
+
+        Assert.Null(producto.CategoriaId);
+        Assert.Null(producto.MarcaId);
     }
 
     [Fact]
@@ -37,7 +62,11 @@ public class ApplicationProductoTests
     {
         var repository = new ProductoRepositoryFake();
         var empresaActiva = new EmpresaActivaContextFake();
-        var useCase = new CrearProductoUseCase(repository, empresaActiva);
+        var useCase = new CrearProductoUseCase(
+            repository,
+            empresaActiva,
+            new CategoriaRepositoryFake(),
+            new MarcaRepositoryFake());
         var request = new CrearProductoRequest("Cafe Americano", 8.50m);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => useCase.EjecutarAsync(request));
@@ -49,10 +78,56 @@ public class ApplicationProductoTests
     {
         var repository = new ProductoRepositoryFake();
         var empresaActiva = new EmpresaActivaContextFake(Guid.NewGuid());
-        var useCase = new CrearProductoUseCase(repository, empresaActiva);
+        var useCase = new CrearProductoUseCase(
+            repository,
+            empresaActiva,
+            new CategoriaRepositoryFake(),
+            new MarcaRepositoryFake());
         var request = new CrearProductoRequest(" ", 8.50m);
 
         await Assert.ThrowsAsync<ArgumentException>(() => useCase.EjecutarAsync(request));
+        Assert.Empty(repository.Productos);
+    }
+
+    [Fact]
+    public async Task Crear_producto_use_case_falla_si_categoria_no_pertenece_a_empresa_activa()
+    {
+        var empresaActivaId = Guid.NewGuid();
+        var categoriaId = Guid.NewGuid();
+        var repository = new ProductoRepositoryFake();
+        var categoriaRepository = new CategoriaRepositoryFake();
+        await categoriaRepository.AgregarAsync(new Categoria(categoriaId, Guid.NewGuid(), "Ajena"));
+        var useCase = new CrearProductoUseCase(
+            repository,
+            new EmpresaActivaContextFake(empresaActivaId),
+            categoriaRepository,
+            new MarcaRepositoryFake());
+        var request = new CrearProductoRequest("Cafe Americano", 8.50m, CategoriaId: categoriaId);
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => useCase.EjecutarAsync(request));
+
+        Assert.Contains("categoria", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(repository.Productos);
+    }
+
+    [Fact]
+    public async Task Crear_producto_use_case_falla_si_marca_no_pertenece_a_empresa_activa()
+    {
+        var empresaActivaId = Guid.NewGuid();
+        var marcaId = Guid.NewGuid();
+        var repository = new ProductoRepositoryFake();
+        var marcaRepository = new MarcaRepositoryFake();
+        await marcaRepository.AgregarAsync(new Marca(marcaId, Guid.NewGuid(), "Ajena"));
+        var useCase = new CrearProductoUseCase(
+            repository,
+            new EmpresaActivaContextFake(empresaActivaId),
+            new CategoriaRepositoryFake(),
+            marcaRepository);
+        var request = new CrearProductoRequest("Cafe Americano", 8.50m, MarcaId: marcaId);
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => useCase.EjecutarAsync(request));
+
+        Assert.Contains("marca", exception.Message, StringComparison.OrdinalIgnoreCase);
         Assert.Empty(repository.Productos);
     }
 
@@ -202,6 +277,73 @@ public class ApplicationProductoTests
             ProductosActualizados.Add(producto);
 
             return Task.CompletedTask;
+        }
+    }
+
+    private static CrearProductoUseCase CrearUseCase(ProductoRepositoryFake repository, Guid empresaId)
+    {
+        return new CrearProductoUseCase(
+            repository,
+            new EmpresaActivaContextFake(empresaId),
+            new CategoriaRepositoryFake(),
+            new MarcaRepositoryFake());
+    }
+
+    private sealed class CategoriaRepositoryFake : ICategoriaRepository
+    {
+        public List<Categoria> Categorias { get; } = new();
+
+        public Task AgregarAsync(Categoria categoria, CancellationToken cancellationToken = default)
+        {
+            Categorias.Add(categoria);
+            return Task.CompletedTask;
+        }
+
+        public Task<IReadOnlyCollection<Categoria>> ListarPorEmpresaAsync(
+            Guid empresaId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyCollection<Categoria>>(
+                Categorias.Where(categoria => categoria.EmpresaId == empresaId).ToArray());
+        }
+
+        public Task<Categoria?> ObtenerPorEmpresaAsync(
+            Guid empresaId,
+            Guid id,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(Categorias.SingleOrDefault(categoria =>
+                categoria.EmpresaId == empresaId &&
+                categoria.Id == id));
+        }
+    }
+
+    private sealed class MarcaRepositoryFake : IMarcaRepository
+    {
+        public List<Marca> Marcas { get; } = new();
+
+        public Task AgregarAsync(Marca marca, CancellationToken cancellationToken = default)
+        {
+            Marcas.Add(marca);
+            return Task.CompletedTask;
+        }
+
+        public Task<IReadOnlyCollection<Marca>> ListarPorEmpresaAsync(
+            Guid empresaId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyCollection<Marca>>(
+                Marcas.Where(marca => marca.EmpresaId == empresaId).ToArray());
+        }
+
+        public Task<Marca?> ObtenerPorEmpresaAsync(
+            Guid empresaId,
+            Guid id,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(Marcas.SingleOrDefault(marca =>
+                marca.EmpresaId == empresaId &&
+                marca.Id == id));
         }
     }
 

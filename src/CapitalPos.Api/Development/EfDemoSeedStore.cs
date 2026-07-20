@@ -65,6 +65,32 @@ public sealed class EfDemoSeedStore : IDemoSeedStore
                 cancellationToken);
     }
 
+    public Task<Categoria?> ObtenerCategoriaAsync(
+        Guid empresaId,
+        string nombre,
+        CancellationToken cancellationToken)
+    {
+        var nombreNormalizado = NormalizarTexto(nombre);
+
+        return _dbContext.Categorias
+            .SingleOrDefaultAsync(
+                categoria => categoria.EmpresaId == empresaId && categoria.Nombre == nombreNormalizado,
+                cancellationToken);
+    }
+
+    public Task<Marca?> ObtenerMarcaAsync(
+        Guid empresaId,
+        string nombre,
+        CancellationToken cancellationToken)
+    {
+        var nombreNormalizado = NormalizarTexto(nombre);
+
+        return _dbContext.Marcas
+            .SingleOrDefaultAsync(
+                marca => marca.EmpresaId == empresaId && marca.Nombre == nombreNormalizado,
+                cancellationToken);
+    }
+
     public Task<Producto?> ObtenerProductoAsync(
         Guid empresaId,
         Guid productoId,
@@ -140,6 +166,16 @@ public sealed class EfDemoSeedStore : IDemoSeedStore
     public async Task AgregarPuntoVentaAsync(PuntoVenta puntoVenta, CancellationToken cancellationToken)
     {
         await _dbContext.PuntosVenta.AddAsync(puntoVenta, cancellationToken);
+    }
+
+    public async Task AgregarCategoriaAsync(Categoria categoria, CancellationToken cancellationToken)
+    {
+        await _dbContext.Categorias.AddAsync(categoria, cancellationToken);
+    }
+
+    public async Task AgregarMarcaAsync(Marca marca, CancellationToken cancellationToken)
+    {
+        await _dbContext.Marcas.AddAsync(marca, cancellationToken);
     }
 
     public async Task AgregarProductoAsync(Producto producto, CancellationToken cancellationToken)

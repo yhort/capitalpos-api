@@ -16,6 +16,8 @@ public class EfCoreModelTests
         Assert.NotNull(context.Model.FindEntityType(typeof(Usuario)));
         Assert.NotNull(context.Model.FindEntityType(typeof(UsuarioCredencial)));
         Assert.NotNull(context.Model.FindEntityType(typeof(UsuarioEmpresa)));
+        Assert.NotNull(context.Model.FindEntityType(typeof(Categoria)));
+        Assert.NotNull(context.Model.FindEntityType(typeof(Marca)));
         Assert.NotNull(context.Model.FindEntityType(typeof(Producto)));
         Assert.NotNull(context.Model.FindEntityType(typeof(ProductoVariante)));
         Assert.NotNull(context.Model.FindEntityType(typeof(Cliente)));
@@ -137,6 +139,8 @@ public class EfCoreModelTests
         AssertPropiedad(entityType, nameof(Producto.CodigoBarras), maxLength: 80, nullable: false);
         AssertPropiedad(entityType, nameof(Producto.PrecioVenta), nullable: false);
         AssertPropiedad(entityType, nameof(Producto.Costo));
+        AssertPropiedad(entityType, nameof(Producto.CategoriaId));
+        AssertPropiedad(entityType, nameof(Producto.MarcaId));
         AssertPropiedad(entityType, nameof(Producto.Activo), nullable: false);
         AssertPropiedad(entityType, nameof(Producto.FechaCreacion), nullable: false);
 
@@ -161,6 +165,92 @@ public class EfCoreModelTests
             foreignKey.PrincipalEntityType.ClrType == typeof(Empresa) &&
             foreignKey.DeleteBehavior == DeleteBehavior.Restrict &&
             foreignKey.Properties.Select(property => property.Name).SequenceEqual([nameof(Producto.EmpresaId)]));
+        Assert.Contains(entityType.GetForeignKeys(), foreignKey =>
+            foreignKey.PrincipalEntityType.ClrType == typeof(Categoria) &&
+            foreignKey.DeleteBehavior == DeleteBehavior.Restrict &&
+            foreignKey.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(Producto.CategoriaId),
+                nameof(Producto.EmpresaId)
+            ]) &&
+            foreignKey.PrincipalKey.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(Categoria.Id),
+                nameof(Categoria.EmpresaId)
+            ]));
+        Assert.Contains(entityType.GetForeignKeys(), foreignKey =>
+            foreignKey.PrincipalEntityType.ClrType == typeof(Marca) &&
+            foreignKey.DeleteBehavior == DeleteBehavior.Restrict &&
+            foreignKey.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(Producto.MarcaId),
+                nameof(Producto.EmpresaId)
+            ]) &&
+            foreignKey.PrincipalKey.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(Marca.Id),
+                nameof(Marca.EmpresaId)
+            ]));
+    }
+
+    [Fact]
+    public void Categoria_tiene_empresa_padre_opcional_indice_unico_y_self_fk()
+    {
+        var entityType = ObtenerEntidad<Categoria>();
+
+        Assert.Equal("categorias", entityType.GetTableName());
+        Assert.Equal(nameof(Categoria.Id), entityType.FindPrimaryKey()?.Properties.Single().Name);
+        AssertPropiedad(entityType, nameof(Categoria.EmpresaId), nullable: false);
+        AssertPropiedad(entityType, nameof(Categoria.CategoriaPadreId));
+        AssertPropiedad(entityType, nameof(Categoria.Nombre), maxLength: 160, nullable: false);
+        AssertPropiedad(entityType, nameof(Categoria.Activa), nullable: false);
+        AssertPropiedad(entityType, nameof(Categoria.FechaCreacion), nullable: false);
+
+        Assert.Contains(entityType.GetIndexes(), index =>
+            index.Properties.Select(property => property.Name).SequenceEqual([nameof(Categoria.EmpresaId)]));
+        Assert.Contains(entityType.GetIndexes(), index =>
+            index.IsUnique &&
+            index.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(Categoria.EmpresaId),
+                nameof(Categoria.Nombre)
+            ]));
+        Assert.Contains(entityType.GetForeignKeys(), foreignKey =>
+            foreignKey.PrincipalEntityType.ClrType == typeof(Empresa) &&
+            foreignKey.DeleteBehavior == DeleteBehavior.Restrict &&
+            foreignKey.Properties.Select(property => property.Name).SequenceEqual([nameof(Categoria.EmpresaId)]));
+        Assert.Contains(entityType.GetForeignKeys(), foreignKey =>
+            foreignKey.PrincipalEntityType.ClrType == typeof(Categoria) &&
+            foreignKey.DeleteBehavior == DeleteBehavior.Restrict &&
+            foreignKey.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(Categoria.CategoriaPadreId),
+                nameof(Categoria.EmpresaId)
+            ]) &&
+            foreignKey.PrincipalKey.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(Categoria.Id),
+                nameof(Categoria.EmpresaId)
+            ]));
+    }
+
+    [Fact]
+    public void Marca_tiene_empresa_indice_unico_y_relacion_restrictiva()
+    {
+        var entityType = ObtenerEntidad<Marca>();
+
+        Assert.Equal("marcas", entityType.GetTableName());
+        Assert.Equal(nameof(Marca.Id), entityType.FindPrimaryKey()?.Properties.Single().Name);
+        AssertPropiedad(entityType, nameof(Marca.EmpresaId), nullable: false);
+        AssertPropiedad(entityType, nameof(Marca.Nombre), maxLength: 160, nullable: false);
+        AssertPropiedad(entityType, nameof(Marca.Activa), nullable: false);
+        AssertPropiedad(entityType, nameof(Marca.FechaCreacion), nullable: false);
+
+        Assert.Contains(entityType.GetIndexes(), index =>
+            index.Properties.Select(property => property.Name).SequenceEqual([nameof(Marca.EmpresaId)]));
+        Assert.Contains(entityType.GetIndexes(), index =>
+            index.IsUnique &&
+            index.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(Marca.EmpresaId),
+                nameof(Marca.Nombre)
+            ]));
+        Assert.Contains(entityType.GetForeignKeys(), foreignKey =>
+            foreignKey.PrincipalEntityType.ClrType == typeof(Empresa) &&
+            foreignKey.DeleteBehavior == DeleteBehavior.Restrict &&
+            foreignKey.Properties.Select(property => property.Name).SequenceEqual([nameof(Marca.EmpresaId)]));
     }
 
     [Fact]

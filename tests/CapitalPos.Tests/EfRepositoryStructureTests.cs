@@ -1,3 +1,4 @@
+using CapitalPos.Application.Catalogo;
 using CapitalPos.Application.ConfiguracionFiscal;
 using CapitalPos.Application.Empresas;
 using CapitalPos.Application.Inventario;
@@ -42,6 +43,18 @@ public class EfRepositoryStructureTests
     }
 
     [Fact]
+    public void Ef_categoria_repository_implementa_puerto_de_aplicacion()
+    {
+        Assert.True(typeof(ICategoriaRepository).IsAssignableFrom(typeof(EfCategoriaRepository)));
+    }
+
+    [Fact]
+    public void Ef_marca_repository_implementa_puerto_de_aplicacion()
+    {
+        Assert.True(typeof(IMarcaRepository).IsAssignableFrom(typeof(EfMarcaRepository)));
+    }
+
+    [Fact]
     public void Ef_stock_producto_repository_implementa_puerto_de_aplicacion()
     {
         Assert.True(typeof(IStockProductoRepository).IsAssignableFrom(typeof(EfStockProductoRepository)));
@@ -66,6 +79,8 @@ public class EfRepositoryStructureTests
     }
 
     [Theory]
+    [InlineData("src/CapitalPos.Infrastructure/Persistence/Repositories/EfCategoriaRepository.cs")]
+    [InlineData("src/CapitalPos.Infrastructure/Persistence/Repositories/EfMarcaRepository.cs")]
     [InlineData("src/CapitalPos.Infrastructure/Persistence/Repositories/EfSedeRepository.cs")]
     [InlineData("src/CapitalPos.Infrastructure/Persistence/Repositories/EfPuntoVentaRepository.cs")]
     [InlineData("src/CapitalPos.Infrastructure/Persistence/Repositories/EfSerieComprobanteRepository.cs")]

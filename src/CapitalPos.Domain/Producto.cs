@@ -18,7 +18,9 @@ public sealed class Producto
         string? codigoBarras = null,
         decimal? costo = null,
         bool activo = true,
-        DateTimeOffset? fechaCreacion = null)
+        DateTimeOffset? fechaCreacion = null,
+        Guid? categoriaId = null,
+        Guid? marcaId = null)
     {
         if (id == Guid.Empty)
         {
@@ -46,6 +48,8 @@ public sealed class Producto
             throw new ArgumentOutOfRangeException(nameof(costo), "El costo no puede ser negativo.");
         }
 
+        ValidarClasificacion(categoriaId, marcaId);
+
         var fechaCreacionNormalizada = fechaCreacion ?? DateTimeOffset.UtcNow;
         if (fechaCreacionNormalizada == default)
         {
@@ -59,6 +63,8 @@ public sealed class Producto
         CodigoBarras = NormalizarTexto(codigoBarras);
         PrecioVenta = precioVenta;
         Costo = costo;
+        CategoriaId = categoriaId;
+        MarcaId = marcaId;
         Activo = activo;
         FechaCreacion = fechaCreacionNormalizada;
     }
@@ -77,6 +83,10 @@ public sealed class Producto
 
     public decimal? Costo { get; private set; }
 
+    public Guid? CategoriaId { get; private set; }
+
+    public Guid? MarcaId { get; private set; }
+
     public bool Activo { get; private set; }
 
     public DateTimeOffset FechaCreacion { get; private set; }
@@ -86,7 +96,9 @@ public sealed class Producto
         decimal precioVenta,
         string? codigoSku = null,
         string? codigoBarras = null,
-        decimal? costo = null)
+        decimal? costo = null,
+        Guid? categoriaId = null,
+        Guid? marcaId = null)
     {
         var nombreNormalizado = NormalizarTexto(nombre);
         if (string.IsNullOrWhiteSpace(nombreNormalizado))
@@ -104,11 +116,15 @@ public sealed class Producto
             throw new ArgumentOutOfRangeException(nameof(costo), "El costo no puede ser negativo.");
         }
 
+        ValidarClasificacion(categoriaId, marcaId);
+
         Nombre = nombreNormalizado;
         CodigoSku = NormalizarTexto(codigoSku);
         CodigoBarras = NormalizarTexto(codigoBarras);
         PrecioVenta = precioVenta;
         Costo = costo;
+        CategoriaId = categoriaId;
+        MarcaId = marcaId;
     }
 
     public void Desactivar()
@@ -124,5 +140,18 @@ public sealed class Producto
     private static string NormalizarTexto(string? valor)
     {
         return valor?.Trim() ?? string.Empty;
+    }
+
+    private static void ValidarClasificacion(Guid? categoriaId, Guid? marcaId)
+    {
+        if (categoriaId == Guid.Empty)
+        {
+            throw new ArgumentException("El identificador de la categoria no puede ser vacio.", nameof(categoriaId));
+        }
+
+        if (marcaId == Guid.Empty)
+        {
+            throw new ArgumentException("El identificador de la marca no puede ser vacio.", nameof(marcaId));
+        }
     }
 }

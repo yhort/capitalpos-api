@@ -25,6 +25,16 @@ public interface IDemoSeedStore
         Guid puntoVentaId,
         CancellationToken cancellationToken);
 
+    Task<Categoria?> ObtenerCategoriaAsync(
+        Guid empresaId,
+        string nombre,
+        CancellationToken cancellationToken);
+
+    Task<Marca?> ObtenerMarcaAsync(
+        Guid empresaId,
+        string nombre,
+        CancellationToken cancellationToken);
+
     Task<Producto?> ObtenerProductoAsync(
         Guid empresaId,
         Guid productoId,
@@ -54,6 +64,10 @@ public interface IDemoSeedStore
     Task AgregarSedeAsync(Sede sede, CancellationToken cancellationToken);
 
     Task AgregarPuntoVentaAsync(PuntoVenta puntoVenta, CancellationToken cancellationToken);
+
+    Task AgregarCategoriaAsync(Categoria categoria, CancellationToken cancellationToken);
+
+    Task AgregarMarcaAsync(Marca marca, CancellationToken cancellationToken);
 
     Task AgregarProductoAsync(Producto producto, CancellationToken cancellationToken);
 

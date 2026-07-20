@@ -8,7 +8,9 @@ public sealed record CrearProductoRequest(
     string? CodigoSku = null,
     string? CodigoBarras = null,
     decimal? Costo = null,
-    bool Activo = true)
+    bool Activo = true,
+    Guid? CategoriaId = null,
+    Guid? MarcaId = null)
 {
     public Producto CrearProducto(Guid empresaId)
     {
@@ -20,6 +22,8 @@ public sealed record CrearProductoRequest(
             CodigoSku,
             CodigoBarras,
             Costo,
-            Activo);
+            Activo,
+            categoriaId: CategoriaId,
+            marcaId: MarcaId);
     }
 }

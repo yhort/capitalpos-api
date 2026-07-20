@@ -149,6 +149,18 @@ public static class EndpointInputValidator
             return false;
         }
 
+        if (request.CategoriaId == Guid.Empty)
+        {
+            error = "El identificador de la categoria no puede ser vacio.";
+            return false;
+        }
+
+        if (request.MarcaId == Guid.Empty)
+        {
+            error = "El identificador de la marca no puede ser vacio.";
+            return false;
+        }
+
         error = string.Empty;
         return true;
     }

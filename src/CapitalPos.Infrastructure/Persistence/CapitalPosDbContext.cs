@@ -18,6 +18,10 @@ public sealed class CapitalPosDbContext : DbContext
 
     public DbSet<UsuarioEmpresa> UsuariosEmpresa => Set<UsuarioEmpresa>();
 
+    public DbSet<Categoria> Categorias => Set<Categoria>();
+
+    public DbSet<Marca> Marcas => Set<Marca>();
+
     public DbSet<Producto> Productos => Set<Producto>();
 
     public DbSet<ProductoVariante> ProductosVariantes => Set<ProductoVariante>();

@@ -26,6 +26,8 @@ public class DemoDataSeederTests
         Assert.Empty(store.Credenciales);
         Assert.Empty(store.Sedes);
         Assert.Empty(store.PuntosVenta);
+        Assert.Empty(store.Categorias);
+        Assert.Empty(store.Marcas);
         Assert.Empty(store.Productos);
         Assert.Empty(store.Stocks);
         Assert.Empty(store.SeriesComprobante);
@@ -46,6 +48,8 @@ public class DemoDataSeederTests
         Assert.Empty(store.Credenciales);
         Assert.Empty(store.Sedes);
         Assert.Empty(store.PuntosVenta);
+        Assert.Empty(store.Categorias);
+        Assert.Empty(store.Marcas);
         Assert.Empty(store.Productos);
         Assert.Empty(store.Stocks);
         Assert.Empty(store.SeriesComprobante);
@@ -86,10 +90,23 @@ public class DemoDataSeederTests
         Assert.Equal(DemoSeedData.PuntoVentaNombre, puntoVenta.Nombre);
         Assert.True(puntoVenta.Activo);
 
+        var categoria = Assert.Single(store.Categorias);
+        Assert.Equal(empresa.Id, categoria.EmpresaId);
+        Assert.Equal(DemoSeedData.CategoriaNombre, categoria.Nombre);
+        Assert.Null(categoria.CategoriaPadreId);
+        Assert.True(categoria.Activa);
+
+        var marca = Assert.Single(store.Marcas);
+        Assert.Equal(empresa.Id, marca.EmpresaId);
+        Assert.Equal(DemoSeedData.MarcaNombre, marca.Nombre);
+        Assert.True(marca.Activa);
+
         var producto = Assert.Single(store.Productos);
         Assert.Equal(empresa.Id, producto.EmpresaId);
         Assert.Equal(DemoSeedData.ProductoNombre, producto.Nombre);
         Assert.Equal(DemoSeedData.ProductoCodigoSku, producto.CodigoSku);
+        Assert.Equal(categoria.Id, producto.CategoriaId);
+        Assert.Equal(marca.Id, producto.MarcaId);
 
         var stock = Assert.Single(store.Stocks);
         Assert.Equal(empresa.Id, stock.EmpresaId);
@@ -129,6 +146,8 @@ public class DemoDataSeederTests
         Assert.Single(store.Relaciones);
         Assert.Single(store.Sedes);
         Assert.Single(store.PuntosVenta);
+        Assert.Single(store.Categorias);
+        Assert.Single(store.Marcas);
         Assert.Single(store.Productos);
         Assert.Single(store.Stocks);
         Assert.Single(store.SeriesComprobante);
@@ -155,6 +174,8 @@ public class DemoDataSeederTests
         Assert.Single(store.Relaciones);
         Assert.Single(store.Sedes);
         Assert.Single(store.PuntosVenta);
+        Assert.Single(store.Categorias);
+        Assert.Single(store.Marcas);
         Assert.Single(store.Productos);
         Assert.Single(store.Stocks);
         Assert.Single(store.SeriesComprobante);
@@ -226,6 +247,10 @@ public class DemoDataSeederTests
 
         public List<PuntoVenta> PuntosVenta { get; } = [];
 
+        public List<Categoria> Categorias { get; } = [];
+
+        public List<Marca> Marcas { get; } = [];
+
         public List<Producto> Productos { get; } = [];
 
         public List<StockProducto> Stocks { get; } = [];
@@ -277,6 +302,26 @@ public class DemoDataSeederTests
             return Task.FromResult(PuntosVenta.SingleOrDefault(puntoVenta =>
                 puntoVenta.EmpresaId == empresaId &&
                 puntoVenta.Id == puntoVentaId));
+        }
+
+        public Task<Categoria?> ObtenerCategoriaAsync(
+            Guid empresaId,
+            string nombre,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult(Categorias.SingleOrDefault(categoria =>
+                categoria.EmpresaId == empresaId &&
+                categoria.Nombre == nombre.Trim()));
+        }
+
+        public Task<Marca?> ObtenerMarcaAsync(
+            Guid empresaId,
+            string nombre,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult(Marcas.SingleOrDefault(marca =>
+                marca.EmpresaId == empresaId &&
+                marca.Nombre == nombre.Trim()));
         }
 
         public Task<Producto?> ObtenerProductoAsync(
@@ -352,6 +397,18 @@ public class DemoDataSeederTests
         public Task AgregarPuntoVentaAsync(PuntoVenta puntoVenta, CancellationToken cancellationToken)
         {
             PuntosVenta.Add(puntoVenta);
+            return Task.CompletedTask;
+        }
+
+        public Task AgregarCategoriaAsync(Categoria categoria, CancellationToken cancellationToken)
+        {
+            Categorias.Add(categoria);
+            return Task.CompletedTask;
+        }
+
+        public Task AgregarMarcaAsync(Marca marca, CancellationToken cancellationToken)
+        {
+            Marcas.Add(marca);
             return Task.CompletedTask;
         }
 

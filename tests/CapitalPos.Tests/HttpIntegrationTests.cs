@@ -6,6 +6,7 @@ using System.Security.Claims;
 using System.Text;
 using CapitalPos.Api.ActiveCompany;
 using CapitalPos.Api.Endpoints;
+using CapitalPos.Application.Catalogo;
 using CapitalPos.Application.Clientes;
 using CapitalPos.Application.ConfiguracionFiscal;
 using CapitalPos.Application.Dashboard;
@@ -1654,6 +1655,10 @@ public class HttpIntegrationTests
 
         public FakeConfiguracionFiscalEmpresaRepository ConfiguracionFiscalRepository { get; } = new();
 
+        public FakeCategoriaRepository CategoriaRepository { get; } = new();
+
+        public FakeMarcaRepository MarcaRepository { get; } = new();
+
         public FakeProductoRepository ProductoRepository { get; } = new();
 
         public FakeProductoVarianteRepository ProductoVarianteRepository { get; } = new();
@@ -1708,6 +1713,8 @@ public class HttpIntegrationTests
                 services.RemoveAll<IUsuarioRepository>();
                 services.RemoveAll<IUsuarioEmpresaRepository>();
                 services.RemoveAll<IUsuarioCredencialRepository>();
+                services.RemoveAll<ICategoriaRepository>();
+                services.RemoveAll<IMarcaRepository>();
                 services.RemoveAll<IProductoRepository>();
                 services.RemoveAll<IProductoVarianteRepository>();
                 services.RemoveAll<IClienteRepository>();
@@ -1725,6 +1732,8 @@ public class HttpIntegrationTests
                 services.AddSingleton<IUsuarioRepository>(UsuarioRepository);
                 services.AddSingleton<IUsuarioEmpresaRepository>(UsuarioEmpresaRepository);
                 services.AddSingleton<IUsuarioCredencialRepository, FakeUsuarioCredencialRepository>();
+                services.AddSingleton<ICategoriaRepository>(CategoriaRepository);
+                services.AddSingleton<IMarcaRepository>(MarcaRepository);
                 services.AddSingleton<IProductoRepository>(ProductoRepository);
                 services.AddSingleton<IProductoVarianteRepository>(ProductoVarianteRepository);
                 services.AddSingleton<IClienteRepository, FakeClienteRepository>();
@@ -1903,6 +1912,64 @@ public class HttpIntegrationTests
             CancellationToken cancellationToken = default)
         {
             return Task.FromResult<UsuarioCredencial?>(null);
+        }
+    }
+
+    private sealed class FakeCategoriaRepository : ICategoriaRepository
+    {
+        public List<Categoria> Categorias { get; } = [];
+
+        public Task AgregarAsync(Categoria categoria, CancellationToken cancellationToken = default)
+        {
+            Categorias.Add(categoria);
+            return Task.CompletedTask;
+        }
+
+        public Task<IReadOnlyCollection<Categoria>> ListarPorEmpresaAsync(
+            Guid empresaId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyCollection<Categoria>>(
+                Categorias.Where(categoria => categoria.EmpresaId == empresaId).ToArray());
+        }
+
+        public Task<Categoria?> ObtenerPorEmpresaAsync(
+            Guid empresaId,
+            Guid id,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(Categorias.FirstOrDefault(categoria =>
+                categoria.EmpresaId == empresaId &&
+                categoria.Id == id));
+        }
+    }
+
+    private sealed class FakeMarcaRepository : IMarcaRepository
+    {
+        public List<Marca> Marcas { get; } = [];
+
+        public Task AgregarAsync(Marca marca, CancellationToken cancellationToken = default)
+        {
+            Marcas.Add(marca);
+            return Task.CompletedTask;
+        }
+
+        public Task<IReadOnlyCollection<Marca>> ListarPorEmpresaAsync(
+            Guid empresaId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyCollection<Marca>>(
+                Marcas.Where(marca => marca.EmpresaId == empresaId).ToArray());
+        }
+
+        public Task<Marca?> ObtenerPorEmpresaAsync(
+            Guid empresaId,
+            Guid id,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(Marcas.FirstOrDefault(marca =>
+                marca.EmpresaId == empresaId &&
+                marca.Id == id));
         }
     }
 

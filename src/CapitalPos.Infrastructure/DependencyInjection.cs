@@ -1,4 +1,5 @@
 using CapitalPos.Application.Auditoria;
+using CapitalPos.Application.Catalogo;
 using CapitalPos.Application.Clientes;
 using CapitalPos.Application.ConfiguracionFiscal;
 using CapitalPos.Application.Cpe;
@@ -42,6 +43,8 @@ public static class DependencyInjection
         services.AddScoped<IUsuarioRepository, EfUsuarioRepository>();
         services.AddScoped<IUsuarioEmpresaRepository, EfUsuarioEmpresaRepository>();
         services.AddScoped<IUsuarioCredencialRepository, EfUsuarioCredencialRepository>();
+        services.AddScoped<ICategoriaRepository, EfCategoriaRepository>();
+        services.AddScoped<IMarcaRepository, EfMarcaRepository>();
         services.AddScoped<IProductoRepository, EfProductoRepository>();
         services.AddScoped<IProductoVarianteRepository, EfProductoVarianteRepository>();
         services.AddScoped<IClienteRepository, EfClienteRepository>();
