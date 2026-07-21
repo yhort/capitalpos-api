@@ -91,6 +91,18 @@ public sealed class EfDemoSeedStore : IDemoSeedStore
                 cancellationToken);
     }
 
+    public Task<UnidadMedida?> ObtenerUnidadMedidaAsync(
+        string codigo,
+        CancellationToken cancellationToken)
+    {
+        var codigoNormalizado = NormalizarTexto(codigo).ToUpperInvariant();
+
+        return _dbContext.UnidadesMedida
+            .SingleOrDefaultAsync(
+                unidadMedida => unidadMedida.Codigo == codigoNormalizado,
+                cancellationToken);
+    }
+
     public Task<Producto?> ObtenerProductoAsync(
         Guid empresaId,
         Guid productoId,
@@ -176,6 +188,11 @@ public sealed class EfDemoSeedStore : IDemoSeedStore
     public async Task AgregarMarcaAsync(Marca marca, CancellationToken cancellationToken)
     {
         await _dbContext.Marcas.AddAsync(marca, cancellationToken);
+    }
+
+    public async Task AgregarUnidadMedidaAsync(UnidadMedida unidadMedida, CancellationToken cancellationToken)
+    {
+        await _dbContext.UnidadesMedida.AddAsync(unidadMedida, cancellationToken);
     }
 
     public async Task AgregarProductoAsync(Producto producto, CancellationToken cancellationToken)

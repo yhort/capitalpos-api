@@ -1968,7 +1968,11 @@ public class HttpIntegrationTests
 
         public FakeMarcaRepository MarcaRepository { get; } = new();
 
+        public FakeUnidadMedidaRepository UnidadMedidaRepository { get; } = new();
+
         public FakeProductoRepository ProductoRepository { get; } = new();
+
+        public FakeProductoPresentacionRepository ProductoPresentacionRepository { get; } = new();
 
         public FakeProductoVarianteRepository ProductoVarianteRepository { get; } = new();
 
@@ -2024,7 +2028,9 @@ public class HttpIntegrationTests
                 services.RemoveAll<IUsuarioCredencialRepository>();
                 services.RemoveAll<ICategoriaRepository>();
                 services.RemoveAll<IMarcaRepository>();
+                services.RemoveAll<IUnidadMedidaRepository>();
                 services.RemoveAll<IProductoRepository>();
+                services.RemoveAll<IProductoPresentacionRepository>();
                 services.RemoveAll<IProductoVarianteRepository>();
                 services.RemoveAll<IClienteRepository>();
                 services.RemoveAll<IVentaRepository>();
@@ -2043,7 +2049,9 @@ public class HttpIntegrationTests
                 services.AddSingleton<IUsuarioCredencialRepository, FakeUsuarioCredencialRepository>();
                 services.AddSingleton<ICategoriaRepository>(CategoriaRepository);
                 services.AddSingleton<IMarcaRepository>(MarcaRepository);
+                services.AddSingleton<IUnidadMedidaRepository>(UnidadMedidaRepository);
                 services.AddSingleton<IProductoRepository>(ProductoRepository);
+                services.AddSingleton<IProductoPresentacionRepository>(ProductoPresentacionRepository);
                 services.AddSingleton<IProductoVarianteRepository>(ProductoVarianteRepository);
                 services.AddSingleton<IClienteRepository, FakeClienteRepository>();
                 services.AddSingleton<IVentaRepository>(VentaRepository);
@@ -2306,6 +2314,40 @@ public class HttpIntegrationTests
         }
     }
 
+    private sealed class FakeUnidadMedidaRepository : IUnidadMedidaRepository
+    {
+        public List<UnidadMedida> UnidadesMedida { get; } = [];
+
+        public Task AgregarAsync(UnidadMedida unidadMedida, CancellationToken cancellationToken = default)
+        {
+            UnidadesMedida.Add(unidadMedida);
+            return Task.CompletedTask;
+        }
+
+        public Task<IReadOnlyCollection<UnidadMedida>> ListarAsync(CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyCollection<UnidadMedida>>(
+                UnidadesMedida.OrderBy(unidadMedida => unidadMedida.Codigo).ToArray());
+        }
+
+        public Task<UnidadMedida?> ObtenerPorIdAsync(
+            Guid id,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(UnidadesMedida.FirstOrDefault(unidadMedida => unidadMedida.Id == id));
+        }
+
+        public Task<UnidadMedida?> ObtenerPorCodigoAsync(
+            string codigo,
+            CancellationToken cancellationToken = default)
+        {
+            var codigoNormalizado = codigo.Trim().ToUpperInvariant();
+
+            return Task.FromResult(UnidadesMedida.FirstOrDefault(unidadMedida =>
+                unidadMedida.Codigo == codigoNormalizado));
+        }
+    }
+
     private sealed class FakeProductoRepository : IProductoRepository
     {
         public List<Producto> Productos { get; } = [];
@@ -2340,6 +2382,41 @@ public class HttpIntegrationTests
             CancellationToken cancellationToken = default)
         {
             return Task.CompletedTask;
+        }
+    }
+
+    private sealed class FakeProductoPresentacionRepository : IProductoPresentacionRepository
+    {
+        public List<ProductoPresentacion> Presentaciones { get; } = [];
+
+        public Task AgregarAsync(
+            ProductoPresentacion presentacion,
+            CancellationToken cancellationToken = default)
+        {
+            Presentaciones.Add(presentacion);
+            return Task.CompletedTask;
+        }
+
+        public Task<IReadOnlyCollection<ProductoPresentacion>> ListarPorProductoAsync(
+            Guid empresaId,
+            Guid productoId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyCollection<ProductoPresentacion>>(
+                Presentaciones.Where(presentacion =>
+                        presentacion.EmpresaId == empresaId &&
+                        presentacion.ProductoId == productoId)
+                    .ToArray());
+        }
+
+        public Task<ProductoPresentacion?> ObtenerPorEmpresaAsync(
+            Guid empresaId,
+            Guid id,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(Presentaciones.FirstOrDefault(presentacion =>
+                presentacion.EmpresaId == empresaId &&
+                presentacion.Id == id));
         }
     }
 

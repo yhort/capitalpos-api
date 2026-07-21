@@ -22,7 +22,11 @@ public sealed class CapitalPosDbContext : DbContext
 
     public DbSet<Marca> Marcas => Set<Marca>();
 
+    public DbSet<UnidadMedida> UnidadesMedida => Set<UnidadMedida>();
+
     public DbSet<Producto> Productos => Set<Producto>();
+
+    public DbSet<ProductoPresentacion> ProductosPresentaciones => Set<ProductoPresentacion>();
 
     public DbSet<ProductoVariante> ProductosVariantes => Set<ProductoVariante>();
 

@@ -70,8 +70,16 @@ public class InfrastructureDependencyInjectionTests
             descriptor.ImplementationType == typeof(EfMarcaRepository) &&
             descriptor.Lifetime == ServiceLifetime.Scoped);
         Assert.Contains(services, descriptor =>
+            descriptor.ServiceType == typeof(IUnidadMedidaRepository) &&
+            descriptor.ImplementationType == typeof(EfUnidadMedidaRepository) &&
+            descriptor.Lifetime == ServiceLifetime.Scoped);
+        Assert.Contains(services, descriptor =>
             descriptor.ServiceType == typeof(IProductoRepository) &&
             descriptor.ImplementationType == typeof(EfProductoRepository) &&
+            descriptor.Lifetime == ServiceLifetime.Scoped);
+        Assert.Contains(services, descriptor =>
+            descriptor.ServiceType == typeof(IProductoPresentacionRepository) &&
+            descriptor.ImplementationType == typeof(EfProductoPresentacionRepository) &&
             descriptor.Lifetime == ServiceLifetime.Scoped);
         Assert.Contains(services, descriptor =>
             descriptor.ServiceType == typeof(IProductoVarianteRepository) &&

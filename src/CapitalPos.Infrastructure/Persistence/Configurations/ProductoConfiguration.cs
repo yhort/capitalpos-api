@@ -41,6 +41,12 @@ public sealed class ProductoConfiguration : IEntityTypeConfiguration<Producto>
 
         builder.Property(producto => producto.MarcaId);
 
+        builder.Property(producto => producto.ModoManejo)
+            .HasConversion<string>()
+            .HasMaxLength(30)
+            .HasDefaultValue(ModoManejoProducto.SIMPLE)
+            .IsRequired();
+
         builder.Property(producto => producto.Activo)
             .IsRequired();
 

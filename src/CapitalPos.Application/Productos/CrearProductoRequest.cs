@@ -10,7 +10,8 @@ public sealed record CrearProductoRequest(
     decimal? Costo = null,
     bool Activo = true,
     Guid? CategoriaId = null,
-    Guid? MarcaId = null)
+    Guid? MarcaId = null,
+    ModoManejoProducto ModoManejo = ModoManejoProducto.SIMPLE)
 {
     public Producto CrearProducto(Guid empresaId)
     {
@@ -24,6 +25,7 @@ public sealed record CrearProductoRequest(
             Costo,
             Activo,
             categoriaId: CategoriaId,
-            marcaId: MarcaId);
+            marcaId: MarcaId,
+            modoManejo: ModoManejo);
     }
 }

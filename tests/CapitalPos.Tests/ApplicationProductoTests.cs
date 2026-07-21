@@ -27,7 +27,8 @@ public class ApplicationProductoTests
             " 7750000000012 ",
             3.25m,
             CategoriaId: categoriaId,
-            MarcaId: marcaId);
+            MarcaId: marcaId,
+            ModoManejo: ModoManejoProducto.PRESENTACION);
 
         var producto = await useCase.EjecutarAsync(request);
 
@@ -40,6 +41,7 @@ public class ApplicationProductoTests
         Assert.Equal(3.25m, producto.Costo);
         Assert.Equal(categoriaId, producto.CategoriaId);
         Assert.Equal(marcaId, producto.MarcaId);
+        Assert.Equal(ModoManejoProducto.PRESENTACION, producto.ModoManejo);
         Assert.Same(producto, repository.Productos.Single());
     }
 
@@ -55,6 +57,7 @@ public class ApplicationProductoTests
 
         Assert.Null(producto.CategoriaId);
         Assert.Null(producto.MarcaId);
+        Assert.Equal(ModoManejoProducto.SIMPLE, producto.ModoManejo);
     }
 
     [Fact]

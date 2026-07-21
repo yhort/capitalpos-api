@@ -23,7 +23,8 @@ public class ProductoTests
             3.25m,
             fechaCreacion: fechaCreacion,
             categoriaId: categoriaId,
-            marcaId: marcaId);
+            marcaId: marcaId,
+            modoManejo: ModoManejoProducto.PRESENTACION);
 
         Assert.Equal(id, producto.Id);
         Assert.Equal(empresaId, producto.EmpresaId);
@@ -34,6 +35,7 @@ public class ProductoTests
         Assert.Equal(3.25m, producto.Costo);
         Assert.Equal(categoriaId, producto.CategoriaId);
         Assert.Equal(marcaId, producto.MarcaId);
+        Assert.Equal(ModoManejoProducto.PRESENTACION, producto.ModoManejo);
         Assert.True(producto.Activo);
         Assert.Equal(fechaCreacion, producto.FechaCreacion);
     }
@@ -52,6 +54,7 @@ public class ProductoTests
         Assert.Null(producto.Costo);
         Assert.Null(producto.CategoriaId);
         Assert.Null(producto.MarcaId);
+        Assert.Equal(ModoManejoProducto.SIMPLE, producto.ModoManejo);
     }
 
     [Fact]
@@ -137,6 +140,18 @@ public class ProductoTests
     }
 
     [Fact]
+    public void Rechaza_modo_manejo_invalido()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new Producto(
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                "Producto",
+                10m,
+                modoManejo: (ModoManejoProducto)999));
+    }
+
+    [Fact]
     public void Actualizar_datos_basicos_normaliza_y_actualiza_campos()
     {
         var categoriaId = Guid.NewGuid();
@@ -154,7 +169,8 @@ public class ProductoTests
             " 7750000000029 ",
             4.10m,
             categoriaId: categoriaId,
-            marcaId: marcaId);
+            marcaId: marcaId,
+            modoManejo: ModoManejoProducto.VARIANTE);
 
         Assert.Equal("Cafe Latte", producto.Nombre);
         Assert.Equal("SKU-002", producto.CodigoSku);
@@ -163,6 +179,7 @@ public class ProductoTests
         Assert.Equal(4.10m, producto.Costo);
         Assert.Equal(categoriaId, producto.CategoriaId);
         Assert.Equal(marcaId, producto.MarcaId);
+        Assert.Equal(ModoManejoProducto.VARIANTE, producto.ModoManejo);
     }
 
     [Fact]

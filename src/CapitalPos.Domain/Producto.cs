@@ -20,7 +20,8 @@ public sealed class Producto
         bool activo = true,
         DateTimeOffset? fechaCreacion = null,
         Guid? categoriaId = null,
-        Guid? marcaId = null)
+        Guid? marcaId = null,
+        ModoManejoProducto modoManejo = ModoManejoProducto.SIMPLE)
     {
         if (id == Guid.Empty)
         {
@@ -49,6 +50,7 @@ public sealed class Producto
         }
 
         ValidarClasificacion(categoriaId, marcaId);
+        ValidarModoManejo(modoManejo);
 
         var fechaCreacionNormalizada = fechaCreacion ?? DateTimeOffset.UtcNow;
         if (fechaCreacionNormalizada == default)
@@ -65,6 +67,7 @@ public sealed class Producto
         Costo = costo;
         CategoriaId = categoriaId;
         MarcaId = marcaId;
+        ModoManejo = modoManejo;
         Activo = activo;
         FechaCreacion = fechaCreacionNormalizada;
     }
@@ -87,6 +90,8 @@ public sealed class Producto
 
     public Guid? MarcaId { get; private set; }
 
+    public ModoManejoProducto ModoManejo { get; private set; }
+
     public bool Activo { get; private set; }
 
     public DateTimeOffset FechaCreacion { get; private set; }
@@ -98,7 +103,8 @@ public sealed class Producto
         string? codigoBarras = null,
         decimal? costo = null,
         Guid? categoriaId = null,
-        Guid? marcaId = null)
+        Guid? marcaId = null,
+        ModoManejoProducto modoManejo = ModoManejoProducto.SIMPLE)
     {
         var nombreNormalizado = NormalizarTexto(nombre);
         if (string.IsNullOrWhiteSpace(nombreNormalizado))
@@ -117,6 +123,7 @@ public sealed class Producto
         }
 
         ValidarClasificacion(categoriaId, marcaId);
+        ValidarModoManejo(modoManejo);
 
         Nombre = nombreNormalizado;
         CodigoSku = NormalizarTexto(codigoSku);
@@ -125,6 +132,7 @@ public sealed class Producto
         Costo = costo;
         CategoriaId = categoriaId;
         MarcaId = marcaId;
+        ModoManejo = modoManejo;
     }
 
     public void Desactivar()
@@ -152,6 +160,14 @@ public sealed class Producto
         if (marcaId == Guid.Empty)
         {
             throw new ArgumentException("El identificador de la marca no puede ser vacio.", nameof(marcaId));
+        }
+    }
+
+    private static void ValidarModoManejo(ModoManejoProducto modoManejo)
+    {
+        if (!Enum.IsDefined(modoManejo))
+        {
+            throw new ArgumentOutOfRangeException(nameof(modoManejo), "El modo de manejo del producto no es valido.");
         }
     }
 }

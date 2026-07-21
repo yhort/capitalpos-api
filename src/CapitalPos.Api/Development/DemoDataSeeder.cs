@@ -42,6 +42,7 @@ public sealed class DemoDataSeeder
         await ObtenerOCrearRelacionAsync(usuario.Id, empresa.Id, cancellationToken);
         var sede = await ObtenerOCrearSedeAsync(empresa.Id, cancellationToken);
         await ObtenerOCrearPuntoVentaAsync(empresa.Id, sede.Id, cancellationToken);
+        await ObtenerOCrearUnidadesMedidaBasicasAsync(cancellationToken);
         var categoria = await ObtenerOCrearCategoriaAsync(empresa.Id, cancellationToken);
         var marca = await ObtenerOCrearMarcaAsync(empresa.Id, cancellationToken);
         var producto = await ObtenerOCrearProductoAsync(
@@ -276,10 +277,27 @@ public sealed class DemoDataSeeder
             DemoSeedData.ProductoPrecioVenta,
             DemoSeedData.ProductoCodigoSku,
             categoriaId: categoriaId,
-            marcaId: marcaId);
+            marcaId: marcaId,
+            modoManejo: DemoSeedData.ProductoModoManejo);
         await _store.AgregarProductoAsync(producto, cancellationToken);
 
         return producto;
+    }
+
+    private async Task ObtenerOCrearUnidadesMedidaBasicasAsync(CancellationToken cancellationToken)
+    {
+        foreach (var unidad in DemoSeedData.UnidadesMedidaBasicas)
+        {
+            var existente = await _store.ObtenerUnidadMedidaAsync(unidad.Codigo, cancellationToken);
+            if (existente is not null)
+            {
+                continue;
+            }
+
+            await _store.AgregarUnidadMedidaAsync(
+                new UnidadMedida(unidad.Id, unidad.Codigo, unidad.Nombre),
+                cancellationToken);
+        }
     }
 
     private async Task<StockProducto> ObtenerOCrearStockProductoAsync(

@@ -35,6 +35,10 @@ public interface IDemoSeedStore
         string nombre,
         CancellationToken cancellationToken);
 
+    Task<UnidadMedida?> ObtenerUnidadMedidaAsync(
+        string codigo,
+        CancellationToken cancellationToken);
+
     Task<Producto?> ObtenerProductoAsync(
         Guid empresaId,
         Guid productoId,
@@ -68,6 +72,8 @@ public interface IDemoSeedStore
     Task AgregarCategoriaAsync(Categoria categoria, CancellationToken cancellationToken);
 
     Task AgregarMarcaAsync(Marca marca, CancellationToken cancellationToken);
+
+    Task AgregarUnidadMedidaAsync(UnidadMedida unidadMedida, CancellationToken cancellationToken);
 
     Task AgregarProductoAsync(Producto producto, CancellationToken cancellationToken);
 

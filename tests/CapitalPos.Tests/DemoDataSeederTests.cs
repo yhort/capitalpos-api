@@ -28,6 +28,7 @@ public class DemoDataSeederTests
         Assert.Empty(store.PuntosVenta);
         Assert.Empty(store.Categorias);
         Assert.Empty(store.Marcas);
+        Assert.Empty(store.UnidadesMedida);
         Assert.Empty(store.Productos);
         Assert.Empty(store.Stocks);
         Assert.Empty(store.SeriesComprobante);
@@ -50,6 +51,7 @@ public class DemoDataSeederTests
         Assert.Empty(store.PuntosVenta);
         Assert.Empty(store.Categorias);
         Assert.Empty(store.Marcas);
+        Assert.Empty(store.UnidadesMedida);
         Assert.Empty(store.Productos);
         Assert.Empty(store.Stocks);
         Assert.Empty(store.SeriesComprobante);
@@ -101,12 +103,20 @@ public class DemoDataSeederTests
         Assert.Equal(DemoSeedData.MarcaNombre, marca.Nombre);
         Assert.True(marca.Activa);
 
+        Assert.Equal(5, store.UnidadesMedida.Count);
+        Assert.Contains(store.UnidadesMedida, unidad => unidad.Codigo == "UND");
+        Assert.Contains(store.UnidadesMedida, unidad => unidad.Codigo == "CAJ");
+        Assert.Contains(store.UnidadesMedida, unidad => unidad.Codigo == "PAQ");
+        Assert.Contains(store.UnidadesMedida, unidad => unidad.Codigo == "DOC");
+        Assert.Contains(store.UnidadesMedida, unidad => unidad.Codigo == "KG");
+
         var producto = Assert.Single(store.Productos);
         Assert.Equal(empresa.Id, producto.EmpresaId);
         Assert.Equal(DemoSeedData.ProductoNombre, producto.Nombre);
         Assert.Equal(DemoSeedData.ProductoCodigoSku, producto.CodigoSku);
         Assert.Equal(categoria.Id, producto.CategoriaId);
         Assert.Equal(marca.Id, producto.MarcaId);
+        Assert.Equal(DemoSeedData.ProductoModoManejo, producto.ModoManejo);
 
         var stock = Assert.Single(store.Stocks);
         Assert.Equal(empresa.Id, stock.EmpresaId);
@@ -148,6 +158,7 @@ public class DemoDataSeederTests
         Assert.Single(store.PuntosVenta);
         Assert.Single(store.Categorias);
         Assert.Single(store.Marcas);
+        Assert.Equal(5, store.UnidadesMedida.Count);
         Assert.Single(store.Productos);
         Assert.Single(store.Stocks);
         Assert.Single(store.SeriesComprobante);
@@ -176,6 +187,7 @@ public class DemoDataSeederTests
         Assert.Single(store.PuntosVenta);
         Assert.Single(store.Categorias);
         Assert.Single(store.Marcas);
+        Assert.Equal(5, store.UnidadesMedida.Count);
         Assert.Single(store.Productos);
         Assert.Single(store.Stocks);
         Assert.Single(store.SeriesComprobante);
@@ -251,6 +263,8 @@ public class DemoDataSeederTests
 
         public List<Marca> Marcas { get; } = [];
 
+        public List<UnidadMedida> UnidadesMedida { get; } = [];
+
         public List<Producto> Productos { get; } = [];
 
         public List<StockProducto> Stocks { get; } = [];
@@ -322,6 +336,16 @@ public class DemoDataSeederTests
             return Task.FromResult(Marcas.SingleOrDefault(marca =>
                 marca.EmpresaId == empresaId &&
                 marca.Nombre == nombre.Trim()));
+        }
+
+        public Task<UnidadMedida?> ObtenerUnidadMedidaAsync(
+            string codigo,
+            CancellationToken cancellationToken)
+        {
+            var codigoNormalizado = codigo.Trim().ToUpperInvariant();
+
+            return Task.FromResult(UnidadesMedida.SingleOrDefault(unidadMedida =>
+                unidadMedida.Codigo == codigoNormalizado));
         }
 
         public Task<Producto?> ObtenerProductoAsync(
@@ -409,6 +433,12 @@ public class DemoDataSeederTests
         public Task AgregarMarcaAsync(Marca marca, CancellationToken cancellationToken)
         {
             Marcas.Add(marca);
+            return Task.CompletedTask;
+        }
+
+        public Task AgregarUnidadMedidaAsync(UnidadMedida unidadMedida, CancellationToken cancellationToken)
+        {
+            UnidadesMedida.Add(unidadMedida);
             return Task.CompletedTask;
         }
 
