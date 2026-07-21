@@ -259,6 +259,42 @@ public static class EndpointInputValidator
         return true;
     }
 
+    public static bool TryValidate(CrearProductoPresentacionRequest request, out string error)
+    {
+        if (request.ProductoId == Guid.Empty)
+        {
+            error = "El identificador del producto es obligatorio.";
+            return false;
+        }
+
+        if (request.UnidadMedidaId == Guid.Empty)
+        {
+            error = "El identificador de la unidad de medida es obligatorio.";
+            return false;
+        }
+
+        if (request.FactorConversion <= 0)
+        {
+            error = "El factor de conversion debe ser mayor que cero.";
+            return false;
+        }
+
+        if (request.PrecioVenta <= 0)
+        {
+            error = "El precio de venta debe ser mayor que cero.";
+            return false;
+        }
+
+        if (request.CodigoBarras is { Length: > 80 })
+        {
+            error = "El codigo de barras de la presentacion no debe exceder 80 caracteres.";
+            return false;
+        }
+
+        error = string.Empty;
+        return true;
+    }
+
     public static bool TryValidate(CrearClienteRequest request, out string error)
     {
         if (string.IsNullOrWhiteSpace(request.TipoDocumento))

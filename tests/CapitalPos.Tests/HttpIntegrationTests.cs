@@ -1272,6 +1272,349 @@ public class HttpIntegrationTests
     }
 
     [Fact]
+    public async Task Unidades_medida_sin_jwt_devuelve_unauthorized()
+    {
+        await using var factory = new CapitalPosHttpFactory();
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync("/api/unidades-medida");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Unidades_medida_con_jwt_sin_empresa_activa_devuelve_bad_request()
+    {
+        await using var factory = new CapitalPosHttpFactory();
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = CrearAuthorizationHeader(UsuarioId);
+
+        var response = await client.GetAsync("/api/unidades-medida");
+        var content = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains(EmpresaActivaHeaders.HeaderName, content);
+        AssertSeguro(content);
+    }
+
+    [Fact]
+    public async Task Unidades_medida_usuario_sin_permiso_devuelve_forbidden()
+    {
+        await using var factory = new CapitalPosHttpFactory
+        {
+            UsuarioEmpresa = CrearUsuarioEmpresa(RolEmpresa.Vendedor)
+        };
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+
+        var response = await client.GetAsync("/api/unidades-medida");
+        var content = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Contains("permiso requerido", content);
+        AssertSeguro(content);
+    }
+
+    [Fact]
+    public async Task Listar_unidades_medida_devuelve_solo_activas()
+    {
+        var unidadActivaId = Guid.NewGuid();
+        var unidadInactivaId = Guid.NewGuid();
+        await using var factory = new CapitalPosHttpFactory();
+        await factory.UnidadMedidaRepository.AgregarAsync(new UnidadMedida(unidadActivaId, "UND", "Unidad"));
+        await factory.UnidadMedidaRepository.AgregarAsync(new UnidadMedida(unidadInactivaId, "CAJ", "Caja", activa: false));
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+
+        var response = await client.GetAsync("/api/unidades-medida");
+        var content = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadFromJsonAsync<UnidadMedidaResponse[]>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(body);
+        var unidad = Assert.Single(body);
+        Assert.Equal(unidadActivaId, unidad.Id);
+        Assert.Equal("UND", unidad.Codigo);
+        Assert.Equal("Unidad", unidad.Nombre);
+        Assert.True(unidad.Activa);
+        Assert.DoesNotContain(unidadInactivaId.ToString(), content, StringComparison.OrdinalIgnoreCase);
+        AssertSeguro(content);
+    }
+
+    [Fact]
+    public async Task Producto_presentaciones_sin_jwt_devuelve_unauthorized()
+    {
+        await using var factory = new CapitalPosHttpFactory();
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync($"/api/productos/{Guid.NewGuid()}/presentaciones");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Producto_presentaciones_con_jwt_sin_empresa_activa_devuelve_bad_request()
+    {
+        await using var factory = new CapitalPosHttpFactory();
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = CrearAuthorizationHeader(UsuarioId);
+
+        var response = await client.GetAsync($"/api/productos/{Guid.NewGuid()}/presentaciones");
+        var content = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains(EmpresaActivaHeaders.HeaderName, content);
+        AssertSeguro(content);
+    }
+
+    [Fact]
+    public async Task Producto_presentaciones_usuario_sin_permiso_devuelve_forbidden()
+    {
+        await using var factory = new CapitalPosHttpFactory
+        {
+            UsuarioEmpresa = CrearUsuarioEmpresa(RolEmpresa.Vendedor)
+        };
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+
+        var response = await client.GetAsync($"/api/productos/{Guid.NewGuid()}/presentaciones");
+        var content = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Contains("permiso requerido", content);
+        AssertSeguro(content);
+    }
+
+    [Fact]
+    public async Task Listar_presentaciones_devuelve_solo_activas_del_producto_y_empresa_activa()
+    {
+        var productoId = Guid.NewGuid();
+        var otroProductoId = Guid.NewGuid();
+        var unidadId = Guid.NewGuid();
+        var presentacionActivaId = Guid.NewGuid();
+        var presentacionInactivaId = Guid.NewGuid();
+        var presentacionOtroProductoId = Guid.NewGuid();
+        var presentacionOtraEmpresaId = Guid.NewGuid();
+        var otraEmpresaId = Guid.Parse("44444444-4444-4444-4444-444444444444");
+        await using var factory = new CapitalPosHttpFactory();
+        await factory.ProductoRepository.AgregarAsync(CrearProducto(EmpresaId, productoId));
+        await factory.ProductoRepository.AgregarAsync(CrearProducto(EmpresaId, otroProductoId));
+        await factory.ProductoRepository.AgregarAsync(CrearProducto(otraEmpresaId, productoId));
+        await factory.UnidadMedidaRepository.AgregarAsync(new UnidadMedida(unidadId, "UND", "Unidad"));
+        await factory.ProductoPresentacionRepository.AgregarAsync(new ProductoPresentacion(
+            presentacionActivaId,
+            EmpresaId,
+            productoId,
+            unidadId,
+            1m,
+            true,
+            10m));
+        await factory.ProductoPresentacionRepository.AgregarAsync(new ProductoPresentacion(
+            presentacionInactivaId,
+            EmpresaId,
+            productoId,
+            unidadId,
+            12m,
+            false,
+            100m,
+            activa: false));
+        await factory.ProductoPresentacionRepository.AgregarAsync(new ProductoPresentacion(
+            presentacionOtroProductoId,
+            EmpresaId,
+            otroProductoId,
+            unidadId,
+            1m,
+            true,
+            11m));
+        await factory.ProductoPresentacionRepository.AgregarAsync(new ProductoPresentacion(
+            presentacionOtraEmpresaId,
+            otraEmpresaId,
+            productoId,
+            unidadId,
+            1m,
+            true,
+            99m));
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+
+        var response = await client.GetAsync($"/api/productos/{productoId}/presentaciones");
+        var content = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadFromJsonAsync<ProductoPresentacionResponse[]>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(body);
+        var presentacion = Assert.Single(body);
+        Assert.Equal(presentacionActivaId, presentacion.Id);
+        Assert.Equal(EmpresaId, presentacion.EmpresaId);
+        Assert.Equal(productoId, presentacion.ProductoId);
+        Assert.Null(presentacion.ProductoVarianteId);
+        Assert.Equal(unidadId, presentacion.UnidadMedidaId);
+        Assert.Equal("UND", presentacion.UnidadCodigo);
+        Assert.Equal("Unidad", presentacion.UnidadNombre);
+        Assert.DoesNotContain(presentacionInactivaId.ToString(), content, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(presentacionOtroProductoId.ToString(), content, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(presentacionOtraEmpresaId.ToString(), content, StringComparison.OrdinalIgnoreCase);
+        AssertSeguro(content);
+    }
+
+    [Fact]
+    public async Task Listar_presentaciones_de_producto_de_otra_empresa_devuelve_not_found()
+    {
+        var otraEmpresaId = Guid.Parse("44444444-4444-4444-4444-444444444444");
+        var productoId = Guid.NewGuid();
+        await using var factory = new CapitalPosHttpFactory();
+        await factory.ProductoRepository.AgregarAsync(CrearProducto(otraEmpresaId, productoId));
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+
+        var response = await client.GetAsync($"/api/productos/{productoId}/presentaciones");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Crear_presentacion_guarda_en_empresa_activa_e_ignora_empresa_id_libre()
+    {
+        var otraEmpresaId = Guid.Parse("44444444-4444-4444-4444-444444444444");
+        var productoId = Guid.NewGuid();
+        var unidadId = Guid.NewGuid();
+        await using var factory = new CapitalPosHttpFactory();
+        await factory.ProductoRepository.AgregarAsync(CrearProducto(EmpresaId, productoId));
+        await factory.UnidadMedidaRepository.AgregarAsync(new UnidadMedida(unidadId, "CAJ", "Caja"));
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+        var request = new
+        {
+            EmpresaId = otraEmpresaId,
+            ProductoId = Guid.NewGuid(),
+            UnidadMedidaId = unidadId,
+            FactorConversion = 12m,
+            EsUnidadBase = false,
+            PrecioVenta = 100m,
+            CodigoBarras = " 7750000000104 "
+        };
+
+        var response = await client.PostAsJsonAsync($"/api/productos/{productoId}/presentaciones", request);
+        var content = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadFromJsonAsync<ProductoPresentacionResponse>();
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.NotNull(body);
+        Assert.Equal(EmpresaId, body.EmpresaId);
+        Assert.Equal(productoId, body.ProductoId);
+        Assert.Equal(unidadId, body.UnidadMedidaId);
+        Assert.Equal("CAJ", body.UnidadCodigo);
+        Assert.Equal("Caja", body.UnidadNombre);
+        Assert.Equal(12m, body.FactorConversion);
+        Assert.False(body.EsUnidadBase);
+        Assert.Equal(100m, body.PrecioVenta);
+        Assert.Equal("7750000000104", body.CodigoBarras);
+        Assert.DoesNotContain(otraEmpresaId.ToString(), content, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(factory.ProductoPresentacionRepository.Presentaciones, presentacion =>
+            presentacion.EmpresaId == EmpresaId &&
+            presentacion.ProductoId == productoId &&
+            presentacion.CodigoBarras == "7750000000104");
+        AssertSeguro(content);
+    }
+
+    [Fact]
+    public async Task Crear_presentacion_falla_si_producto_no_pertenece_a_empresa_activa()
+    {
+        var otraEmpresaId = Guid.Parse("44444444-4444-4444-4444-444444444444");
+        var productoId = Guid.NewGuid();
+        var unidadId = Guid.NewGuid();
+        await using var factory = new CapitalPosHttpFactory();
+        await factory.ProductoRepository.AgregarAsync(CrearProducto(otraEmpresaId, productoId));
+        await factory.UnidadMedidaRepository.AgregarAsync(new UnidadMedida(unidadId, "UND", "Unidad"));
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+        var request = new CrearProductoPresentacionRequest(productoId, unidadId, 1m, true, 10m);
+
+        var response = await client.PostAsJsonAsync($"/api/productos/{productoId}/presentaciones", request);
+        var content = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("producto", content, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(factory.ProductoPresentacionRepository.Presentaciones);
+        AssertSeguro(content);
+    }
+
+    [Fact]
+    public async Task Crear_presentacion_falla_si_unidad_no_existe_o_inactiva()
+    {
+        var productoId = Guid.NewGuid();
+        var unidadId = Guid.NewGuid();
+        await using var factory = new CapitalPosHttpFactory();
+        await factory.ProductoRepository.AgregarAsync(CrearProducto(EmpresaId, productoId));
+        await factory.UnidadMedidaRepository.AgregarAsync(new UnidadMedida(unidadId, "UND", "Unidad", activa: false));
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+        var request = new CrearProductoPresentacionRequest(productoId, unidadId, 1m, true, 10m);
+
+        var response = await client.PostAsJsonAsync($"/api/productos/{productoId}/presentaciones", request);
+        var content = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("unidad", content, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(factory.ProductoPresentacionRepository.Presentaciones);
+        AssertSeguro(content);
+    }
+
+    [Theory]
+    [InlineData(0, 10, "factor")]
+    [InlineData(-1, 10, "factor")]
+    [InlineData(1, 0, "precio")]
+    [InlineData(1, -1, "precio")]
+    public async Task Crear_presentacion_valida_factor_y_precio(
+        decimal factorConversion,
+        decimal precioVenta,
+        string errorEsperado)
+    {
+        var productoId = Guid.NewGuid();
+        var unidadId = Guid.NewGuid();
+        await using var factory = new CapitalPosHttpFactory();
+        await factory.ProductoRepository.AgregarAsync(CrearProducto(EmpresaId, productoId));
+        await factory.UnidadMedidaRepository.AgregarAsync(new UnidadMedida(unidadId, "UND", "Unidad"));
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+        var request = new CrearProductoPresentacionRequest(productoId, unidadId, factorConversion, true, precioVenta);
+
+        var response = await client.PostAsJsonAsync($"/api/productos/{productoId}/presentaciones", request);
+        var content = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains(errorEsperado, content, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(factory.ProductoPresentacionRepository.Presentaciones);
+        AssertSeguro(content);
+    }
+
+    [Fact]
+    public async Task Crear_presentacion_rechaza_codigo_barras_duplicado_por_empresa()
+    {
+        var productoId = Guid.NewGuid();
+        var unidadId = Guid.NewGuid();
+        await using var factory = new CapitalPosHttpFactory();
+        await factory.ProductoRepository.AgregarAsync(CrearProducto(EmpresaId, productoId));
+        await factory.UnidadMedidaRepository.AgregarAsync(new UnidadMedida(unidadId, "UND", "Unidad"));
+        await factory.ProductoPresentacionRepository.AgregarAsync(new ProductoPresentacion(
+            Guid.NewGuid(),
+            EmpresaId,
+            productoId,
+            unidadId,
+            1m,
+            true,
+            10m,
+            "7750000000104"));
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+        var request = new CrearProductoPresentacionRequest(
+            productoId,
+            unidadId,
+            2m,
+            false,
+            20m,
+            "7750000000104");
+
+        var response = await client.PostAsJsonAsync($"/api/productos/{productoId}/presentaciones", request);
+        var content = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("codigo de barras", content, StringComparison.OrdinalIgnoreCase);
+        Assert.Single(factory.ProductoPresentacionRepository.Presentaciones);
+        AssertSeguro(content);
+    }
+
+    [Fact]
     public async Task Producto_variantes_sin_jwt_devuelve_unauthorized()
     {
         await using var factory = new CapitalPosHttpFactory();
@@ -2417,6 +2760,18 @@ public class HttpIntegrationTests
             return Task.FromResult(Presentaciones.FirstOrDefault(presentacion =>
                 presentacion.EmpresaId == empresaId &&
                 presentacion.Id == id));
+        }
+
+        public Task<bool> ExisteCodigoBarrasAsync(
+            Guid empresaId,
+            string codigoBarras,
+            CancellationToken cancellationToken = default)
+        {
+            var codigoNormalizado = codigoBarras.Trim();
+
+            return Task.FromResult(Presentaciones.Any(presentacion =>
+                presentacion.EmpresaId == empresaId &&
+                presentacion.CodigoBarras == codigoNormalizado));
         }
     }
 

@@ -36,6 +36,14 @@ public static class ProductoEndpoints
             .WithName("DesactivarProducto")
             .RequirePermisoEmpresa(PermisoEmpresa.OperarAlmacen);
 
+        group.MapGet("/{productoId:guid}/presentaciones", ListarPresentacionesAsync)
+            .WithName("ListarProductoPresentaciones")
+            .RequirePermisoEmpresa(PermisoEmpresa.OperarAlmacen);
+
+        group.MapPost("/{productoId:guid}/presentaciones", CrearPresentacionAsync)
+            .WithName("CrearProductoPresentacion")
+            .RequirePermisoEmpresa(PermisoEmpresa.OperarAlmacen);
+
         group.MapGet("/{productoId:guid}/variantes", ListarVariantesAsync)
             .WithName("ListarProductoVariantes")
             .RequirePermisoEmpresa(PermisoEmpresa.OperarAlmacen);
@@ -191,6 +199,93 @@ public static class ProductoEndpoints
         return producto is null
             ? Results.NotFound()
             : Results.Ok(ProductoResponse.From(producto));
+    }
+
+    private static async Task<IResult> ListarPresentacionesAsync(
+        Guid productoId,
+        ListarProductoPresentacionesUseCase useCase,
+        CancellationToken cancellationToken)
+    {
+        var presentaciones = await useCase.EjecutarAsync(productoId, cancellationToken);
+
+        return presentaciones is null
+            ? Results.NotFound()
+            : Results.Ok(presentaciones.Select(ProductoPresentacionResponse.From));
+    }
+
+    private static async Task<IResult> CrearPresentacionAsync(
+        Guid productoId,
+        CrearProductoPresentacionRequest request,
+        CrearProductoPresentacionUseCase useCase,
+        IAuditoriaOperaciones auditoria,
+        IEmpresaActivaContext empresaActiva,
+        HttpContext httpContext,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var requestSeguro = request with
+            {
+                ProductoId = productoId
+            };
+            if (!EndpointInputValidator.TryValidate(requestSeguro, out var error))
+            {
+                await AuditarProductoAsync(
+                    auditoria,
+                    empresaActiva,
+                    httpContext,
+                    "CrearProductoPresentacion",
+                    "CrearPresentacion",
+                    AuditoriaResultados.Rechazado,
+                    "ValidacionDeEntrada",
+                    cancellationToken);
+
+                return Results.BadRequest(ErrorResponse.From(error));
+            }
+
+            var presentacion = await useCase.EjecutarAsync(requestSeguro, cancellationToken);
+            await AuditarProductoAsync(
+                auditoria,
+                empresaActiva,
+                httpContext,
+                "CrearProductoPresentacion",
+                "CrearPresentacion",
+                AuditoriaResultados.Exitoso,
+                $"ProductoId={productoId};PresentacionId={presentacion.Presentacion.Id}",
+                cancellationToken);
+
+            return Results.Created(
+                $"/api/productos/{productoId}/presentaciones/{presentacion.Presentacion.Id}",
+                ProductoPresentacionResponse.From(presentacion));
+        }
+        catch (ArgumentException ex)
+        {
+            await AuditarProductoAsync(
+                auditoria,
+                empresaActiva,
+                httpContext,
+                "CrearProductoPresentacion",
+                "CrearPresentacion",
+                AuditoriaResultados.Rechazado,
+                "ValidacionDeDominio",
+                cancellationToken);
+
+            return Results.BadRequest(ErrorResponse.From(ex.Message));
+        }
+        catch (InvalidOperationException ex)
+        {
+            await AuditarProductoAsync(
+                auditoria,
+                empresaActiva,
+                httpContext,
+                "CrearProductoPresentacion",
+                "CrearPresentacion",
+                AuditoriaResultados.Rechazado,
+                "ReferenciaFueraDeEmpresa",
+                cancellationToken);
+
+            return Results.BadRequest(ErrorResponse.From(ex.Message));
+        }
     }
 
     private static async Task<IResult> ListarVariantesAsync(
@@ -356,6 +451,40 @@ public sealed record ProductoResponse(
             producto.MarcaId,
             producto.Activo,
             producto.FechaCreacion);
+    }
+}
+
+public sealed record ProductoPresentacionResponse(
+    Guid Id,
+    Guid EmpresaId,
+    Guid ProductoId,
+    Guid? ProductoVarianteId,
+    Guid UnidadMedidaId,
+    string UnidadCodigo,
+    string UnidadNombre,
+    decimal FactorConversion,
+    bool EsUnidadBase,
+    decimal PrecioVenta,
+    string CodigoBarras,
+    bool Activo,
+    DateTimeOffset FechaCreacion)
+{
+    public static ProductoPresentacionResponse From(ProductoPresentacionDetalle detalle)
+    {
+        return new ProductoPresentacionResponse(
+            detalle.Presentacion.Id,
+            detalle.Presentacion.EmpresaId,
+            detalle.Presentacion.ProductoId,
+            null,
+            detalle.Presentacion.UnidadMedidaId,
+            detalle.UnidadMedida.Codigo,
+            detalle.UnidadMedida.Nombre,
+            detalle.Presentacion.FactorConversion,
+            detalle.Presentacion.EsUnidadBase,
+            detalle.Presentacion.PrecioVenta,
+            detalle.Presentacion.CodigoBarras,
+            detalle.Presentacion.Activa,
+            detalle.Presentacion.FechaCreacion);
     }
 }
 

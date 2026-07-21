@@ -48,4 +48,18 @@ public sealed class EfProductoPresentacionRepository : IProductoPresentacionRepo
                 presentacion => presentacion.EmpresaId == empresaId && presentacion.Id == id,
                 cancellationToken);
     }
+
+    public Task<bool> ExisteCodigoBarrasAsync(
+        Guid empresaId,
+        string codigoBarras,
+        CancellationToken cancellationToken = default)
+    {
+        var codigoNormalizado = codigoBarras.Trim();
+
+        return _dbContext.ProductosPresentaciones.AnyAsync(
+            presentacion =>
+                presentacion.EmpresaId == empresaId &&
+                presentacion.CodigoBarras == codigoNormalizado,
+            cancellationToken);
+    }
 }

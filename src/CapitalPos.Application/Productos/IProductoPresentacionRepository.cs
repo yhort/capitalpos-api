@@ -17,4 +17,9 @@ public interface IProductoPresentacionRepository
         Guid empresaId,
         Guid id,
         CancellationToken cancellationToken = default);
+
+    Task<bool> ExisteCodigoBarrasAsync(
+        Guid empresaId,
+        string codigoBarras,
+        CancellationToken cancellationToken = default);
 }
