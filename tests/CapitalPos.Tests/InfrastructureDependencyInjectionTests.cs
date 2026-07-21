@@ -1,4 +1,5 @@
 using CapitalPos.Application.Auditoria;
+using CapitalPos.Application.Caja;
 using CapitalPos.Application.Catalogo;
 using CapitalPos.Application.Clientes;
 using CapitalPos.Application.ConfiguracionFiscal;
@@ -116,6 +117,10 @@ public class InfrastructureDependencyInjectionTests
         Assert.Contains(services, descriptor =>
             descriptor.ServiceType == typeof(ISerieComprobanteRepository) &&
             descriptor.ImplementationType == typeof(EfSerieComprobanteRepository) &&
+            descriptor.Lifetime == ServiceLifetime.Scoped);
+        Assert.Contains(services, descriptor =>
+            descriptor.ServiceType == typeof(ISesionCajaRepository) &&
+            descriptor.ImplementationType == typeof(EfSesionCajaRepository) &&
             descriptor.Lifetime == ServiceLifetime.Scoped);
         Assert.Contains(services, descriptor =>
             descriptor.ServiceType == typeof(IUnitOfWork) &&

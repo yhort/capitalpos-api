@@ -1,4 +1,5 @@
 using CapitalPos.Application.Auditoria;
+using CapitalPos.Application.Caja;
 using CapitalPos.Application.Catalogo;
 using CapitalPos.Application.Clientes;
 using CapitalPos.Application.ConfiguracionFiscal;
@@ -57,6 +58,7 @@ public static class DependencyInjection
         services.AddScoped<ISedeRepository, EfSedeRepository>();
         services.AddScoped<IPuntoVentaRepository, EfPuntoVentaRepository>();
         services.AddScoped<ISerieComprobanteRepository, EfSerieComprobanteRepository>();
+        services.AddScoped<ISesionCajaRepository, EfSesionCajaRepository>();
         services.AddScoped<IUnitOfWork, EfUnitOfWork>();
         services.AddScoped<IAuditoriaOperaciones, LoggerAuditoriaOperaciones>();
         services.AddScoped<IPasswordHasher, AspNetCoreIdentityPasswordHasher>();

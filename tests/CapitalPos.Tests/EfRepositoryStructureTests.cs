@@ -1,4 +1,5 @@
 using CapitalPos.Application.Catalogo;
+using CapitalPos.Application.Caja;
 using CapitalPos.Application.ConfiguracionFiscal;
 using CapitalPos.Application.Empresas;
 using CapitalPos.Application.Inventario;
@@ -91,12 +92,19 @@ public class EfRepositoryStructureTests
         Assert.True(typeof(ISerieComprobanteRepository).IsAssignableFrom(typeof(EfSerieComprobanteRepository)));
     }
 
+    [Fact]
+    public void Ef_sesion_caja_repository_implementa_puerto_de_aplicacion()
+    {
+        Assert.True(typeof(ISesionCajaRepository).IsAssignableFrom(typeof(EfSesionCajaRepository)));
+    }
+
     [Theory]
     [InlineData("src/CapitalPos.Infrastructure/Persistence/Repositories/EfCategoriaRepository.cs")]
     [InlineData("src/CapitalPos.Infrastructure/Persistence/Repositories/EfMarcaRepository.cs")]
     [InlineData("src/CapitalPos.Infrastructure/Persistence/Repositories/EfSedeRepository.cs")]
     [InlineData("src/CapitalPos.Infrastructure/Persistence/Repositories/EfPuntoVentaRepository.cs")]
     [InlineData("src/CapitalPos.Infrastructure/Persistence/Repositories/EfSerieComprobanteRepository.cs")]
+    [InlineData("src/CapitalPos.Infrastructure/Persistence/Repositories/EfSesionCajaRepository.cs")]
     [InlineData("src/CapitalPos.Infrastructure/Persistence/Repositories/EfProductoPresentacionRepository.cs")]
     public void Repositorios_sede_punto_venta_filtran_por_empresa(string relativePath)
     {

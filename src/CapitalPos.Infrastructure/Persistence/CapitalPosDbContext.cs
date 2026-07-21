@@ -48,6 +48,8 @@ public sealed class CapitalPosDbContext : DbContext
 
     public DbSet<SerieComprobante> SeriesComprobante => Set<SerieComprobante>();
 
+    public DbSet<SesionCaja> SesionesCaja => Set<SesionCaja>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(CapitalPosDbContext).Assembly);

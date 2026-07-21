@@ -6,6 +6,7 @@ using System.Security.Claims;
 using System.Text;
 using CapitalPos.Api.ActiveCompany;
 using CapitalPos.Api.Endpoints;
+using CapitalPos.Application.Caja;
 using CapitalPos.Application.Catalogo;
 using CapitalPos.Application.Clientes;
 using CapitalPos.Application.ConfiguracionFiscal;
@@ -2383,6 +2384,8 @@ public class HttpIntegrationTests
 
         public FakeSerieComprobanteRepository SerieComprobanteRepository { get; } = new();
 
+        public FakeSesionCajaRepository SesionCajaRepository { get; } = new();
+
         public FakeVentaRepository VentaRepository { get; } = new();
 
         public IDashboardComercialClock DashboardClock { get; set; } =
@@ -2439,6 +2442,7 @@ public class HttpIntegrationTests
                 services.RemoveAll<ISedeRepository>();
                 services.RemoveAll<IPuntoVentaRepository>();
                 services.RemoveAll<ISerieComprobanteRepository>();
+                services.RemoveAll<ISesionCajaRepository>();
                 services.RemoveAll<IUnitOfWork>();
                 services.RemoveAll<IDashboardComercialClock>();
 
@@ -2460,6 +2464,7 @@ public class HttpIntegrationTests
                 services.AddSingleton<ISedeRepository>(SedeRepository);
                 services.AddSingleton<IPuntoVentaRepository>(PuntoVentaRepository);
                 services.AddSingleton<ISerieComprobanteRepository>(SerieComprobanteRepository);
+                services.AddSingleton<ISesionCajaRepository>(SesionCajaRepository);
                 services.AddSingleton<IUnitOfWork, FakeUnitOfWork>();
                 services.AddSingleton(DashboardClock);
             });
@@ -3055,6 +3060,43 @@ public class HttpIntegrationTests
     private sealed class FakeUnitOfWork : IUnitOfWork
     {
         public Task SaveChangesAsync(CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class FakeSesionCajaRepository : ISesionCajaRepository
+    {
+        public List<SesionCaja> Sesiones { get; } = [];
+
+        public Task AgregarAsync(SesionCaja sesionCaja, CancellationToken cancellationToken = default)
+        {
+            Sesiones.Add(sesionCaja);
+            return Task.CompletedTask;
+        }
+
+        public Task<SesionCaja?> ObtenerPorEmpresaAsync(
+            Guid empresaId,
+            Guid id,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(Sesiones.FirstOrDefault(sesion =>
+                sesion.EmpresaId == empresaId &&
+                sesion.Id == id));
+        }
+
+        public Task<SesionCaja?> ObtenerAbiertaPorPuntoVentaAsync(
+            Guid empresaId,
+            Guid puntoVentaId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(Sesiones.FirstOrDefault(sesion =>
+                sesion.EmpresaId == empresaId &&
+                sesion.PuntoVentaId == puntoVentaId &&
+                sesion.Estado == EstadoSesionCaja.Abierta));
+        }
+
+        public Task GuardarAsync(SesionCaja sesionCaja, CancellationToken cancellationToken = default)
         {
             return Task.CompletedTask;
         }

@@ -31,6 +31,7 @@ public class EfCoreModelTests
         Assert.NotNull(context.Model.FindEntityType(typeof(Sede)));
         Assert.NotNull(context.Model.FindEntityType(typeof(PuntoVenta)));
         Assert.NotNull(context.Model.FindEntityType(typeof(SerieComprobante)));
+        Assert.NotNull(context.Model.FindEntityType(typeof(SesionCaja)));
     }
 
     [Fact]
@@ -828,6 +829,73 @@ public class EfCoreModelTests
             foreignKey.PrincipalKey.Properties.Select(property => property.Name).SequenceEqual([
                 nameof(Sede.Id),
                 nameof(Sede.EmpresaId)
+            ]));
+    }
+
+    [Fact]
+    public void Sesion_caja_tiene_empresa_sede_punto_venta_estado_indices_y_relaciones()
+    {
+        var entityType = ObtenerEntidad<SesionCaja>();
+
+        Assert.Equal("sesiones_caja", entityType.GetTableName());
+        Assert.Equal(nameof(SesionCaja.Id), entityType.FindPrimaryKey()?.Properties.Single().Name);
+        AssertPropiedad(entityType, nameof(SesionCaja.EmpresaId), nullable: false);
+        AssertPropiedad(entityType, nameof(SesionCaja.SedeId), nullable: false);
+        AssertPropiedad(entityType, nameof(SesionCaja.PuntoVentaId), nullable: false);
+        AssertPropiedad(entityType, nameof(SesionCaja.UsuarioAperturaId));
+        AssertPropiedad(entityType, nameof(SesionCaja.UsuarioCierreId));
+        AssertPropiedad(entityType, nameof(SesionCaja.Estado), maxLength: 20, nullable: false);
+        AssertPropiedad(entityType, nameof(SesionCaja.MontoInicial), nullable: false);
+        AssertPropiedad(entityType, nameof(SesionCaja.MontoDeclaradoCierre));
+        AssertPropiedad(entityType, nameof(SesionCaja.DiferenciaCierre));
+        AssertPropiedad(entityType, nameof(SesionCaja.FechaApertura), nullable: false);
+        AssertPropiedad(entityType, nameof(SesionCaja.FechaCierre));
+        AssertPropiedad(entityType, nameof(SesionCaja.ObservacionApertura), maxLength: 500, nullable: false);
+        AssertPropiedad(entityType, nameof(SesionCaja.ObservacionCierre), maxLength: 500, nullable: false);
+
+        var estadoProperty = entityType.FindProperty(nameof(SesionCaja.Estado));
+        Assert.Equal(typeof(string), estadoProperty?.GetProviderClrType());
+
+        Assert.Contains(entityType.GetIndexes(), index =>
+            index.Properties.Select(property => property.Name).SequenceEqual([nameof(SesionCaja.EmpresaId)]));
+        Assert.Contains(entityType.GetIndexes(), index =>
+            index.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(SesionCaja.EmpresaId),
+                nameof(SesionCaja.SedeId)
+            ]));
+        Assert.Contains(entityType.GetIndexes(), index =>
+            index.IsUnique &&
+            index.GetFilter() == "\"Estado\" = 'Abierta'" &&
+            index.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(SesionCaja.EmpresaId),
+                nameof(SesionCaja.PuntoVentaId),
+                nameof(SesionCaja.Estado)
+            ]));
+        Assert.Contains(entityType.GetForeignKeys(), foreignKey =>
+            foreignKey.PrincipalEntityType.ClrType == typeof(Empresa) &&
+            foreignKey.DeleteBehavior == DeleteBehavior.Restrict &&
+            foreignKey.Properties.Select(property => property.Name).SequenceEqual([nameof(SesionCaja.EmpresaId)]));
+        Assert.Contains(entityType.GetForeignKeys(), foreignKey =>
+            foreignKey.PrincipalEntityType.ClrType == typeof(Sede) &&
+            foreignKey.DeleteBehavior == DeleteBehavior.Restrict &&
+            foreignKey.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(SesionCaja.SedeId),
+                nameof(SesionCaja.EmpresaId)
+            ]) &&
+            foreignKey.PrincipalKey.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(Sede.Id),
+                nameof(Sede.EmpresaId)
+            ]));
+        Assert.Contains(entityType.GetForeignKeys(), foreignKey =>
+            foreignKey.PrincipalEntityType.ClrType == typeof(PuntoVenta) &&
+            foreignKey.DeleteBehavior == DeleteBehavior.Restrict &&
+            foreignKey.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(SesionCaja.PuntoVentaId),
+                nameof(SesionCaja.EmpresaId)
+            ]) &&
+            foreignKey.PrincipalKey.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(PuntoVenta.Id),
+                nameof(PuntoVenta.EmpresaId)
             ]));
     }
 
