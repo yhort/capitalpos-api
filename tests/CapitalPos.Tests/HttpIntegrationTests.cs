@@ -1101,6 +1101,245 @@ public class HttpIntegrationTests
     }
 
     [Fact]
+    public async Task Caja_sin_jwt_devuelve_unauthorized()
+    {
+        await using var factory = new CapitalPosHttpFactory();
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync($"/api/caja/sesiones/abierta?puntoVentaId={PuntoVentaId}");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Caja_con_jwt_sin_empresa_activa_devuelve_bad_request()
+    {
+        await using var factory = new CapitalPosHttpFactory();
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = CrearAuthorizationHeader(UsuarioId);
+
+        var response = await client.GetAsync($"/api/caja/sesiones/abierta?puntoVentaId={PuntoVentaId}");
+        var content = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains(EmpresaActivaHeaders.HeaderName, content);
+        AssertSeguro(content);
+    }
+
+    [Fact]
+    public async Task Caja_usuario_sin_permiso_devuelve_forbidden()
+    {
+        await using var factory = new CapitalPosHttpFactory
+        {
+            UsuarioEmpresa = CrearUsuarioEmpresa(RolEmpresa.Almacenero)
+        };
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+
+        var response = await client.GetAsync($"/api/caja/sesiones/abierta?puntoVentaId={PuntoVentaId}");
+        var content = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Contains("permiso requerido", content);
+        AssertSeguro(content);
+    }
+
+    [Fact]
+    public async Task Obtener_caja_abierta_exige_punto_venta_valido()
+    {
+        await using var factory = new CapitalPosHttpFactory();
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+
+        var response = await client.GetAsync("/api/caja/sesiones/abierta?puntoVentaId=00000000-0000-0000-0000-000000000000");
+        var content = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("punto de venta", content, StringComparison.OrdinalIgnoreCase);
+        AssertSeguro(content);
+    }
+
+    [Fact]
+    public async Task Obtener_caja_abierta_devuelve_sesion_de_empresa_activa()
+    {
+        var sesionOtraEmpresaId = Guid.NewGuid();
+        var sesionId = Guid.NewGuid();
+        var otraEmpresaId = Guid.Parse("44444444-4444-4444-4444-444444444444");
+        await using var factory = new CapitalPosHttpFactory();
+        factory.SesionCajaRepository.Sesiones.Add(new SesionCaja(
+            sesionOtraEmpresaId,
+            otraEmpresaId,
+            SedeId,
+            PuntoVentaId,
+            50m));
+        factory.SesionCajaRepository.Sesiones.Add(new SesionCaja(
+            sesionId,
+            EmpresaId,
+            SedeId,
+            PuntoVentaId,
+            100m,
+            observacionApertura: "Apertura"));
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+
+        var response = await client.GetAsync($"/api/caja/sesiones/abierta?puntoVentaId={PuntoVentaId}");
+        var content = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadFromJsonAsync<SesionCajaResponse>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(body);
+        Assert.Equal(sesionId, body.Id);
+        Assert.Equal(EmpresaId, body.EmpresaId);
+        Assert.Equal(SedeId, body.SedeId);
+        Assert.Equal(PuntoVentaId, body.PuntoVentaId);
+        Assert.Equal("Abierta", body.Estado);
+        Assert.Equal(100m, body.MontoInicial);
+        Assert.Null(body.MontoDeclaradoCierre);
+        Assert.Null(body.DiferenciaCierre);
+        Assert.Equal("Apertura", body.ObservacionApertura);
+        Assert.DoesNotContain(sesionOtraEmpresaId.ToString(), content, StringComparison.OrdinalIgnoreCase);
+        AssertSeguro(content);
+    }
+
+    [Fact]
+    public async Task Obtener_caja_abierta_sin_sesion_devuelve_not_found()
+    {
+        await using var factory = new CapitalPosHttpFactory();
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+
+        var response = await client.GetAsync($"/api/caja/sesiones/abierta?puntoVentaId={PuntoVentaId}");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Abrir_caja_crea_sesion_para_punto_venta_de_empresa_activa_e_ignora_empresa_id_libre()
+    {
+        var otraEmpresaId = Guid.Parse("44444444-4444-4444-4444-444444444444");
+        await using var factory = new CapitalPosHttpFactory();
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+        using var request = new StringContent(
+            $$"""
+            {
+              "empresaId": "{{otraEmpresaId}}",
+              "puntoVentaId": "{{PuntoVentaId}}",
+              "montoInicial": 75.50,
+              "observacionApertura": " Apertura POS "
+            }
+            """,
+            Encoding.UTF8,
+            "application/json");
+
+        var response = await client.PostAsync("/api/caja/sesiones/abrir", request);
+        var content = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadFromJsonAsync<SesionCajaResponse>();
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.NotNull(body);
+        Assert.Equal(EmpresaId, body.EmpresaId);
+        Assert.Equal(SedeId, body.SedeId);
+        Assert.Equal(PuntoVentaId, body.PuntoVentaId);
+        Assert.Equal("Abierta", body.Estado);
+        Assert.Equal(75.50m, body.MontoInicial);
+        Assert.Equal("Apertura POS", body.ObservacionApertura);
+        var sesion = Assert.Single(factory.SesionCajaRepository.Sesiones);
+        Assert.Equal(EmpresaId, sesion.EmpresaId);
+        AssertSeguro(content);
+    }
+
+    [Fact]
+    public async Task Abrir_caja_falla_con_monto_negativo_punto_venta_ajeno_o_sesion_abierta()
+    {
+        var otraEmpresaId = Guid.Parse("44444444-4444-4444-4444-444444444444");
+        var puntoVentaOtraEmpresaId = Guid.NewGuid();
+        await using var factory = new CapitalPosHttpFactory();
+        factory.PuntoVentaRepository.PuntosVenta.Add(new PuntoVenta(
+            puntoVentaOtraEmpresaId,
+            otraEmpresaId,
+            SedeId,
+            "Caja externa"));
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+
+        var montoNegativo = await client.PostAsJsonAsync(
+            "/api/caja/sesiones/abrir",
+            new AbrirSesionCajaRequest(PuntoVentaId, -1m));
+        var puntoAjeno = await client.PostAsJsonAsync(
+            "/api/caja/sesiones/abrir",
+            new AbrirSesionCajaRequest(puntoVentaOtraEmpresaId, 10m));
+        factory.SesionCajaRepository.Sesiones.Add(new SesionCaja(Guid.NewGuid(), EmpresaId, SedeId, PuntoVentaId, 10m));
+        var dobleApertura = await client.PostAsJsonAsync(
+            "/api/caja/sesiones/abrir",
+            new AbrirSesionCajaRequest(PuntoVentaId, 10m));
+
+        Assert.Equal(HttpStatusCode.BadRequest, montoNegativo.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, puntoAjeno.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, dobleApertura.StatusCode);
+        Assert.Single(factory.SesionCajaRepository.Sesiones);
+    }
+
+    [Fact]
+    public async Task Cerrar_caja_cierra_sesion_abierta_y_calcula_diferencia()
+    {
+        var sesionId = Guid.NewGuid();
+        await using var factory = new CapitalPosHttpFactory();
+        factory.SesionCajaRepository.Sesiones.Add(new SesionCaja(
+            sesionId,
+            EmpresaId,
+            SedeId,
+            PuntoVentaId,
+            100m));
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/caja/sesiones/{sesionId}/cerrar",
+            new CerrarSesionCajaRequest(Guid.Empty, 130m, " Cierre POS "));
+        var content = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadFromJsonAsync<SesionCajaResponse>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(body);
+        Assert.Equal(sesionId, body.Id);
+        Assert.Equal("Cerrada", body.Estado);
+        Assert.Equal(130m, body.MontoDeclaradoCierre);
+        Assert.Equal(30m, body.DiferenciaCierre);
+        Assert.NotNull(body.FechaCierre);
+        Assert.Equal("Cierre POS", body.ObservacionCierre);
+        Assert.Equal(EstadoSesionCaja.Cerrada, factory.SesionCajaRepository.Sesiones.Single().Estado);
+        AssertSeguro(content);
+    }
+
+    [Fact]
+    public async Task Cerrar_caja_falla_con_monto_negativo_caja_ajena_o_ya_cerrada()
+    {
+        var sesionId = Guid.NewGuid();
+        var sesionOtraEmpresaId = Guid.NewGuid();
+        var otraEmpresaId = Guid.Parse("44444444-4444-4444-4444-444444444444");
+        await using var factory = new CapitalPosHttpFactory();
+        var sesionCerrada = new SesionCaja(sesionId, EmpresaId, SedeId, PuntoVentaId, 100m);
+        sesionCerrada.Cerrar(100m, sesionCerrada.FechaApertura.AddHours(1));
+        factory.SesionCajaRepository.Sesiones.Add(sesionCerrada);
+        factory.SesionCajaRepository.Sesiones.Add(new SesionCaja(
+            sesionOtraEmpresaId,
+            otraEmpresaId,
+            SedeId,
+            PuntoVentaId,
+            100m));
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+
+        var montoNegativo = await client.PostAsJsonAsync(
+            $"/api/caja/sesiones/{sesionId}/cerrar",
+            new CerrarSesionCajaRequest(Guid.Empty, -1m));
+        var cajaAjena = await client.PostAsJsonAsync(
+            $"/api/caja/sesiones/{sesionOtraEmpresaId}/cerrar",
+            new CerrarSesionCajaRequest(Guid.Empty, 100m));
+        var yaCerrada = await client.PostAsJsonAsync(
+            $"/api/caja/sesiones/{sesionId}/cerrar",
+            new CerrarSesionCajaRequest(Guid.Empty, 100m));
+
+        Assert.Equal(HttpStatusCode.BadRequest, montoNegativo.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, cajaAjena.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, yaCerrada.StatusCode);
+        Assert.Equal(EstadoSesionCaja.Cerrada, sesionCerrada.Estado);
+    }
+
+    [Fact]
     public async Task Obtener_stock_producto_devuelve_stock_de_empresa_activa()
     {
         var productoId = Guid.NewGuid();

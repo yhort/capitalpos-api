@@ -126,6 +126,7 @@ app.MapUnidadMedidaEndpoints();
 app.MapProductoEndpoints();
 app.MapStockEndpoints();
 app.MapSedeEndpoints();
+app.MapCajaEndpoints();
 app.MapClienteEndpoints();
 app.MapVentaEndpoints();
 app.MapReporteEndpoints();
