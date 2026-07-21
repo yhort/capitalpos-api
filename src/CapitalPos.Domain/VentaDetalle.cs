@@ -15,7 +15,8 @@ public sealed class VentaDetalle
         decimal precioUnitario,
         decimal igv,
         decimal total,
-        Guid? productoVarianteId = null)
+        Guid? productoVarianteId = null,
+        Guid? productoPresentacionId = null)
     {
         if (id == Guid.Empty)
         {
@@ -40,6 +41,11 @@ public sealed class VentaDetalle
         if (productoVarianteId == Guid.Empty)
         {
             throw new ArgumentException("El identificador de la variante no puede estar vacio.", nameof(productoVarianteId));
+        }
+
+        if (productoPresentacionId == Guid.Empty)
+        {
+            throw new ArgumentException("El identificador de la presentacion no puede estar vacio.", nameof(productoPresentacionId));
         }
 
         if (cantidad <= 0)
@@ -67,6 +73,7 @@ public sealed class VentaDetalle
         VentaId = ventaId;
         ProductoId = productoId;
         ProductoVarianteId = productoVarianteId;
+        ProductoPresentacionId = productoPresentacionId;
         Cantidad = cantidad;
         PrecioUnitario = precioUnitario;
         Igv = igv;
@@ -82,6 +89,8 @@ public sealed class VentaDetalle
     public Guid ProductoId { get; private set; }
 
     public Guid? ProductoVarianteId { get; private set; }
+
+    public Guid? ProductoPresentacionId { get; private set; }
 
     public decimal Cantidad { get; private set; }
 

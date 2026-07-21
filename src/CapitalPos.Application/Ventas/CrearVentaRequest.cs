@@ -16,7 +16,8 @@ public sealed record CrearVentaDetalleRequest(
     decimal Cantidad,
     decimal PrecioUnitario,
     decimal Igv,
-    decimal Total)
+    decimal Total,
+    Guid? ProductoPresentacionId = null)
 {
     public VentaDetalle CrearDetalle(Guid empresaId, Guid ventaId)
     {
@@ -29,6 +30,7 @@ public sealed record CrearVentaDetalleRequest(
             PrecioUnitario,
             Igv,
             Total,
-            ProductoVarianteId);
+            ProductoVarianteId,
+            ProductoPresentacionId);
     }
 }

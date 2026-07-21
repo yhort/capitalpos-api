@@ -47,6 +47,12 @@ public sealed class ProductoPresentacionConfiguration : IEntityTypeConfiguration
 
         builder.HasIndex(presentacion => presentacion.EmpresaId);
 
+        builder.HasAlternateKey(presentacion => new
+        {
+            presentacion.Id,
+            presentacion.EmpresaId
+        });
+
         builder.HasIndex(presentacion => new
         {
             presentacion.EmpresaId,

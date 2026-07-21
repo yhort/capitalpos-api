@@ -521,6 +521,7 @@ public class EfCoreModelTests
         AssertPropiedad(entityType, nameof(VentaDetalle.VentaId), nullable: false);
         AssertPropiedad(entityType, nameof(VentaDetalle.ProductoId), nullable: false);
         AssertPropiedad(entityType, nameof(VentaDetalle.ProductoVarianteId));
+        AssertPropiedad(entityType, nameof(VentaDetalle.ProductoPresentacionId));
         AssertPropiedad(entityType, nameof(VentaDetalle.Cantidad), nullable: false);
         AssertPropiedad(entityType, nameof(VentaDetalle.PrecioUnitario), nullable: false);
         AssertPropiedad(entityType, nameof(VentaDetalle.Igv), nullable: false);
@@ -554,6 +555,17 @@ public class EfCoreModelTests
             foreignKey.Properties.Select(property => property.Name).SequenceEqual([
                 nameof(VentaDetalle.ProductoVarianteId),
                 nameof(VentaDetalle.EmpresaId)
+            ]));
+        Assert.Contains(entityType.GetForeignKeys(), foreignKey =>
+            foreignKey.PrincipalEntityType.ClrType == typeof(ProductoPresentacion) &&
+            foreignKey.DeleteBehavior == DeleteBehavior.Restrict &&
+            foreignKey.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(VentaDetalle.ProductoPresentacionId),
+                nameof(VentaDetalle.EmpresaId)
+            ]) &&
+            foreignKey.PrincipalKey.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(ProductoPresentacion.Id),
+                nameof(ProductoPresentacion.EmpresaId)
             ]));
     }
 

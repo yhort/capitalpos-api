@@ -26,6 +26,8 @@ public sealed class VentaDetalleConfiguration : IEntityTypeConfiguration<VentaDe
 
         builder.Property(detalle => detalle.ProductoVarianteId);
 
+        builder.Property(detalle => detalle.ProductoPresentacionId);
+
         builder.Property(detalle => detalle.Cantidad)
             .HasPrecision(18, 3)
             .IsRequired();
@@ -80,6 +82,20 @@ public sealed class VentaDetalleConfiguration : IEntityTypeConfiguration<VentaDe
             {
                 variante.Id,
                 variante.EmpresaId
+            })
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne<ProductoPresentacion>()
+            .WithMany()
+            .HasForeignKey(detalle => new
+            {
+                detalle.ProductoPresentacionId,
+                detalle.EmpresaId
+            })
+            .HasPrincipalKey(presentacion => new
+            {
+                presentacion.Id,
+                presentacion.EmpresaId
             })
             .OnDelete(DeleteBehavior.Restrict);
     }

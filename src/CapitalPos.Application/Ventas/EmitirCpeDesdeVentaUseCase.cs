@@ -17,9 +17,11 @@ public sealed class EmitirCpeDesdeVentaUseCase
     private readonly IConfiguracionFiscalEmpresaRepository _configuracionFiscalRepository;
     private readonly ICpeGateway _cpeGateway;
     private readonly IEmpresaActivaContext _empresaActiva;
+    private readonly IProductoPresentacionRepository _productoPresentacionRepository;
     private readonly IProductoRepository _productoRepository;
     private readonly IProductoVarianteRepository _productoVarianteRepository;
     private readonly ISerieComprobanteRepository _serieRepository;
+    private readonly IUnidadMedidaRepository _unidadMedidaRepository;
     private readonly IVentaRepository _ventaRepository;
 
     public EmitirCpeDesdeVentaUseCase(
@@ -27,6 +29,8 @@ public sealed class EmitirCpeDesdeVentaUseCase
         IConfiguracionFiscalEmpresaRepository configuracionFiscalRepository,
         IClienteRepository clienteRepository,
         IProductoRepository productoRepository,
+        IProductoPresentacionRepository productoPresentacionRepository,
+        IUnidadMedidaRepository unidadMedidaRepository,
         IProductoVarianteRepository productoVarianteRepository,
         ISerieComprobanteRepository serieRepository,
         ICpeGateway cpeGateway,
@@ -36,6 +40,8 @@ public sealed class EmitirCpeDesdeVentaUseCase
         _configuracionFiscalRepository = configuracionFiscalRepository;
         _clienteRepository = clienteRepository;
         _productoRepository = productoRepository;
+        _productoPresentacionRepository = productoPresentacionRepository;
+        _unidadMedidaRepository = unidadMedidaRepository;
         _productoVarianteRepository = productoVarianteRepository;
         _serieRepository = serieRepository;
         _cpeGateway = cpeGateway;
@@ -171,11 +177,33 @@ public sealed class EmitirCpeDesdeVentaUseCase
                 }
             }
 
+            ProductoPresentacion? presentacion = null;
+            UnidadMedida? unidadMedida = null;
+            if (detalle.ProductoPresentacionId is not null)
+            {
+                presentacion = await _productoPresentacionRepository.ObtenerPorEmpresaAsync(
+                    venta.EmpresaId,
+                    detalle.ProductoPresentacionId.Value,
+                    cancellationToken);
+                if (presentacion is null || presentacion.ProductoId != producto.Id)
+                {
+                    throw new InvalidOperationException("La presentacion de la venta no pertenece al producto y empresa activos.");
+                }
+
+                unidadMedida = await _unidadMedidaRepository.ObtenerPorIdAsync(
+                    presentacion.UnidadMedidaId,
+                    cancellationToken);
+                if (unidadMedida is null)
+                {
+                    throw new InvalidOperationException("La unidad de medida de la presentacion de venta no existe.");
+                }
+            }
+
             var subtotal = detalle.Total - detalle.Igv;
             items.Add(new CpeItemPayload(
                 ObtenerCodigoProducto(producto, variante),
-                ObtenerDescripcionProducto(producto, variante),
-                "NIU",
+                ObtenerDescripcionProducto(producto, variante, unidadMedida),
+                ObtenerUnidadMedida(unidadMedida),
                 detalle.Cantidad,
                 Redondear(subtotal / detalle.Cantidad),
                 Redondear(detalle.Total / detalle.Cantidad),
@@ -408,12 +436,14 @@ public sealed class EmitirCpeDesdeVentaUseCase
 
     private static string ObtenerDescripcionProducto(
         Producto producto,
-        ProductoVariante? variante)
+        ProductoVariante? variante,
+        UnidadMedida? unidadMedida = null)
     {
         var atributos = new[]
             {
                 variante?.Talla,
-                variante?.Color
+                variante?.Color,
+                unidadMedida?.Codigo
             }
             .Where(valor => !string.IsNullOrWhiteSpace(valor));
         var descripcionVariante = string.Join(" ", atributos);
@@ -421,6 +451,13 @@ public sealed class EmitirCpeDesdeVentaUseCase
         return string.IsNullOrWhiteSpace(descripcionVariante)
             ? producto.Nombre
             : $"{producto.Nombre} {descripcionVariante}";
+    }
+
+    private static string ObtenerUnidadMedida(UnidadMedida? unidadMedida)
+    {
+        return string.IsNullOrWhiteSpace(unidadMedida?.Codigo)
+            ? "NIU"
+            : unidadMedida.Codigo;
     }
 
     private static decimal Redondear(decimal valor)

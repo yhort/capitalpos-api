@@ -523,6 +523,231 @@ public class ApplicationVentaTests
     }
 
     [Fact]
+    public async Task Crear_venta_con_presentacion_descuenta_stock_por_factor_y_usa_precio_de_presentacion()
+    {
+        var empresaId = Guid.NewGuid();
+        var productoId = Guid.NewGuid();
+        var presentacionId = Guid.NewGuid();
+        var unidadMedidaId = Guid.NewGuid();
+        var ventaRepository = new VentaRepositoryFake();
+        var productoRepository = new ProductoRepositoryFake();
+        var presentacionRepository = new ProductoPresentacionRepositoryFake();
+        var stockRepository = new StockProductoRepositoryFake();
+        await productoRepository.AgregarAsync(new Producto(productoId, empresaId, "Polo", 10m));
+        await presentacionRepository.AgregarAsync(new ProductoPresentacion(
+            presentacionId,
+            empresaId,
+            productoId,
+            unidadMedidaId,
+            12m,
+            false,
+            118m));
+        await stockRepository.GuardarAsync(new StockProducto(
+            Guid.NewGuid(),
+            empresaId,
+            SedeIdPrueba,
+            productoId,
+            null,
+            30m));
+        var useCase = CrearUseCase(
+            ventaRepository,
+            productoRepository,
+            new ProductoVarianteRepositoryFake(),
+            new ClienteRepositoryFake(),
+            stockRepository,
+            empresaId,
+            presentacionRepository: presentacionRepository);
+        var request = new CrearVentaRequest(
+            DateTimeOffset.UtcNow,
+            null,
+            [new CrearVentaDetalleRequest(productoId, null, 2m, 999m, 0m, 999m, presentacionId)],
+            PuntoVentaIdPrueba);
+
+        var venta = await useCase.EjecutarAsync(request);
+
+        var detalle = Assert.Single(venta.Detalles);
+        Assert.Equal(presentacionId, detalle.ProductoPresentacionId);
+        Assert.Equal(2m, detalle.Cantidad);
+        Assert.Equal(118m, detalle.PrecioUnitario);
+        Assert.Equal(200m, detalle.Total - detalle.Igv);
+        Assert.Equal(36m, detalle.Igv);
+        Assert.Equal(236m, detalle.Total);
+        Assert.Equal(6m, stockRepository.Stocks.Single().CantidadDisponible);
+    }
+
+    [Fact]
+    public async Task Crear_venta_con_presentacion_y_variante_descuenta_stock_de_variante_por_factor()
+    {
+        var empresaId = Guid.NewGuid();
+        var productoId = Guid.NewGuid();
+        var varianteId = Guid.NewGuid();
+        var presentacionId = Guid.NewGuid();
+        var unidadMedidaId = Guid.NewGuid();
+        var ventaRepository = new VentaRepositoryFake();
+        var productoRepository = new ProductoRepositoryFake();
+        var varianteRepository = new ProductoVarianteRepositoryFake();
+        var presentacionRepository = new ProductoPresentacionRepositoryFake();
+        var stockRepository = new StockProductoRepositoryFake();
+        await productoRepository.AgregarAsync(new Producto(productoId, empresaId, "Polo", 10m));
+        await varianteRepository.AgregarAsync(new ProductoVariante(varianteId, empresaId, productoId, talla: "M"));
+        await presentacionRepository.AgregarAsync(new ProductoPresentacion(
+            presentacionId,
+            empresaId,
+            productoId,
+            unidadMedidaId,
+            6m,
+            false,
+            59m));
+        await stockRepository.GuardarAsync(new StockProducto(
+            Guid.NewGuid(),
+            empresaId,
+            SedeIdPrueba,
+            productoId,
+            varianteId,
+            20m));
+        var useCase = CrearUseCase(
+            ventaRepository,
+            productoRepository,
+            varianteRepository,
+            new ClienteRepositoryFake(),
+            stockRepository,
+            empresaId,
+            presentacionRepository: presentacionRepository);
+
+        await useCase.EjecutarAsync(new CrearVentaRequest(
+            DateTimeOffset.UtcNow,
+            null,
+            [new CrearVentaDetalleRequest(productoId, varianteId, 3m, 1m, 0m, 1m, presentacionId)],
+            PuntoVentaIdPrueba));
+
+        Assert.Equal(2m, stockRepository.Stocks.Single().CantidadDisponible);
+    }
+
+    [Fact]
+    public async Task Crear_venta_con_presentacion_falla_si_stock_equivalente_es_insuficiente()
+    {
+        var empresaId = Guid.NewGuid();
+        var productoId = Guid.NewGuid();
+        var presentacionId = Guid.NewGuid();
+        var ventaRepository = new VentaRepositoryFake();
+        var productoRepository = new ProductoRepositoryFake();
+        var presentacionRepository = new ProductoPresentacionRepositoryFake();
+        var stockRepository = new StockProductoRepositoryFake();
+        await productoRepository.AgregarAsync(new Producto(productoId, empresaId, "Polo", 10m));
+        await presentacionRepository.AgregarAsync(new ProductoPresentacion(
+            presentacionId,
+            empresaId,
+            productoId,
+            Guid.NewGuid(),
+            12m,
+            false,
+            118m));
+        await stockRepository.GuardarAsync(new StockProducto(
+            Guid.NewGuid(),
+            empresaId,
+            SedeIdPrueba,
+            productoId,
+            null,
+            20m));
+        var useCase = CrearUseCase(
+            ventaRepository,
+            productoRepository,
+            new ProductoVarianteRepositoryFake(),
+            new ClienteRepositoryFake(),
+            stockRepository,
+            empresaId,
+            presentacionRepository: presentacionRepository);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => useCase.EjecutarAsync(new CrearVentaRequest(
+            DateTimeOffset.UtcNow,
+            null,
+            [new CrearVentaDetalleRequest(productoId, null, 2m, 1m, 0m, 1m, presentacionId)],
+            PuntoVentaIdPrueba)));
+
+        Assert.Empty(ventaRepository.Ventas);
+        Assert.Equal(20m, stockRepository.Stocks.Single().CantidadDisponible);
+    }
+
+    [Fact]
+    public async Task Crear_venta_con_presentacion_falla_si_presentacion_es_de_otra_empresa_otro_producto_o_inactiva()
+    {
+        var empresaId = Guid.NewGuid();
+        var productoId = Guid.NewGuid();
+        var presentacionId = Guid.NewGuid();
+        var productoRepository = new ProductoRepositoryFake();
+        var presentacionRepository = new ProductoPresentacionRepositoryFake();
+        await productoRepository.AgregarAsync(new Producto(productoId, empresaId, "Polo", 10m));
+        await presentacionRepository.AgregarAsync(new ProductoPresentacion(
+            presentacionId,
+            Guid.NewGuid(),
+            productoId,
+            Guid.NewGuid(),
+            12m,
+            false,
+            118m));
+        var useCaseOtraEmpresa = CrearUseCase(
+            new VentaRepositoryFake(),
+            productoRepository,
+            new ProductoVarianteRepositoryFake(),
+            new ClienteRepositoryFake(),
+            empresaId: empresaId,
+            presentacionRepository: presentacionRepository);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => useCaseOtraEmpresa.EjecutarAsync(new CrearVentaRequest(
+            DateTimeOffset.UtcNow,
+            null,
+            [new CrearVentaDetalleRequest(productoId, null, 1m, 1m, 0m, 1m, presentacionId)],
+            PuntoVentaIdPrueba)));
+
+        var presentacionOtroProductoId = Guid.NewGuid();
+        await presentacionRepository.AgregarAsync(new ProductoPresentacion(
+            presentacionOtroProductoId,
+            empresaId,
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            12m,
+            false,
+            118m));
+        var useCaseOtroProducto = CrearUseCase(
+            new VentaRepositoryFake(),
+            productoRepository,
+            new ProductoVarianteRepositoryFake(),
+            new ClienteRepositoryFake(),
+            empresaId: empresaId,
+            presentacionRepository: presentacionRepository);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => useCaseOtroProducto.EjecutarAsync(new CrearVentaRequest(
+            DateTimeOffset.UtcNow,
+            null,
+            [new CrearVentaDetalleRequest(productoId, null, 1m, 1m, 0m, 1m, presentacionOtroProductoId)],
+            PuntoVentaIdPrueba)));
+
+        var presentacionInactivaId = Guid.NewGuid();
+        await presentacionRepository.AgregarAsync(new ProductoPresentacion(
+            presentacionInactivaId,
+            empresaId,
+            productoId,
+            Guid.NewGuid(),
+            12m,
+            false,
+            118m,
+            activa: false));
+        var useCaseInactiva = CrearUseCase(
+            new VentaRepositoryFake(),
+            productoRepository,
+            new ProductoVarianteRepositoryFake(),
+            new ClienteRepositoryFake(),
+            empresaId: empresaId,
+            presentacionRepository: presentacionRepository);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => useCaseInactiva.EjecutarAsync(new CrearVentaRequest(
+            DateTimeOffset.UtcNow,
+            null,
+            [new CrearVentaDetalleRequest(productoId, null, 1m, 1m, 0m, 1m, presentacionInactivaId)],
+            PuntoVentaIdPrueba)));
+    }
+
+    [Fact]
     public async Task Crear_venta_multidetalle_descuenta_todos_los_stocks()
     {
         var empresaId = Guid.NewGuid();
@@ -758,6 +983,8 @@ public class ApplicationVentaTests
             configuracionFiscalRepository,
             clienteRepository,
             productoRepository,
+            new ProductoPresentacionRepositoryFake(),
+            new UnidadMedidaRepositoryFake(),
             varianteRepository,
             serieRepository,
             gateway,
@@ -817,6 +1044,101 @@ public class ApplicationVentaTests
         Assert.Equal(18m, item.GetProperty("igv").GetDecimal());
         Assert.Equal(118m, item.GetProperty("total").GetDecimal());
         Assert.Equal("10", item.GetProperty("codigoAfectacionIgv").GetString());
+    }
+
+    [Fact]
+    public async Task Emitir_cpe_desde_venta_con_presentacion_usa_unidad_y_totales_del_detalle()
+    {
+        var empresaId = Guid.NewGuid();
+        var ventaId = Guid.NewGuid();
+        var clienteId = Guid.NewGuid();
+        var productoId = Guid.NewGuid();
+        var presentacionId = Guid.NewGuid();
+        var unidadMedidaId = Guid.NewGuid();
+        var ventaRepository = new VentaRepositoryFake();
+        var configuracionFiscalRepository = new ConfiguracionFiscalEmpresaRepositoryFake();
+        var clienteRepository = new ClienteRepositoryFake();
+        var productoRepository = new ProductoRepositoryFake();
+        var varianteRepository = new ProductoVarianteRepositoryFake();
+        var presentacionRepository = new ProductoPresentacionRepositoryFake();
+        var unidadMedidaRepository = new UnidadMedidaRepositoryFake();
+        var serieRepository = new SerieComprobanteRepositoryFake();
+        var gateway = new CpeGatewayFake();
+        await configuracionFiscalRepository.GuardarAsync(new ConfiguracionFiscalEmpresa(
+            empresaId,
+            "20601234567",
+            "CapitalPOS Fiscal SAC",
+            "CapitalPOS Fiscal",
+            "150102",
+            "Calle Fiscal 456",
+            "LIMA",
+            "LIMA",
+            "ANCON"));
+        await clienteRepository.AgregarAsync(new Cliente(clienteId, empresaId, "DNI", "12345678", "Cliente Demo"));
+        await productoRepository.AgregarAsync(new Producto(productoId, empresaId, "Producto gravado", 59m, "SKU-001"));
+        await unidadMedidaRepository.AgregarAsync(new UnidadMedida(unidadMedidaId, "CAJ", "Caja"));
+        await presentacionRepository.AgregarAsync(new ProductoPresentacion(
+            presentacionId,
+            empresaId,
+            productoId,
+            unidadMedidaId,
+            12m,
+            false,
+            118m));
+        await serieRepository.GuardarAsync(new SerieComprobante(
+            Guid.NewGuid(),
+            empresaId,
+            SedeIdPrueba,
+            "03",
+            "B001",
+            0));
+        var detalle = new VentaDetalle(
+            Guid.NewGuid(),
+            empresaId,
+            ventaId,
+            productoId,
+            2m,
+            118m,
+            36m,
+            236m,
+            productoPresentacionId: presentacionId);
+        await ventaRepository.AgregarAsync(new Venta(
+            ventaId,
+            empresaId,
+            new DateTimeOffset(2026, 7, 11, 5, 0, 0, TimeSpan.Zero),
+            200m,
+            36m,
+            236m,
+            [detalle],
+            SedeIdPrueba,
+            PuntoVentaIdPrueba,
+            clienteId));
+        var useCase = new EmitirCpeDesdeVentaUseCase(
+            ventaRepository,
+            configuracionFiscalRepository,
+            clienteRepository,
+            productoRepository,
+            presentacionRepository,
+            unidadMedidaRepository,
+            varianteRepository,
+            serieRepository,
+            gateway,
+            new EmpresaActivaContextFake(empresaId));
+
+        await useCase.EjecutarAsync(
+            ventaId,
+            new EmitirCpeDesdeVentaRequest("03", "B001", 1, "20601234567"));
+
+        Assert.NotNull(gateway.UltimoRequest);
+        var item = Assert.Single(gateway.UltimoRequest.Value.GetProperty("items").EnumerateArray());
+        Assert.Equal("Producto gravado CAJ", item.GetProperty("descripcion").GetString());
+        Assert.Equal("CAJ", item.GetProperty("unidadMedida").GetString());
+        Assert.Equal(2m, item.GetProperty("cantidad").GetDecimal());
+        Assert.Equal(100m, item.GetProperty("valorUnitario").GetDecimal());
+        Assert.Equal(118m, item.GetProperty("precioUnitario").GetDecimal());
+        Assert.Equal(200m, item.GetProperty("subtotal").GetDecimal());
+        Assert.Equal(36m, item.GetProperty("igv").GetDecimal());
+        Assert.Equal(236m, item.GetProperty("total").GetDecimal());
     }
 
     [Fact]
@@ -1006,6 +1328,8 @@ public class ApplicationVentaTests
             new ConfiguracionFiscalEmpresaRepositoryFake(),
             escenario.ClienteRepository,
             escenario.ProductoRepository,
+            escenario.PresentacionRepository,
+            escenario.UnidadMedidaRepository,
             escenario.VarianteRepository,
             escenario.SerieRepository,
             escenario.Gateway,
@@ -1041,6 +1365,8 @@ public class ApplicationVentaTests
             configuracionFiscalRepository,
             escenario.ClienteRepository,
             escenario.ProductoRepository,
+            escenario.PresentacionRepository,
+            escenario.UnidadMedidaRepository,
             escenario.VarianteRepository,
             escenario.SerieRepository,
             escenario.Gateway,
@@ -1075,6 +1401,8 @@ public class ApplicationVentaTests
             configuracionFiscalRepository,
             escenario.ClienteRepository,
             escenario.ProductoRepository,
+            escenario.PresentacionRepository,
+            escenario.UnidadMedidaRepository,
             escenario.VarianteRepository,
             escenario.SerieRepository,
             escenario.Gateway,
@@ -1136,6 +1464,8 @@ public class ApplicationVentaTests
             configuracionFiscalRepository,
             clienteRepository,
             productoRepository,
+            new ProductoPresentacionRepositoryFake(),
+            new UnidadMedidaRepositoryFake(),
             varianteRepository,
             new SerieComprobanteRepositoryFake(),
             gateway,
@@ -1275,6 +1605,8 @@ public class ApplicationVentaTests
         var clienteRepository = new ClienteRepositoryFake();
         var productoRepository = new ProductoRepositoryFake();
         var varianteRepository = new ProductoVarianteRepositoryFake();
+        var presentacionRepository = new ProductoPresentacionRepositoryFake();
+        var unidadMedidaRepository = new UnidadMedidaRepositoryFake();
         var serieRepository = new SerieComprobanteRepositoryFake();
         var gateway = new CpeGatewayFake();
 
@@ -1325,6 +1657,8 @@ public class ApplicationVentaTests
             ventaRepository,
             clienteRepository,
             productoRepository,
+            presentacionRepository,
+            unidadMedidaRepository,
             varianteRepository,
             serieRepository,
             gateway);
@@ -1355,6 +1689,8 @@ public class ApplicationVentaTests
             configuracionFiscalRepository,
             escenario.ClienteRepository,
             escenario.ProductoRepository,
+            escenario.PresentacionRepository,
+            escenario.UnidadMedidaRepository,
             escenario.VarianteRepository,
             escenario.SerieRepository,
             escenario.Gateway,
@@ -1367,6 +1703,8 @@ public class ApplicationVentaTests
         VentaRepositoryFake VentaRepository,
         ClienteRepositoryFake ClienteRepository,
         ProductoRepositoryFake ProductoRepository,
+        ProductoPresentacionRepositoryFake PresentacionRepository,
+        UnidadMedidaRepositoryFake UnidadMedidaRepository,
         ProductoVarianteRepositoryFake VarianteRepository,
         SerieComprobanteRepositoryFake SerieRepository,
         CpeGatewayFake Gateway);
@@ -1379,6 +1717,7 @@ public class ApplicationVentaTests
         StockProductoRepositoryFake? stockRepository = null,
         Guid? empresaId = null,
         PuntoVentaRepositoryFake? puntoVentaRepository = null,
+        ProductoPresentacionRepositoryFake? presentacionRepository = null,
         bool agregarPuntoVentaDefault = true)
     {
         puntoVentaRepository ??= new PuntoVentaRepositoryFake();
@@ -1398,6 +1737,7 @@ public class ApplicationVentaTests
         return new CrearVentaUseCase(
             ventaRepository,
             productoRepository,
+            presentacionRepository ?? new ProductoPresentacionRepositoryFake(),
             varianteRepository,
             clienteRepository,
             stockRepository ?? new StockProductoRepositoryFake(),
@@ -1665,6 +2005,84 @@ public class ApplicationVentaTests
             return Task.FromResult(_variantes.Any(variante =>
                 variante.EmpresaId == empresaId &&
                 variante.CodigoBarras == codigoBarras.Trim()));
+        }
+    }
+
+    private sealed class ProductoPresentacionRepositoryFake : IProductoPresentacionRepository
+    {
+        public List<ProductoPresentacion> Presentaciones { get; } = new();
+
+        public Task AgregarAsync(
+            ProductoPresentacion presentacion,
+            CancellationToken cancellationToken = default)
+        {
+            Presentaciones.Add(presentacion);
+            return Task.CompletedTask;
+        }
+
+        public Task<IReadOnlyCollection<ProductoPresentacion>> ListarPorProductoAsync(
+            Guid empresaId,
+            Guid productoId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyCollection<ProductoPresentacion>>(
+                Presentaciones.Where(presentacion =>
+                    presentacion.EmpresaId == empresaId &&
+                    presentacion.ProductoId == productoId).ToArray());
+        }
+
+        public Task<ProductoPresentacion?> ObtenerPorEmpresaAsync(
+            Guid empresaId,
+            Guid id,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(Presentaciones.SingleOrDefault(presentacion =>
+                presentacion.EmpresaId == empresaId &&
+                presentacion.Id == id));
+        }
+
+        public Task<bool> ExisteCodigoBarrasAsync(
+            Guid empresaId,
+            string codigoBarras,
+            CancellationToken cancellationToken = default)
+        {
+            var codigoNormalizado = codigoBarras.Trim();
+
+            return Task.FromResult(Presentaciones.Any(presentacion =>
+                presentacion.EmpresaId == empresaId &&
+                presentacion.CodigoBarras == codigoNormalizado));
+        }
+    }
+
+    private sealed class UnidadMedidaRepositoryFake : IUnidadMedidaRepository
+    {
+        public List<UnidadMedida> Unidades { get; } = new();
+
+        public Task AgregarAsync(UnidadMedida unidadMedida, CancellationToken cancellationToken = default)
+        {
+            Unidades.Add(unidadMedida);
+            return Task.CompletedTask;
+        }
+
+        public Task<IReadOnlyCollection<UnidadMedida>> ListarAsync(CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyCollection<UnidadMedida>>(Unidades.ToArray());
+        }
+
+        public Task<UnidadMedida?> ObtenerPorIdAsync(
+            Guid id,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(Unidades.SingleOrDefault(unidad => unidad.Id == id));
+        }
+
+        public Task<UnidadMedida?> ObtenerPorCodigoAsync(
+            string codigo,
+            CancellationToken cancellationToken = default)
+        {
+            var codigoNormalizado = codigo.Trim().ToUpperInvariant();
+
+            return Task.FromResult(Unidades.SingleOrDefault(unidad => unidad.Codigo == codigoNormalizado));
         }
     }
 

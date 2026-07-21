@@ -12,6 +12,7 @@ public class VentaDetalleTests
         var ventaId = Guid.NewGuid();
         var productoId = Guid.NewGuid();
         var productoVarianteId = Guid.NewGuid();
+        var productoPresentacionId = Guid.NewGuid();
 
         var detalle = new VentaDetalle(
             id,
@@ -22,13 +23,15 @@ public class VentaDetalleTests
             50m,
             18m,
             118m,
-            productoVarianteId);
+            productoVarianteId,
+            productoPresentacionId);
 
         Assert.Equal(id, detalle.Id);
         Assert.Equal(empresaId, detalle.EmpresaId);
         Assert.Equal(ventaId, detalle.VentaId);
         Assert.Equal(productoId, detalle.ProductoId);
         Assert.Equal(productoVarianteId, detalle.ProductoVarianteId);
+        Assert.Equal(productoPresentacionId, detalle.ProductoPresentacionId);
         Assert.Equal(2m, detalle.Cantidad);
         Assert.Equal(50m, detalle.PrecioUnitario);
         Assert.Equal(18m, detalle.Igv);
@@ -49,6 +52,23 @@ public class VentaDetalleTests
             10m);
 
         Assert.Null(detalle.ProductoVarianteId);
+        Assert.Null(detalle.ProductoPresentacionId);
+    }
+
+    [Fact]
+    public void Rechaza_presentacion_id_vacia()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            new VentaDetalle(
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                1m,
+                10m,
+                0m,
+                10m,
+                productoPresentacionId: Guid.Empty));
     }
 
     [Theory]

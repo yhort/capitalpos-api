@@ -526,6 +526,12 @@ public static class EndpointInputValidator
             return false;
         }
 
+        if (request.ProductoPresentacionId == Guid.Empty)
+        {
+            error = "El identificador de la presentacion no puede estar vacio.";
+            return false;
+        }
+
         if (request.Cantidad <= 0)
         {
             error = "La cantidad debe ser mayor que cero.";

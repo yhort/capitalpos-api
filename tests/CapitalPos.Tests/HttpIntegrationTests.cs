@@ -1819,6 +1819,54 @@ public class HttpIntegrationTests
         AssertSeguro(content);
     }
 
+    [Fact]
+    public async Task Crear_venta_con_presentacion_descuenta_stock_por_factor_y_devuelve_presentacion()
+    {
+        var productoId = Guid.NewGuid();
+        var unidadMedidaId = Guid.NewGuid();
+        var presentacionId = Guid.NewGuid();
+        await using var factory = new CapitalPosHttpFactory();
+        await factory.ProductoRepository.AgregarAsync(CrearProducto(EmpresaId, productoId));
+        await factory.UnidadMedidaRepository.AgregarAsync(new UnidadMedida(
+            unidadMedidaId,
+            "CAJ",
+            "Caja"));
+        await factory.ProductoPresentacionRepository.AgregarAsync(new ProductoPresentacion(
+            presentacionId,
+            EmpresaId,
+            productoId,
+            unidadMedidaId,
+            12m,
+            false,
+            118m));
+        await factory.StockRepository.GuardarAsync(new StockProducto(
+            Guid.NewGuid(),
+            EmpresaId,
+            SedeId,
+            productoId,
+            null,
+            30m));
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+
+        var response = await client.PostAsJsonAsync(
+            "/api/ventas/",
+            CrearVentaRequest(productoId, null, 2m, productoPresentacionId: presentacionId));
+        var content = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadFromJsonAsync<VentaResponse>();
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.NotNull(body);
+        var detalle = Assert.Single(body.Detalles);
+        Assert.Equal(presentacionId, detalle.ProductoPresentacionId);
+        Assert.Equal(118m, detalle.PrecioUnitario);
+        Assert.Equal(36m, detalle.Igv);
+        Assert.Equal(236m, detalle.Total);
+        Assert.Equal(200m, body.Subtotal);
+        Assert.Single(factory.VentaRepository.Ventas);
+        Assert.Equal(6m, factory.StockRepository.Stocks.Single().CantidadDisponible);
+        AssertSeguro(content);
+    }
+
     [Theory]
     [InlineData("PROVINCIA")]
     [InlineData("MARKETING")]
@@ -2196,12 +2244,20 @@ public class HttpIntegrationTests
         decimal cantidad,
         string? canalVenta = null,
         Guid? puntoVentaId = null,
-        Guid? vendedorId = null)
+        Guid? vendedorId = null,
+        Guid? productoPresentacionId = null)
     {
         return new CrearVentaRequest(
             DateTimeOffset.UtcNow,
             null,
-            [new CrearVentaDetalleRequest(productoId, productoVarianteId, cantidad, 10m, 0m, cantidad * 10m)],
+            [new CrearVentaDetalleRequest(
+                productoId,
+                productoVarianteId,
+                cantidad,
+                10m,
+                0m,
+                cantidad * 10m,
+                productoPresentacionId)],
             puntoVentaId ?? PuntoVentaId,
             canalVenta,
             vendedorId);

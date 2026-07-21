@@ -12,6 +12,7 @@ public sealed class CrearVentaUseCase
     private readonly IClienteRepository _clienteRepository;
     private readonly IEmpresaActivaContext _empresaActiva;
     private readonly IProductoRepository _productoRepository;
+    private readonly IProductoPresentacionRepository _productoPresentacionRepository;
     private readonly IProductoVarianteRepository _productoVarianteRepository;
     private readonly IPuntoVentaRepository _puntoVentaRepository;
     private readonly IStockProductoRepository _stockRepository;
@@ -20,6 +21,7 @@ public sealed class CrearVentaUseCase
     public CrearVentaUseCase(
         IVentaRepository ventaRepository,
         IProductoRepository productoRepository,
+        IProductoPresentacionRepository productoPresentacionRepository,
         IProductoVarianteRepository productoVarianteRepository,
         IClienteRepository clienteRepository,
         IStockProductoRepository stockRepository,
@@ -28,6 +30,7 @@ public sealed class CrearVentaUseCase
     {
         _ventaRepository = ventaRepository;
         _productoRepository = productoRepository;
+        _productoPresentacionRepository = productoPresentacionRepository;
         _productoVarianteRepository = productoVarianteRepository;
         _clienteRepository = clienteRepository;
         _stockRepository = stockRepository;
@@ -53,15 +56,25 @@ public sealed class CrearVentaUseCase
         }
 
         var ventaId = Guid.NewGuid();
-        var detalles = new List<VentaDetalle>();
+        var detallesPreparados = new List<DetalleVentaPreparado>();
         foreach (var detalleRequest in request.Detalles)
         {
-            await ValidarProductoAsync(empresaId, detalleRequest, cancellationToken);
-            detalles.Add(detalleRequest.CrearDetalle(empresaId, ventaId));
+            detallesPreparados.Add(await CrearDetallePreparadoAsync(
+                empresaId,
+                ventaId,
+                detalleRequest,
+                cancellationToken));
         }
 
-        var stocksADescontar = await ValidarStockAsync(empresaId, puntoVenta.SedeId, detalles, cancellationToken);
+        var stocksADescontar = await ValidarStockAsync(
+            empresaId,
+            puntoVenta.SedeId,
+            detallesPreparados,
+            cancellationToken);
 
+        var detalles = detallesPreparados
+            .Select(detallePreparado => detallePreparado.Detalle)
+            .ToArray();
         var total = detalles.Sum(detalle => detalle.Total);
         var igv = detalles.Sum(detalle => detalle.Igv);
         var subtotal = total - igv;
@@ -173,8 +186,9 @@ public sealed class CrearVentaUseCase
         throw new ArgumentException("El canal de venta no es valido.", nameof(canalVenta));
     }
 
-    private async Task ValidarProductoAsync(
+    private async Task<DetalleVentaPreparado> CrearDetallePreparadoAsync(
         Guid empresaId,
+        Guid ventaId,
         CrearVentaDetalleRequest detalleRequest,
         CancellationToken cancellationToken)
     {
@@ -187,6 +201,58 @@ public sealed class CrearVentaUseCase
             throw new InvalidOperationException("El producto no pertenece a la empresa activa.");
         }
 
+        await ValidarVarianteAsync(empresaId, detalleRequest, cancellationToken);
+
+        if (detalleRequest.ProductoPresentacionId is null)
+        {
+            return new DetalleVentaPreparado(
+                detalleRequest.CrearDetalle(empresaId, ventaId),
+                detalleRequest.Cantidad);
+        }
+
+        var presentacion = await _productoPresentacionRepository.ObtenerPorEmpresaAsync(
+            empresaId,
+            detalleRequest.ProductoPresentacionId.Value,
+            cancellationToken);
+        if (presentacion is null)
+        {
+            throw new InvalidOperationException("La presentacion no pertenece a la empresa activa.");
+        }
+
+        if (presentacion.ProductoId != detalleRequest.ProductoId)
+        {
+            throw new InvalidOperationException("La presentacion no pertenece al producto activo.");
+        }
+
+        if (!presentacion.Activa)
+        {
+            throw new InvalidOperationException("La presentacion del producto no esta activa.");
+        }
+
+        var cantidadStock = detalleRequest.Cantidad * presentacion.FactorConversion;
+        var total = Redondear(detalleRequest.Cantidad * presentacion.PrecioVenta);
+        var subtotal = Redondear(total / 1.18m);
+        var igv = Redondear(total - subtotal);
+        var detalle = new VentaDetalle(
+            Guid.NewGuid(),
+            empresaId,
+            ventaId,
+            detalleRequest.ProductoId,
+            detalleRequest.Cantidad,
+            presentacion.PrecioVenta,
+            igv,
+            total,
+            detalleRequest.ProductoVarianteId,
+            presentacion.Id);
+
+        return new DetalleVentaPreparado(detalle, cantidadStock);
+    }
+
+    private async Task ValidarVarianteAsync(
+        Guid empresaId,
+        CrearVentaDetalleRequest detalleRequest,
+        CancellationToken cancellationToken)
+    {
         if (detalleRequest.ProductoVarianteId is null)
         {
             return;
@@ -205,16 +271,16 @@ public sealed class CrearVentaUseCase
     private async Task<IReadOnlyCollection<StockADescontar>> ValidarStockAsync(
         Guid empresaId,
         Guid sedeId,
-        IReadOnlyCollection<VentaDetalle> detalles,
+        IReadOnlyCollection<DetalleVentaPreparado> detalles,
         CancellationToken cancellationToken)
     {
         var stocks = new List<StockADescontar>();
         var cantidadesPorStock = detalles
-            .GroupBy(detalle => new StockKey(detalle.ProductoId, detalle.ProductoVarianteId))
+            .GroupBy(detalle => new StockKey(detalle.Detalle.ProductoId, detalle.Detalle.ProductoVarianteId))
             .Select(grupo => new StockADescontarRequest(
                 grupo.Key.ProductoId,
                 grupo.Key.ProductoVarianteId,
-                grupo.Sum(detalle => detalle.Cantidad)))
+                grupo.Sum(detalle => detalle.CantidadStock)))
             .ToArray();
 
         foreach (var item in cantidadesPorStock)
@@ -267,6 +333,10 @@ public sealed class CrearVentaUseCase
 
     private sealed record StockKey(Guid ProductoId, Guid? ProductoVarianteId);
 
+    private sealed record DetalleVentaPreparado(
+        VentaDetalle Detalle,
+        decimal CantidadStock);
+
     private sealed record StockADescontarRequest(
         Guid ProductoId,
         Guid? ProductoVarianteId,
@@ -281,5 +351,10 @@ public sealed class CrearVentaUseCase
         {
             Stock.AjustarCantidadDisponible(CantidadDisponibleOriginal);
         }
+    }
+
+    private static decimal Redondear(decimal valor)
+    {
+        return Math.Round(valor, 2, MidpointRounding.AwayFromZero);
     }
 }
