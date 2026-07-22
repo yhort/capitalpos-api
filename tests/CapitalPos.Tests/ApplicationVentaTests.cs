@@ -1,4 +1,5 @@
 using System.Text.Json;
+using CapitalPos.Application.Caja;
 using CapitalPos.Application.Cpe;
 using CapitalPos.Application.Clientes;
 using CapitalPos.Application.ConfiguracionFiscal;
@@ -222,6 +223,7 @@ public class ApplicationVentaTests
         var productoRepository = new ProductoRepositoryFake();
         var stockRepository = new StockProductoRepositoryFake();
         var puntoVentaRepository = new PuntoVentaRepositoryFake();
+        var sesionCajaRepository = new SesionCajaRepositoryFake();
         await productoRepository.AgregarAsync(new Producto(productoId, empresaId, "Polo", 59m));
         await stockRepository.GuardarAsync(new StockProducto(
             Guid.NewGuid(),
@@ -235,6 +237,12 @@ public class ApplicationVentaTests
             empresaId,
             sedeId,
             "Caja principal"));
+        sesionCajaRepository.Sesiones.Add(new SesionCaja(
+            Guid.NewGuid(),
+            empresaId,
+            sedeId,
+            puntoVentaId,
+            100m));
         var useCase = CrearUseCase(
             ventaRepository,
             productoRepository,
@@ -243,6 +251,7 @@ public class ApplicationVentaTests
             stockRepository,
             empresaId,
             puntoVentaRepository,
+            sesionCajaRepository: sesionCajaRepository,
             agregarPuntoVentaDefault: false);
 
         var venta = await useCase.EjecutarAsync(CrearVentaRequest(
@@ -431,6 +440,117 @@ public class ApplicationVentaTests
 
         Assert.Single(ventaRepository.Ventas);
         Assert.Equal(3m, stockRepository.Stocks.Single().CantidadDisponible);
+    }
+
+    [Fact]
+    public async Task Crear_venta_falla_si_no_hay_sesion_caja_abierta_y_no_descuenta_stock()
+    {
+        var empresaId = Guid.NewGuid();
+        var productoId = Guid.NewGuid();
+        var ventaRepository = new VentaRepositoryFake();
+        var productoRepository = new ProductoRepositoryFake();
+        var stockRepository = new StockProductoRepositoryFake();
+        await productoRepository.AgregarAsync(new Producto(productoId, empresaId, "Polo", 59m));
+        await stockRepository.GuardarAsync(new StockProducto(
+            Guid.NewGuid(),
+            empresaId,
+            SedeIdPrueba,
+            productoId,
+            null,
+            5m));
+        var useCase = CrearUseCase(
+            ventaRepository,
+            productoRepository,
+            new ProductoVarianteRepositoryFake(),
+            new ClienteRepositoryFake(),
+            stockRepository,
+            empresaId,
+            agregarSesionCajaDefault: false);
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            useCase.EjecutarAsync(CrearVentaRequest(productoId, null, 2m)));
+
+        Assert.Contains("sesion de caja", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(ventaRepository.Ventas);
+        Assert.Equal(5m, stockRepository.Stocks.Single().CantidadDisponible);
+    }
+
+    [Fact]
+    public async Task Crear_venta_falla_si_solo_existe_caja_cerrada()
+    {
+        var empresaId = Guid.NewGuid();
+        var productoId = Guid.NewGuid();
+        var ventaRepository = new VentaRepositoryFake();
+        var productoRepository = new ProductoRepositoryFake();
+        var stockRepository = new StockProductoRepositoryFake();
+        var sesionCajaRepository = new SesionCajaRepositoryFake();
+        var sesionCerrada = new SesionCaja(Guid.NewGuid(), empresaId, SedeIdPrueba, PuntoVentaIdPrueba, 100m);
+        sesionCerrada.Cerrar(100m, sesionCerrada.FechaApertura.AddHours(1));
+        sesionCajaRepository.Sesiones.Add(sesionCerrada);
+        await productoRepository.AgregarAsync(new Producto(productoId, empresaId, "Polo", 59m));
+        await stockRepository.GuardarAsync(new StockProducto(
+            Guid.NewGuid(),
+            empresaId,
+            SedeIdPrueba,
+            productoId,
+            null,
+            5m));
+        var useCase = CrearUseCase(
+            ventaRepository,
+            productoRepository,
+            new ProductoVarianteRepositoryFake(),
+            new ClienteRepositoryFake(),
+            stockRepository,
+            empresaId,
+            sesionCajaRepository: sesionCajaRepository,
+            agregarSesionCajaDefault: false);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            useCase.EjecutarAsync(CrearVentaRequest(productoId, null, 1m)));
+
+        Assert.Empty(ventaRepository.Ventas);
+        Assert.Equal(5m, stockRepository.Stocks.Single().CantidadDisponible);
+    }
+
+    [Fact]
+    public async Task Crear_venta_falla_si_caja_abierta_pertenece_a_otra_empresa()
+    {
+        var empresaId = Guid.NewGuid();
+        var otraEmpresaId = Guid.NewGuid();
+        var productoId = Guid.NewGuid();
+        var ventaRepository = new VentaRepositoryFake();
+        var productoRepository = new ProductoRepositoryFake();
+        var stockRepository = new StockProductoRepositoryFake();
+        var sesionCajaRepository = new SesionCajaRepositoryFake();
+        sesionCajaRepository.Sesiones.Add(new SesionCaja(
+            Guid.NewGuid(),
+            otraEmpresaId,
+            SedeIdPrueba,
+            PuntoVentaIdPrueba,
+            100m));
+        await productoRepository.AgregarAsync(new Producto(productoId, empresaId, "Polo", 59m));
+        await stockRepository.GuardarAsync(new StockProducto(
+            Guid.NewGuid(),
+            empresaId,
+            SedeIdPrueba,
+            productoId,
+            null,
+            5m));
+        var useCase = CrearUseCase(
+            ventaRepository,
+            productoRepository,
+            new ProductoVarianteRepositoryFake(),
+            new ClienteRepositoryFake(),
+            stockRepository,
+            empresaId,
+            sesionCajaRepository: sesionCajaRepository,
+            agregarSesionCajaDefault: false);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            useCase.EjecutarAsync(CrearVentaRequest(productoId, null, 1m)));
+
+        Assert.Empty(ventaRepository.Ventas);
+        Assert.Equal(5m, stockRepository.Stocks.Single().CantidadDisponible);
     }
 
     [Fact]
@@ -1718,9 +1838,12 @@ public class ApplicationVentaTests
         Guid? empresaId = null,
         PuntoVentaRepositoryFake? puntoVentaRepository = null,
         ProductoPresentacionRepositoryFake? presentacionRepository = null,
-        bool agregarPuntoVentaDefault = true)
+        SesionCajaRepositoryFake? sesionCajaRepository = null,
+        bool agregarPuntoVentaDefault = true,
+        bool agregarSesionCajaDefault = true)
     {
         puntoVentaRepository ??= new PuntoVentaRepositoryFake();
+        sesionCajaRepository ??= new SesionCajaRepositoryFake();
         if (agregarPuntoVentaDefault &&
             empresaId.HasValue &&
             !puntoVentaRepository.PuntosVenta.Any(puntoVenta =>
@@ -1734,6 +1857,21 @@ public class ApplicationVentaTests
                 "Caja principal"));
         }
 
+        if (agregarSesionCajaDefault &&
+            empresaId.HasValue &&
+            !sesionCajaRepository.Sesiones.Any(sesion =>
+                sesion.EmpresaId == empresaId.Value &&
+                sesion.PuntoVentaId == PuntoVentaIdPrueba &&
+                sesion.Estado == EstadoSesionCaja.Abierta))
+        {
+            sesionCajaRepository.Sesiones.Add(new SesionCaja(
+                Guid.NewGuid(),
+                empresaId.Value,
+                SedeIdPrueba,
+                PuntoVentaIdPrueba,
+                100m));
+        }
+
         return new CrearVentaUseCase(
             ventaRepository,
             productoRepository,
@@ -1741,6 +1879,7 @@ public class ApplicationVentaTests
             varianteRepository,
             clienteRepository,
             stockRepository ?? new StockProductoRepositoryFake(),
+            sesionCajaRepository,
             puntoVentaRepository,
             empresaId.HasValue
                 ? new EmpresaActivaContextFake(empresaId.Value)
@@ -1802,6 +1941,43 @@ public class ApplicationVentaTests
             return Task.FromResult(PuntosVenta.FirstOrDefault(puntoVenta =>
                 puntoVenta.EmpresaId == empresaId &&
                 puntoVenta.Id == id));
+        }
+    }
+
+    private sealed class SesionCajaRepositoryFake : ISesionCajaRepository
+    {
+        public List<SesionCaja> Sesiones { get; } = [];
+
+        public Task AgregarAsync(SesionCaja sesionCaja, CancellationToken cancellationToken = default)
+        {
+            Sesiones.Add(sesionCaja);
+            return Task.CompletedTask;
+        }
+
+        public Task<SesionCaja?> ObtenerPorEmpresaAsync(
+            Guid empresaId,
+            Guid id,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(Sesiones.FirstOrDefault(sesion =>
+                sesion.EmpresaId == empresaId &&
+                sesion.Id == id));
+        }
+
+        public Task<SesionCaja?> ObtenerAbiertaPorPuntoVentaAsync(
+            Guid empresaId,
+            Guid puntoVentaId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(Sesiones.FirstOrDefault(sesion =>
+                sesion.EmpresaId == empresaId &&
+                sesion.PuntoVentaId == puntoVentaId &&
+                sesion.Estado == EstadoSesionCaja.Abierta));
+        }
+
+        public Task GuardarAsync(SesionCaja sesionCaja, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
         }
     }
 

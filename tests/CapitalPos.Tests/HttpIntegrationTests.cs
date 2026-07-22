@@ -2042,6 +2042,7 @@ public class HttpIntegrationTests
             productoId,
             null,
             5m));
+        AgregarCajaAbierta(factory);
         using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
 
         var response = await client.PostAsJsonAsync("/api/ventas/", CrearVentaRequest(productoId, null, 2m));
@@ -2056,6 +2057,31 @@ public class HttpIntegrationTests
         Assert.Null(body.VendedorId);
         Assert.Single(factory.VentaRepository.Ventas);
         Assert.Equal(3m, factory.StockRepository.Stocks.Single().CantidadDisponible);
+        AssertSeguro(content);
+    }
+
+    [Fact]
+    public async Task Crear_venta_sin_caja_abierta_devuelve_bad_request_y_no_descuenta_stock()
+    {
+        var productoId = Guid.NewGuid();
+        await using var factory = new CapitalPosHttpFactory();
+        await factory.ProductoRepository.AgregarAsync(CrearProducto(EmpresaId, productoId));
+        await factory.StockRepository.GuardarAsync(new StockProducto(
+            Guid.NewGuid(),
+            EmpresaId,
+            SedeId,
+            productoId,
+            null,
+            5m));
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+
+        var response = await client.PostAsJsonAsync("/api/ventas/", CrearVentaRequest(productoId, null, 2m));
+        var content = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("sesion de caja", content, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(factory.VentaRepository.Ventas);
+        Assert.Equal(5m, factory.StockRepository.Stocks.Single().CantidadDisponible);
         AssertSeguro(content);
     }
 
@@ -2086,6 +2112,7 @@ public class HttpIntegrationTests
             productoId,
             null,
             30m));
+        AgregarCajaAbierta(factory);
         using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
 
         var response = await client.PostAsJsonAsync(
@@ -2123,6 +2150,7 @@ public class HttpIntegrationTests
             productoId,
             null,
             5m));
+        AgregarCajaAbierta(factory);
         using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
 
         var response = await client.PostAsJsonAsync("/api/ventas/", CrearVentaRequest(
@@ -2240,6 +2268,7 @@ public class HttpIntegrationTests
             productoId,
             null,
             1m));
+        AgregarCajaAbierta(factory);
         using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
 
         var response = await client.PostAsJsonAsync("/api/ventas/", CrearVentaRequest(productoId, null, 2m));
@@ -2266,6 +2295,7 @@ public class HttpIntegrationTests
             productoId,
             null,
             5m));
+        AgregarCajaAbierta(factory);
         using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
 
         var response = await client.PostAsJsonAsync("/api/ventas/", CrearVentaRequest(productoId, null, 1m));
@@ -2294,6 +2324,7 @@ public class HttpIntegrationTests
             productoId,
             varianteId,
             5m));
+        AgregarCajaAbierta(factory);
         using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
 
         var response = await client.PostAsJsonAsync("/api/ventas/", CrearVentaRequest(productoId, varianteId, 1m));
@@ -2501,6 +2532,16 @@ public class HttpIntegrationTests
             puntoVentaId ?? PuntoVentaId,
             canalVenta,
             vendedorId);
+    }
+
+    private static void AgregarCajaAbierta(CapitalPosHttpFactory factory)
+    {
+        factory.SesionCajaRepository.Sesiones.Add(new SesionCaja(
+            Guid.NewGuid(),
+            EmpresaId,
+            SedeId,
+            PuntoVentaId,
+            100m));
     }
 
     private static Venta CrearVentaReporte(

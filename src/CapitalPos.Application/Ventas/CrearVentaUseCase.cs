@@ -1,3 +1,4 @@
+using CapitalPos.Application.Caja;
 using CapitalPos.Application.Clientes;
 using CapitalPos.Application.Inventario;
 using CapitalPos.Application.Productos;
@@ -16,6 +17,7 @@ public sealed class CrearVentaUseCase
     private readonly IProductoVarianteRepository _productoVarianteRepository;
     private readonly IPuntoVentaRepository _puntoVentaRepository;
     private readonly IStockProductoRepository _stockRepository;
+    private readonly ISesionCajaRepository _sesionCajaRepository;
     private readonly IVentaRepository _ventaRepository;
 
     public CrearVentaUseCase(
@@ -25,6 +27,7 @@ public sealed class CrearVentaUseCase
         IProductoVarianteRepository productoVarianteRepository,
         IClienteRepository clienteRepository,
         IStockProductoRepository stockRepository,
+        ISesionCajaRepository sesionCajaRepository,
         IPuntoVentaRepository puntoVentaRepository,
         IEmpresaActivaContext empresaActiva)
     {
@@ -34,6 +37,7 @@ public sealed class CrearVentaUseCase
         _productoVarianteRepository = productoVarianteRepository;
         _clienteRepository = clienteRepository;
         _stockRepository = stockRepository;
+        _sesionCajaRepository = sesionCajaRepository;
         _puntoVentaRepository = puntoVentaRepository;
         _empresaActiva = empresaActiva;
     }
@@ -48,6 +52,7 @@ public sealed class CrearVentaUseCase
 
         var empresaId = _empresaActiva.EmpresaId;
         var puntoVenta = await ObtenerPuntoVentaAsync(empresaId, request.PuntoVentaId, cancellationToken);
+        await ValidarSesionCajaAbiertaAsync(empresaId, puntoVenta.Id, cancellationToken);
         await ValidarClienteAsync(empresaId, request.ClienteId, cancellationToken);
 
         if (request.Detalles is null || request.Detalles.Count == 0)
@@ -184,6 +189,21 @@ public sealed class CrearVentaUseCase
         }
 
         throw new ArgumentException("El canal de venta no es valido.", nameof(canalVenta));
+    }
+
+    private async Task ValidarSesionCajaAbiertaAsync(
+        Guid empresaId,
+        Guid puntoVentaId,
+        CancellationToken cancellationToken)
+    {
+        var sesionCaja = await _sesionCajaRepository.ObtenerAbiertaPorPuntoVentaAsync(
+            empresaId,
+            puntoVentaId,
+            cancellationToken);
+        if (sesionCaja is null)
+        {
+            throw new InvalidOperationException("Debe abrir una sesion de caja antes de registrar ventas.");
+        }
     }
 
     private async Task<DetalleVentaPreparado> CrearDetallePreparadoAsync(
