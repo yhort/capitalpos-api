@@ -15,6 +15,7 @@ public sealed class CrearVentaUseCase
     private readonly IProductoRepository _productoRepository;
     private readonly IProductoPresentacionRepository _productoPresentacionRepository;
     private readonly IProductoVarianteRepository _productoVarianteRepository;
+    private readonly IReglaPrecioMayoristaRepository _reglaPrecioMayoristaRepository;
     private readonly IPuntoVentaRepository _puntoVentaRepository;
     private readonly IStockProductoRepository _stockRepository;
     private readonly ISesionCajaRepository _sesionCajaRepository;
@@ -25,6 +26,7 @@ public sealed class CrearVentaUseCase
         IProductoRepository productoRepository,
         IProductoPresentacionRepository productoPresentacionRepository,
         IProductoVarianteRepository productoVarianteRepository,
+        IReglaPrecioMayoristaRepository reglaPrecioMayoristaRepository,
         IClienteRepository clienteRepository,
         IStockProductoRepository stockRepository,
         ISesionCajaRepository sesionCajaRepository,
@@ -35,6 +37,7 @@ public sealed class CrearVentaUseCase
         _productoRepository = productoRepository;
         _productoPresentacionRepository = productoPresentacionRepository;
         _productoVarianteRepository = productoVarianteRepository;
+        _reglaPrecioMayoristaRepository = reglaPrecioMayoristaRepository;
         _clienteRepository = clienteRepository;
         _stockRepository = stockRepository;
         _sesionCajaRepository = sesionCajaRepository;
@@ -70,6 +73,8 @@ public sealed class CrearVentaUseCase
                 detalleRequest,
                 cancellationToken));
         }
+
+        await AplicarPrecioMayoristaAsync(empresaId, detallesPreparados, cancellationToken);
 
         var stocksADescontar = await ValidarStockAsync(
             empresaId,
@@ -328,6 +333,59 @@ public sealed class CrearVentaUseCase
         }
 
         return stocks;
+    }
+
+    private async Task AplicarPrecioMayoristaAsync(
+        Guid empresaId,
+        IReadOnlyCollection<DetalleVentaPreparado> detalles,
+        CancellationToken cancellationToken)
+    {
+        var productosUnitarios = detalles
+            .Select(detalle => detalle.Detalle)
+            .Where(detalle => detalle.ProductoPresentacionId is null)
+            .GroupBy(detalle => detalle.ProductoId)
+            .Select(grupo => new
+            {
+                ProductoId = grupo.Key,
+                Cantidad = grupo.Sum(detalle => detalle.Cantidad),
+                Detalles = grupo.ToArray()
+            })
+            .ToArray();
+
+        if (productosUnitarios.Length == 0)
+        {
+            return;
+        }
+
+        var reglas = await _reglaPrecioMayoristaRepository.ListarActivasPorProductosAsync(
+            empresaId,
+            productosUnitarios.Select(producto => producto.ProductoId).Distinct().ToArray(),
+            cancellationToken);
+
+        if (reglas.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var producto in productosUnitarios)
+        {
+            var reglaAplicable = reglas
+                .Where(regla =>
+                    regla.ProductoId == producto.ProductoId &&
+                    regla.CantidadMinima <= producto.Cantidad)
+                .OrderByDescending(regla => regla.CantidadMinima)
+                .FirstOrDefault();
+
+            if (reglaAplicable is null)
+            {
+                continue;
+            }
+
+            foreach (var detalle in producto.Detalles)
+            {
+                detalle.AplicarPrecioMayorista(reglaAplicable.PrecioUnitarioMayorista);
+            }
+        }
     }
 
     private static string CrearMensajeStockNoDisponible(Guid productoId, Guid? productoVarianteId)

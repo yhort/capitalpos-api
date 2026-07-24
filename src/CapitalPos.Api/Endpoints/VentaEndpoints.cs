@@ -280,6 +280,7 @@ public sealed record VentaDetalleResponse(
     decimal Cantidad,
     decimal FactorConversionAplicado,
     decimal CantidadBaseDescontada,
+    bool PrecioMayoristaAplicado,
     decimal PrecioUnitario,
     decimal Igv,
     decimal Total)
@@ -294,6 +295,7 @@ public sealed record VentaDetalleResponse(
             detalle.Cantidad,
             detalle.FactorConversionAplicado,
             detalle.CantidadBaseDescontada,
+            detalle.PrecioMayoristaAplicado,
             detalle.PrecioUnitario,
             detalle.Igv,
             detalle.Total);

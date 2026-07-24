@@ -69,6 +69,12 @@ public class EfRepositoryStructureTests
     }
 
     [Fact]
+    public void Ef_regla_precio_mayorista_repository_implementa_puerto_de_aplicacion()
+    {
+        Assert.True(typeof(IReglaPrecioMayoristaRepository).IsAssignableFrom(typeof(EfReglaPrecioMayoristaRepository)));
+    }
+
+    [Fact]
     public void Ef_stock_producto_repository_implementa_puerto_de_aplicacion()
     {
         Assert.True(typeof(IStockProductoRepository).IsAssignableFrom(typeof(EfStockProductoRepository)));
@@ -106,6 +112,7 @@ public class EfRepositoryStructureTests
     [InlineData("src/CapitalPos.Infrastructure/Persistence/Repositories/EfSerieComprobanteRepository.cs")]
     [InlineData("src/CapitalPos.Infrastructure/Persistence/Repositories/EfSesionCajaRepository.cs")]
     [InlineData("src/CapitalPos.Infrastructure/Persistence/Repositories/EfProductoPresentacionRepository.cs")]
+    [InlineData("src/CapitalPos.Infrastructure/Persistence/Repositories/EfReglaPrecioMayoristaRepository.cs")]
     public void Repositorios_sede_punto_venta_filtran_por_empresa(string relativePath)
     {
         var source = File.ReadAllText(ResolverRutaRepo(relativePath));

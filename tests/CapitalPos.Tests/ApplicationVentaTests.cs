@@ -936,6 +936,215 @@ public class ApplicationVentaTests
     }
 
     [Fact]
+    public async Task Crear_venta_por_variantes_del_mismo_producto_aplica_precio_mayorista_al_llegar_a_12()
+    {
+        var empresaId = Guid.NewGuid();
+        var productoId = Guid.NewGuid();
+        var varianteSId = Guid.NewGuid();
+        var varianteMId = Guid.NewGuid();
+        var varianteLId = Guid.NewGuid();
+        var ventaRepository = new VentaRepositoryFake();
+        var productoRepository = new ProductoRepositoryFake();
+        var varianteRepository = new ProductoVarianteRepositoryFake();
+        var stockRepository = new StockProductoRepositoryFake();
+        var reglaRepository = new ReglaPrecioMayoristaRepositoryFake();
+        await productoRepository.AgregarAsync(new Producto(productoId, empresaId, "Polo Brooklyn", 59m));
+        await varianteRepository.AgregarAsync(new ProductoVariante(varianteSId, empresaId, productoId, talla: "S"));
+        await varianteRepository.AgregarAsync(new ProductoVariante(varianteMId, empresaId, productoId, talla: "M"));
+        await varianteRepository.AgregarAsync(new ProductoVariante(varianteLId, empresaId, productoId, talla: "L"));
+        await stockRepository.GuardarAsync(new StockProducto(Guid.NewGuid(), empresaId, SedeIdPrueba, productoId, varianteSId, 10m));
+        await stockRepository.GuardarAsync(new StockProducto(Guid.NewGuid(), empresaId, SedeIdPrueba, productoId, varianteMId, 10m));
+        await stockRepository.GuardarAsync(new StockProducto(Guid.NewGuid(), empresaId, SedeIdPrueba, productoId, varianteLId, 10m));
+        reglaRepository.Reglas.Add(new ReglaPrecioMayorista(
+            Guid.NewGuid(),
+            empresaId,
+            productoId,
+            12,
+            35m));
+        var useCase = CrearUseCase(
+            ventaRepository,
+            productoRepository,
+            varianteRepository,
+            new ClienteRepositoryFake(),
+            stockRepository,
+            empresaId,
+            reglaPrecioMayoristaRepository: reglaRepository);
+
+        var venta = await useCase.EjecutarAsync(new CrearVentaRequest(
+            DateTimeOffset.UtcNow,
+            null,
+            [
+                new CrearVentaDetalleRequest(productoId, varianteSId, 4m, 59m, 36m, 236m),
+                new CrearVentaDetalleRequest(productoId, varianteMId, 5m, 59m, 45m, 295m),
+                new CrearVentaDetalleRequest(productoId, varianteLId, 3m, 59m, 27m, 177m)
+            ],
+            PuntoVentaIdPrueba));
+
+        Assert.All(venta.Detalles, detalle =>
+        {
+            Assert.True(detalle.PrecioMayoristaAplicado);
+            Assert.Equal(35m, detalle.PrecioUnitario);
+        });
+        Assert.Equal(420m, venta.Total);
+        Assert.Equal(64.07m, venta.Igv);
+        Assert.Equal(355.93m, venta.Subtotal);
+        Assert.Equal(6m, stockRepository.Stocks.Single(stock => stock.ProductoVarianteId == varianteSId).CantidadDisponible);
+        Assert.Equal(5m, stockRepository.Stocks.Single(stock => stock.ProductoVarianteId == varianteMId).CantidadDisponible);
+        Assert.Equal(7m, stockRepository.Stocks.Single(stock => stock.ProductoVarianteId == varianteLId).CantidadDisponible);
+    }
+
+    [Fact]
+    public async Task Crear_venta_por_variantes_del_mismo_producto_con_11_unidades_no_aplica_mayorista()
+    {
+        var empresaId = Guid.NewGuid();
+        var productoId = Guid.NewGuid();
+        var varianteSId = Guid.NewGuid();
+        var varianteMId = Guid.NewGuid();
+        var productoRepository = new ProductoRepositoryFake();
+        var varianteRepository = new ProductoVarianteRepositoryFake();
+        var stockRepository = new StockProductoRepositoryFake();
+        var reglaRepository = new ReglaPrecioMayoristaRepositoryFake();
+        await productoRepository.AgregarAsync(new Producto(productoId, empresaId, "Polo Brooklyn", 59m));
+        await varianteRepository.AgregarAsync(new ProductoVariante(varianteSId, empresaId, productoId, talla: "S"));
+        await varianteRepository.AgregarAsync(new ProductoVariante(varianteMId, empresaId, productoId, talla: "M"));
+        await stockRepository.GuardarAsync(new StockProducto(Guid.NewGuid(), empresaId, SedeIdPrueba, productoId, varianteSId, 10m));
+        await stockRepository.GuardarAsync(new StockProducto(Guid.NewGuid(), empresaId, SedeIdPrueba, productoId, varianteMId, 10m));
+        reglaRepository.Reglas.Add(new ReglaPrecioMayorista(Guid.NewGuid(), empresaId, productoId, 12, 35m));
+        var useCase = CrearUseCase(
+            new VentaRepositoryFake(),
+            productoRepository,
+            varianteRepository,
+            new ClienteRepositoryFake(),
+            stockRepository,
+            empresaId,
+            reglaPrecioMayoristaRepository: reglaRepository);
+
+        var venta = await useCase.EjecutarAsync(new CrearVentaRequest(
+            DateTimeOffset.UtcNow,
+            null,
+            [
+                new CrearVentaDetalleRequest(productoId, varianteSId, 6m, 59m, 54m, 354m),
+                new CrearVentaDetalleRequest(productoId, varianteMId, 5m, 59m, 45m, 295m)
+            ],
+            PuntoVentaIdPrueba));
+
+        Assert.All(venta.Detalles, detalle =>
+        {
+            Assert.False(detalle.PrecioMayoristaAplicado);
+            Assert.Equal(59m, detalle.PrecioUnitario);
+        });
+    }
+
+    [Fact]
+    public async Task Crear_venta_no_mezcla_cantidades_de_productos_distintos_para_mayorista()
+    {
+        var empresaId = Guid.NewGuid();
+        var productoAId = Guid.NewGuid();
+        var productoBId = Guid.NewGuid();
+        var productoRepository = new ProductoRepositoryFake();
+        var stockRepository = new StockProductoRepositoryFake();
+        var reglaRepository = new ReglaPrecioMayoristaRepositoryFake();
+        await productoRepository.AgregarAsync(new Producto(productoAId, empresaId, "Polo A", 59m));
+        await productoRepository.AgregarAsync(new Producto(productoBId, empresaId, "Polo B", 59m));
+        await stockRepository.GuardarAsync(new StockProducto(Guid.NewGuid(), empresaId, SedeIdPrueba, productoAId, null, 10m));
+        await stockRepository.GuardarAsync(new StockProducto(Guid.NewGuid(), empresaId, SedeIdPrueba, productoBId, null, 10m));
+        reglaRepository.Reglas.Add(new ReglaPrecioMayorista(Guid.NewGuid(), empresaId, productoAId, 12, 35m));
+        reglaRepository.Reglas.Add(new ReglaPrecioMayorista(Guid.NewGuid(), empresaId, productoBId, 12, 35m));
+        var useCase = CrearUseCase(
+            new VentaRepositoryFake(),
+            productoRepository,
+            new ProductoVarianteRepositoryFake(),
+            new ClienteRepositoryFake(),
+            stockRepository,
+            empresaId,
+            reglaPrecioMayoristaRepository: reglaRepository);
+
+        var venta = await useCase.EjecutarAsync(new CrearVentaRequest(
+            DateTimeOffset.UtcNow,
+            null,
+            [
+                new CrearVentaDetalleRequest(productoAId, null, 6m, 59m, 54m, 354m),
+                new CrearVentaDetalleRequest(productoBId, null, 6m, 59m, 54m, 354m)
+            ],
+            PuntoVentaIdPrueba));
+
+        Assert.All(venta.Detalles, detalle => Assert.False(detalle.PrecioMayoristaAplicado));
+    }
+
+    [Fact]
+    public async Task Crear_venta_usa_regla_mayorista_de_mayor_cantidad_minima_alcanzada()
+    {
+        var empresaId = Guid.NewGuid();
+        var productoId = Guid.NewGuid();
+        var productoRepository = new ProductoRepositoryFake();
+        var stockRepository = new StockProductoRepositoryFake();
+        var reglaRepository = new ReglaPrecioMayoristaRepositoryFake();
+        await productoRepository.AgregarAsync(new Producto(productoId, empresaId, "Polo Brooklyn", 59m));
+        await stockRepository.GuardarAsync(new StockProducto(Guid.NewGuid(), empresaId, SedeIdPrueba, productoId, null, 30m));
+        reglaRepository.Reglas.Add(new ReglaPrecioMayorista(Guid.NewGuid(), empresaId, productoId, 12, 35m));
+        reglaRepository.Reglas.Add(new ReglaPrecioMayorista(Guid.NewGuid(), empresaId, productoId, 24, 30m));
+        var useCase = CrearUseCase(
+            new VentaRepositoryFake(),
+            productoRepository,
+            new ProductoVarianteRepositoryFake(),
+            new ClienteRepositoryFake(),
+            stockRepository,
+            empresaId,
+            reglaPrecioMayoristaRepository: reglaRepository);
+
+        var venta = await useCase.EjecutarAsync(CrearVentaRequest(productoId, null, 24m));
+
+        var detalle = Assert.Single(venta.Detalles);
+        Assert.True(detalle.PrecioMayoristaAplicado);
+        Assert.Equal(30m, detalle.PrecioUnitario);
+        Assert.Equal(720m, detalle.Total);
+    }
+
+    [Fact]
+    public async Task Crear_venta_por_presentacion_no_aplica_precio_mayorista()
+    {
+        var empresaId = Guid.NewGuid();
+        var productoId = Guid.NewGuid();
+        var presentacionId = Guid.NewGuid();
+        var productoRepository = new ProductoRepositoryFake();
+        var presentacionRepository = new ProductoPresentacionRepositoryFake();
+        var stockRepository = new StockProductoRepositoryFake();
+        var reglaRepository = new ReglaPrecioMayoristaRepositoryFake();
+        await productoRepository.AgregarAsync(new Producto(productoId, empresaId, "Polo Brooklyn", 59m));
+        await presentacionRepository.AgregarAsync(new ProductoPresentacion(
+            presentacionId,
+            empresaId,
+            productoId,
+            Guid.NewGuid(),
+            12m,
+            false,
+            500m));
+        await stockRepository.GuardarAsync(new StockProducto(Guid.NewGuid(), empresaId, SedeIdPrueba, productoId, null, 200m));
+        reglaRepository.Reglas.Add(new ReglaPrecioMayorista(Guid.NewGuid(), empresaId, productoId, 12, 35m));
+        var useCase = CrearUseCase(
+            new VentaRepositoryFake(),
+            productoRepository,
+            new ProductoVarianteRepositoryFake(),
+            new ClienteRepositoryFake(),
+            stockRepository,
+            empresaId,
+            presentacionRepository: presentacionRepository,
+            reglaPrecioMayoristaRepository: reglaRepository);
+
+        var venta = await useCase.EjecutarAsync(new CrearVentaRequest(
+            DateTimeOffset.UtcNow,
+            null,
+            [new CrearVentaDetalleRequest(productoId, null, 12m, 1m, 0m, 1m, presentacionId)],
+            PuntoVentaIdPrueba));
+
+        var detalle = Assert.Single(venta.Detalles);
+        Assert.False(detalle.PrecioMayoristaAplicado);
+        Assert.Equal(500m, detalle.PrecioUnitario);
+        Assert.Equal(144m, detalle.CantidadBaseDescontada);
+        Assert.Equal(56m, stockRepository.Stocks.Single().CantidadDisponible);
+    }
+
+    [Fact]
     public async Task Crear_venta_multidetalle_descuenta_todos_los_stocks()
     {
         var empresaId = Guid.NewGuid();
@@ -1906,6 +2115,7 @@ public class ApplicationVentaTests
         Guid? empresaId = null,
         PuntoVentaRepositoryFake? puntoVentaRepository = null,
         ProductoPresentacionRepositoryFake? presentacionRepository = null,
+        ReglaPrecioMayoristaRepositoryFake? reglaPrecioMayoristaRepository = null,
         SesionCajaRepositoryFake? sesionCajaRepository = null,
         bool agregarPuntoVentaDefault = true,
         bool agregarSesionCajaDefault = true)
@@ -1945,6 +2155,7 @@ public class ApplicationVentaTests
             productoRepository,
             presentacionRepository ?? new ProductoPresentacionRepositoryFake(),
             varianteRepository,
+            reglaPrecioMayoristaRepository ?? new ReglaPrecioMayoristaRepositoryFake(),
             clienteRepository,
             stockRepository ?? new StockProductoRepositoryFake(),
             sesionCajaRepository,
@@ -1952,6 +2163,26 @@ public class ApplicationVentaTests
             empresaId.HasValue
                 ? new EmpresaActivaContextFake(empresaId.Value)
                 : new EmpresaActivaContextFake());
+    }
+
+    private sealed class ReglaPrecioMayoristaRepositoryFake : IReglaPrecioMayoristaRepository
+    {
+        public List<ReglaPrecioMayorista> Reglas { get; } = [];
+
+        public Task<IReadOnlyCollection<ReglaPrecioMayorista>> ListarActivasPorProductosAsync(
+            Guid empresaId,
+            IReadOnlyCollection<Guid> productoIds,
+            CancellationToken cancellationToken = default)
+        {
+            IReadOnlyCollection<ReglaPrecioMayorista> reglas = Reglas
+                .Where(regla =>
+                    regla.EmpresaId == empresaId &&
+                    regla.Activa &&
+                    productoIds.Contains(regla.ProductoId))
+                .ToArray();
+
+            return Task.FromResult(reglas);
+        }
     }
 
     private static CrearVentaRequest CrearVentaRequest(

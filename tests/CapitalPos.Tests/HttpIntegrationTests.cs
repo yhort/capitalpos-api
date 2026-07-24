@@ -2061,6 +2061,70 @@ public class HttpIntegrationTests
     }
 
     [Fact]
+    public async Task Crear_venta_aplica_precio_mayorista_y_devuelve_snapshot()
+    {
+        var productoId = Guid.NewGuid();
+        var varianteSId = Guid.NewGuid();
+        var varianteMId = Guid.NewGuid();
+        await using var factory = new CapitalPosHttpFactory();
+        await factory.ProductoRepository.AgregarAsync(CrearProducto(EmpresaId, productoId));
+        await factory.ProductoVarianteRepository.AgregarAsync(CrearVariante(EmpresaId, productoId, varianteSId));
+        await factory.ProductoVarianteRepository.AgregarAsync(new ProductoVariante(
+            varianteMId,
+            EmpresaId,
+            productoId,
+            talla: "M",
+            color: "Azul"));
+        factory.ReglaPrecioMayoristaRepository.Reglas.Add(new ReglaPrecioMayorista(
+            Guid.NewGuid(),
+            EmpresaId,
+            productoId,
+            12,
+            35m));
+        await factory.StockRepository.GuardarAsync(new StockProducto(
+            Guid.NewGuid(),
+            EmpresaId,
+            SedeId,
+            productoId,
+            varianteSId,
+            10m));
+        await factory.StockRepository.GuardarAsync(new StockProducto(
+            Guid.NewGuid(),
+            EmpresaId,
+            SedeId,
+            productoId,
+            varianteMId,
+            10m));
+        AgregarCajaAbierta(factory);
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+        var request = new CrearVentaRequest(
+            DateTimeOffset.UtcNow,
+            null,
+            [
+                new CrearVentaDetalleRequest(productoId, varianteSId, 7m, 59m, 63m, 413m),
+                new CrearVentaDetalleRequest(productoId, varianteMId, 5m, 59m, 45m, 295m)
+            ],
+            PuntoVentaId);
+
+        var response = await client.PostAsJsonAsync("/api/ventas/", request);
+        var content = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadFromJsonAsync<VentaResponse>();
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.NotNull(body);
+        Assert.Equal(2, body.Detalles.Count);
+        Assert.All(body.Detalles, detalle =>
+        {
+            Assert.True(detalle.PrecioMayoristaAplicado);
+            Assert.Equal(35m, detalle.PrecioUnitario);
+        });
+        Assert.Equal(420m, body.Total);
+        Assert.Equal(3m, factory.StockRepository.Stocks.Single(stock => stock.ProductoVarianteId == varianteSId).CantidadDisponible);
+        Assert.Equal(5m, factory.StockRepository.Stocks.Single(stock => stock.ProductoVarianteId == varianteMId).CantidadDisponible);
+        AssertSeguro(content);
+    }
+
+    [Fact]
     public async Task Crear_venta_sin_caja_abierta_devuelve_bad_request_y_no_descuenta_stock()
     {
         var productoId = Guid.NewGuid();
@@ -2658,6 +2722,8 @@ public class HttpIntegrationTests
 
         public FakeProductoVarianteRepository ProductoVarianteRepository { get; } = new();
 
+        public FakeReglaPrecioMayoristaRepository ReglaPrecioMayoristaRepository { get; } = new();
+
         public FakeStockProductoRepository StockRepository { get; } = new();
 
         public FakeSedeRepository SedeRepository { get; } = new();
@@ -2716,6 +2782,7 @@ public class HttpIntegrationTests
                 services.RemoveAll<IProductoRepository>();
                 services.RemoveAll<IProductoPresentacionRepository>();
                 services.RemoveAll<IProductoVarianteRepository>();
+                services.RemoveAll<IReglaPrecioMayoristaRepository>();
                 services.RemoveAll<IClienteRepository>();
                 services.RemoveAll<IVentaRepository>();
                 services.RemoveAll<IComprobanteRepository>();
@@ -2738,6 +2805,7 @@ public class HttpIntegrationTests
                 services.AddSingleton<IProductoRepository>(ProductoRepository);
                 services.AddSingleton<IProductoPresentacionRepository>(ProductoPresentacionRepository);
                 services.AddSingleton<IProductoVarianteRepository>(ProductoVarianteRepository);
+                services.AddSingleton<IReglaPrecioMayoristaRepository>(ReglaPrecioMayoristaRepository);
                 services.AddSingleton<IClienteRepository, FakeClienteRepository>();
                 services.AddSingleton<IVentaRepository>(VentaRepository);
                 services.AddSingleton<IComprobanteRepository, FakeComprobanteRepository>();
@@ -3185,6 +3253,26 @@ public class HttpIntegrationTests
             return Task.FromResult(Variantes.Any(variante =>
                 variante.EmpresaId == empresaId &&
                 variante.CodigoBarras == codigoBarras.Trim()));
+        }
+    }
+
+    private sealed class FakeReglaPrecioMayoristaRepository : IReglaPrecioMayoristaRepository
+    {
+        public List<ReglaPrecioMayorista> Reglas { get; } = [];
+
+        public Task<IReadOnlyCollection<ReglaPrecioMayorista>> ListarActivasPorProductosAsync(
+            Guid empresaId,
+            IReadOnlyCollection<Guid> productoIds,
+            CancellationToken cancellationToken = default)
+        {
+            IReadOnlyCollection<ReglaPrecioMayorista> reglas = Reglas
+                .Where(regla =>
+                    regla.EmpresaId == empresaId &&
+                    regla.Activa &&
+                    productoIds.Contains(regla.ProductoId))
+                .ToArray();
+
+            return Task.FromResult(reglas);
         }
     }
 

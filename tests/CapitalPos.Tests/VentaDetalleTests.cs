@@ -40,6 +40,7 @@ public class VentaDetalleTests
         Assert.Equal(118m, detalle.Total);
         Assert.Equal(12m, detalle.FactorConversionAplicado);
         Assert.Equal(24m, detalle.CantidadBaseDescontada);
+        Assert.False(detalle.PrecioMayoristaAplicado);
     }
 
     [Fact]
@@ -59,6 +60,28 @@ public class VentaDetalleTests
         Assert.Null(detalle.ProductoPresentacionId);
         Assert.Equal(1m, detalle.FactorConversionAplicado);
         Assert.Equal(1m, detalle.CantidadBaseDescontada);
+        Assert.False(detalle.PrecioMayoristaAplicado);
+    }
+
+    [Fact]
+    public void Aplicar_precio_mayorista_recalcula_totales_y_marca_snapshot()
+    {
+        var detalle = new VentaDetalle(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            12m,
+            50m,
+            91.53m,
+            600m);
+
+        detalle.AplicarPrecioMayorista(35m);
+
+        Assert.Equal(35m, detalle.PrecioUnitario);
+        Assert.Equal(420m, detalle.Total);
+        Assert.Equal(64.07m, detalle.Igv);
+        Assert.True(detalle.PrecioMayoristaAplicado);
     }
 
     [Fact]

@@ -18,7 +18,8 @@ public sealed class VentaDetalle
         Guid? productoVarianteId = null,
         Guid? productoPresentacionId = null,
         decimal factorConversionAplicado = 1m,
-        decimal? cantidadBaseDescontada = null)
+        decimal? cantidadBaseDescontada = null,
+        bool precioMayoristaAplicado = false)
     {
         if (id == Guid.Empty)
         {
@@ -93,6 +94,7 @@ public sealed class VentaDetalle
         Total = total;
         FactorConversionAplicado = factorConversionAplicado;
         CantidadBaseDescontada = cantidadBaseDescontadaNormalizada;
+        PrecioMayoristaAplicado = precioMayoristaAplicado;
     }
 
     public Guid Id { get; private set; }
@@ -118,4 +120,25 @@ public sealed class VentaDetalle
     public decimal FactorConversionAplicado { get; private set; }
 
     public decimal CantidadBaseDescontada { get; private set; }
+
+    public bool PrecioMayoristaAplicado { get; private set; }
+
+    public void AplicarPrecioMayorista(decimal precioUnitarioMayorista)
+    {
+        if (precioUnitarioMayorista <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(precioUnitarioMayorista), "El precio unitario mayorista debe ser mayor que cero.");
+        }
+
+        PrecioUnitario = precioUnitarioMayorista;
+        Total = Redondear(Cantidad * precioUnitarioMayorista);
+        var subtotal = Redondear(Total / 1.18m);
+        Igv = Redondear(Total - subtotal);
+        PrecioMayoristaAplicado = true;
+    }
+
+    private static decimal Redondear(decimal valor)
+    {
+        return Math.Round(valor, 2, MidpointRounding.AwayFromZero);
+    }
 }

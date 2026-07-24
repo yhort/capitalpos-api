@@ -22,6 +22,7 @@ public class EfCoreModelTests
         Assert.NotNull(context.Model.FindEntityType(typeof(Producto)));
         Assert.NotNull(context.Model.FindEntityType(typeof(ProductoPresentacion)));
         Assert.NotNull(context.Model.FindEntityType(typeof(ProductoVariante)));
+        Assert.NotNull(context.Model.FindEntityType(typeof(ReglaPrecioMayorista)));
         Assert.NotNull(context.Model.FindEntityType(typeof(Cliente)));
         Assert.NotNull(context.Model.FindEntityType(typeof(Venta)));
         Assert.NotNull(context.Model.FindEntityType(typeof(VentaDetalle)));
@@ -402,6 +403,52 @@ public class EfCoreModelTests
     }
 
     [Fact]
+    public void Regla_precio_mayorista_tiene_empresa_producto_indices_y_relaciones()
+    {
+        var entityType = ObtenerEntidad<ReglaPrecioMayorista>();
+
+        Assert.Equal("reglas_precios_mayoristas", entityType.GetTableName());
+        Assert.Equal(nameof(ReglaPrecioMayorista.Id), entityType.FindPrimaryKey()?.Properties.Single().Name);
+        AssertPropiedad(entityType, nameof(ReglaPrecioMayorista.EmpresaId), nullable: false);
+        AssertPropiedad(entityType, nameof(ReglaPrecioMayorista.ProductoId), nullable: false);
+        AssertPropiedad(entityType, nameof(ReglaPrecioMayorista.CantidadMinima), nullable: false);
+        AssertPropiedad(entityType, nameof(ReglaPrecioMayorista.PrecioUnitarioMayorista), nullable: false);
+        AssertPropiedad(entityType, nameof(ReglaPrecioMayorista.Activa), nullable: false);
+        AssertPropiedad(entityType, nameof(ReglaPrecioMayorista.FechaCreacion), nullable: false);
+
+        Assert.Contains(entityType.GetIndexes(), index =>
+            index.Properties.Select(property => property.Name).SequenceEqual([nameof(ReglaPrecioMayorista.EmpresaId)]));
+        Assert.Contains(entityType.GetIndexes(), index =>
+            index.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(ReglaPrecioMayorista.EmpresaId),
+                nameof(ReglaPrecioMayorista.ProductoId)
+            ]));
+        Assert.Contains(entityType.GetIndexes(), index =>
+            index.IsUnique &&
+            index.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(ReglaPrecioMayorista.EmpresaId),
+                nameof(ReglaPrecioMayorista.ProductoId),
+                nameof(ReglaPrecioMayorista.CantidadMinima)
+            ]));
+
+        Assert.Contains(entityType.GetForeignKeys(), foreignKey =>
+            foreignKey.PrincipalEntityType.ClrType == typeof(Empresa) &&
+            foreignKey.DeleteBehavior == DeleteBehavior.Restrict &&
+            foreignKey.Properties.Select(property => property.Name).SequenceEqual([nameof(ReglaPrecioMayorista.EmpresaId)]));
+        Assert.Contains(entityType.GetForeignKeys(), foreignKey =>
+            foreignKey.PrincipalEntityType.ClrType == typeof(Producto) &&
+            foreignKey.DeleteBehavior == DeleteBehavior.Restrict &&
+            foreignKey.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(ReglaPrecioMayorista.ProductoId),
+                nameof(ReglaPrecioMayorista.EmpresaId)
+            ]) &&
+            foreignKey.PrincipalKey.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(Producto.Id),
+                nameof(Producto.EmpresaId)
+            ]));
+    }
+
+    [Fact]
     public void Cliente_tiene_empresa_obligatoria_indice_documento_y_relacion_restrictiva()
     {
         var entityType = ObtenerEntidad<Cliente>();
@@ -529,6 +576,7 @@ public class EfCoreModelTests
         AssertPropiedad(entityType, nameof(VentaDetalle.Total), nullable: false);
         AssertPropiedad(entityType, nameof(VentaDetalle.FactorConversionAplicado), nullable: false);
         AssertPropiedad(entityType, nameof(VentaDetalle.CantidadBaseDescontada), nullable: false);
+        AssertPropiedad(entityType, nameof(VentaDetalle.PrecioMayoristaAplicado), nullable: false);
 
         Assert.Contains(entityType.GetIndexes(), index =>
             index.Properties.Select(property => property.Name).SequenceEqual([nameof(VentaDetalle.EmpresaId)]));

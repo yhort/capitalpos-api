@@ -30,6 +30,8 @@ public sealed class CapitalPosDbContext : DbContext
 
     public DbSet<ProductoVariante> ProductosVariantes => Set<ProductoVariante>();
 
+    public DbSet<ReglaPrecioMayorista> ReglasPreciosMayoristas => Set<ReglaPrecioMayorista>();
+
     public DbSet<Cliente> Clientes => Set<Cliente>();
 
     public DbSet<Venta> Ventas => Set<Venta>();
