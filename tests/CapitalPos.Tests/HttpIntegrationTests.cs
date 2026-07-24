@@ -2030,6 +2030,288 @@ public class HttpIntegrationTests
     }
 
     [Fact]
+    public async Task Precios_mayoristas_sin_jwt_devuelve_unauthorized()
+    {
+        await using var factory = new CapitalPosHttpFactory();
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync($"/api/productos/{Guid.NewGuid()}/precios-mayoristas");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Precios_mayoristas_con_jwt_sin_empresa_activa_devuelve_bad_request()
+    {
+        await using var factory = new CapitalPosHttpFactory();
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer",
+            CrearJwt(UsuarioId));
+
+        var response = await client.GetAsync($"/api/productos/{Guid.NewGuid()}/precios-mayoristas");
+        var content = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("X-CapitalPos-EmpresaId", content);
+        AssertSeguro(content);
+    }
+
+    [Fact]
+    public async Task Precios_mayoristas_usuario_sin_permiso_devuelve_forbidden()
+    {
+        await using var factory = new CapitalPosHttpFactory
+        {
+            UsuarioEmpresa = CrearUsuarioEmpresa(RolEmpresa.Vendedor)
+        };
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+
+        var response = await client.GetAsync($"/api/productos/{Guid.NewGuid()}/precios-mayoristas");
+        var content = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Contains("permiso requerido", content);
+        AssertSeguro(content);
+    }
+
+    [Fact]
+    public async Task Listar_precios_mayoristas_devuelve_solo_producto_y_empresa_activa()
+    {
+        var productoId = Guid.NewGuid();
+        var otroProductoId = Guid.NewGuid();
+        var otraEmpresaId = Guid.Parse("44444444-4444-4444-4444-444444444444");
+        await using var factory = new CapitalPosHttpFactory();
+        await factory.ProductoRepository.AgregarAsync(CrearProducto(EmpresaId, productoId));
+        await factory.ReglaPrecioMayoristaRepository.AgregarAsync(new ReglaPrecioMayorista(
+            Guid.NewGuid(),
+            EmpresaId,
+            productoId,
+            24,
+            30m,
+            activa: false));
+        await factory.ReglaPrecioMayoristaRepository.AgregarAsync(new ReglaPrecioMayorista(
+            Guid.NewGuid(),
+            EmpresaId,
+            productoId,
+            12,
+            35m));
+        await factory.ReglaPrecioMayoristaRepository.AgregarAsync(new ReglaPrecioMayorista(
+            Guid.NewGuid(),
+            EmpresaId,
+            otroProductoId,
+            12,
+            35m));
+        await factory.ReglaPrecioMayoristaRepository.AgregarAsync(new ReglaPrecioMayorista(
+            Guid.NewGuid(),
+            otraEmpresaId,
+            productoId,
+            12,
+            35m));
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+
+        var response = await client.GetAsync($"/api/productos/{productoId}/precios-mayoristas");
+        var content = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadFromJsonAsync<ReglaPrecioMayoristaResponse[]>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(body);
+        Assert.Equal([12, 24], body.Select(regla => regla.CantidadMinima));
+        Assert.Contains(body, regla => regla.Activa);
+        Assert.Contains(body, regla => !regla.Activa);
+        Assert.All(body, regla =>
+        {
+            Assert.Equal(EmpresaId, regla.EmpresaId);
+            Assert.Equal(productoId, regla.ProductoId);
+        });
+        Assert.DoesNotContain(otraEmpresaId.ToString(), content);
+        AssertSeguro(content);
+    }
+
+    [Fact]
+    public async Task Crear_precio_mayorista_funciona_con_empresa_activa_e_ignora_empresa_id_libre()
+    {
+        var productoId = Guid.NewGuid();
+        var otraEmpresaId = Guid.Parse("44444444-4444-4444-4444-444444444444");
+        await using var factory = new CapitalPosHttpFactory();
+        await factory.ProductoRepository.AgregarAsync(CrearProducto(EmpresaId, productoId));
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+        var request = new
+        {
+            empresaId = otraEmpresaId,
+            cantidadMinima = 12,
+            precioUnitarioMayorista = 35m
+        };
+
+        var response = await client.PostAsJsonAsync($"/api/productos/{productoId}/precios-mayoristas", request);
+        var content = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadFromJsonAsync<ReglaPrecioMayoristaResponse>();
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.NotNull(body);
+        Assert.Equal(EmpresaId, body.EmpresaId);
+        Assert.Equal(productoId, body.ProductoId);
+        Assert.Equal(12, body.CantidadMinima);
+        Assert.Equal(35m, body.PrecioUnitarioMayorista);
+        Assert.True(body.Activa);
+        Assert.DoesNotContain(otraEmpresaId.ToString(), content);
+        Assert.Contains(factory.ReglaPrecioMayoristaRepository.Reglas, regla =>
+            regla.EmpresaId == EmpresaId &&
+            regla.ProductoId == productoId &&
+            regla.CantidadMinima == 12);
+        AssertSeguro(content);
+    }
+
+    [Theory]
+    [InlineData(0, 35)]
+    [InlineData(12, 0)]
+    public async Task Crear_precio_mayorista_valida_cantidad_y_precio(int cantidadMinima, decimal precio)
+    {
+        var productoId = Guid.NewGuid();
+        await using var factory = new CapitalPosHttpFactory();
+        await factory.ProductoRepository.AgregarAsync(CrearProducto(EmpresaId, productoId));
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/productos/{productoId}/precios-mayoristas",
+            new CrearReglaPrecioMayoristaRequest(productoId, cantidadMinima, precio));
+        var content = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Empty(factory.ReglaPrecioMayoristaRepository.Reglas);
+        AssertSeguro(content);
+    }
+
+    [Fact]
+    public async Task Crear_precio_mayorista_falla_si_producto_es_de_otra_empresa_o_duplica_activa()
+    {
+        var productoId = Guid.NewGuid();
+        var otraEmpresaId = Guid.Parse("44444444-4444-4444-4444-444444444444");
+        await using var factory = new CapitalPosHttpFactory();
+        await factory.ProductoRepository.AgregarAsync(CrearProducto(otraEmpresaId, productoId));
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+
+        var otraEmpresa = await client.PostAsJsonAsync(
+            $"/api/productos/{productoId}/precios-mayoristas",
+            new CrearReglaPrecioMayoristaRequest(productoId, 12, 35m));
+        await factory.ProductoRepository.AgregarAsync(CrearProducto(EmpresaId, productoId));
+        await factory.ReglaPrecioMayoristaRepository.AgregarAsync(new ReglaPrecioMayorista(
+            Guid.NewGuid(),
+            EmpresaId,
+            productoId,
+            12,
+            35m));
+        var duplicada = await client.PostAsJsonAsync(
+            $"/api/productos/{productoId}/precios-mayoristas",
+            new CrearReglaPrecioMayoristaRequest(productoId, 12, 30m));
+
+        Assert.Equal(HttpStatusCode.BadRequest, otraEmpresa.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, duplicada.StatusCode);
+        Assert.Single(factory.ReglaPrecioMayoristaRepository.Reglas);
+    }
+
+    [Fact]
+    public async Task Activar_y_desactivar_precio_mayorista_validan_producto_y_empresa()
+    {
+        var productoId = Guid.NewGuid();
+        var reglaId = Guid.NewGuid();
+        await using var factory = new CapitalPosHttpFactory();
+        await factory.ProductoRepository.AgregarAsync(CrearProducto(EmpresaId, productoId));
+        var regla = new ReglaPrecioMayorista(
+            reglaId,
+            EmpresaId,
+            productoId,
+            12,
+            35m,
+            activa: false);
+        await factory.ReglaPrecioMayoristaRepository.AgregarAsync(regla);
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+
+        var activar = await client.PatchAsync(
+            $"/api/productos/{productoId}/precios-mayoristas/{reglaId}/activar",
+            null);
+        var activarBody = await activar.Content.ReadFromJsonAsync<ReglaPrecioMayoristaResponse>();
+        var desactivar = await client.PatchAsync(
+            $"/api/productos/{productoId}/precios-mayoristas/{reglaId}/desactivar",
+            null);
+        var desactivarBody = await desactivar.Content.ReadFromJsonAsync<ReglaPrecioMayoristaResponse>();
+
+        Assert.Equal(HttpStatusCode.OK, activar.StatusCode);
+        Assert.NotNull(activarBody);
+        Assert.True(activarBody.Activa);
+        Assert.Equal(HttpStatusCode.OK, desactivar.StatusCode);
+        Assert.NotNull(desactivarBody);
+        Assert.False(desactivarBody.Activa);
+    }
+
+    [Fact]
+    public async Task Activar_precio_mayorista_falla_si_genera_duplicado_activo()
+    {
+        var productoId = Guid.NewGuid();
+        var reglaInactivaId = Guid.NewGuid();
+        await using var factory = new CapitalPosHttpFactory();
+        await factory.ProductoRepository.AgregarAsync(CrearProducto(EmpresaId, productoId));
+        await factory.ReglaPrecioMayoristaRepository.AgregarAsync(new ReglaPrecioMayorista(
+            Guid.NewGuid(),
+            EmpresaId,
+            productoId,
+            12,
+            35m));
+        await factory.ReglaPrecioMayoristaRepository.AgregarAsync(new ReglaPrecioMayorista(
+            reglaInactivaId,
+            EmpresaId,
+            productoId,
+            12,
+            30m,
+            activa: false));
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+
+        var response = await client.PatchAsync(
+            $"/api/productos/{productoId}/precios-mayoristas/{reglaInactivaId}/activar",
+            null);
+        var content = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("duplicada", content, StringComparison.OrdinalIgnoreCase);
+        Assert.False(factory.ReglaPrecioMayoristaRepository.Reglas.Single(regla => regla.Id == reglaInactivaId).Activa);
+        AssertSeguro(content);
+    }
+
+    [Fact]
+    public async Task Patch_precio_mayorista_falla_si_regla_es_de_otra_empresa_u_otro_producto()
+    {
+        var productoId = Guid.NewGuid();
+        var otroProductoId = Guid.NewGuid();
+        var reglaOtroProductoId = Guid.NewGuid();
+        var reglaOtraEmpresaId = Guid.NewGuid();
+        var otraEmpresaId = Guid.Parse("44444444-4444-4444-4444-444444444444");
+        await using var factory = new CapitalPosHttpFactory();
+        await factory.ProductoRepository.AgregarAsync(CrearProducto(EmpresaId, productoId));
+        await factory.ReglaPrecioMayoristaRepository.AgregarAsync(new ReglaPrecioMayorista(
+            reglaOtroProductoId,
+            EmpresaId,
+            otroProductoId,
+            12,
+            35m));
+        await factory.ReglaPrecioMayoristaRepository.AgregarAsync(new ReglaPrecioMayorista(
+            reglaOtraEmpresaId,
+            otraEmpresaId,
+            productoId,
+            12,
+            35m));
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+
+        var otroProducto = await client.PatchAsync(
+            $"/api/productos/{productoId}/precios-mayoristas/{reglaOtroProductoId}/desactivar",
+            null);
+        var otraEmpresa = await client.PatchAsync(
+            $"/api/productos/{productoId}/precios-mayoristas/{reglaOtraEmpresaId}/desactivar",
+            null);
+
+        Assert.Equal(HttpStatusCode.NotFound, otroProducto.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, otraEmpresa.StatusCode);
+    }
+
+    [Fact]
     public async Task Crear_venta_descuenta_stock()
     {
         var productoId = Guid.NewGuid();
@@ -3260,6 +3542,29 @@ public class HttpIntegrationTests
     {
         public List<ReglaPrecioMayorista> Reglas { get; } = [];
 
+        public Task AgregarAsync(
+            ReglaPrecioMayorista regla,
+            CancellationToken cancellationToken = default)
+        {
+            Reglas.Add(regla);
+            return Task.CompletedTask;
+        }
+
+        public Task<IReadOnlyCollection<ReglaPrecioMayorista>> ListarPorProductoAsync(
+            Guid empresaId,
+            Guid productoId,
+            CancellationToken cancellationToken = default)
+        {
+            IReadOnlyCollection<ReglaPrecioMayorista> reglas = Reglas
+                .Where(regla =>
+                    regla.EmpresaId == empresaId &&
+                    regla.ProductoId == productoId)
+                .OrderBy(regla => regla.CantidadMinima)
+                .ToArray();
+
+            return Task.FromResult(reglas);
+        }
+
         public Task<IReadOnlyCollection<ReglaPrecioMayorista>> ListarActivasPorProductosAsync(
             Guid empresaId,
             IReadOnlyCollection<Guid> productoIds,
@@ -3273,6 +3578,40 @@ public class HttpIntegrationTests
                 .ToArray();
 
             return Task.FromResult(reglas);
+        }
+
+        public Task<ReglaPrecioMayorista?> ObtenerPorEmpresaYProductoAsync(
+            Guid empresaId,
+            Guid productoId,
+            Guid id,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(Reglas.FirstOrDefault(regla =>
+                regla.EmpresaId == empresaId &&
+                regla.ProductoId == productoId &&
+                regla.Id == id));
+        }
+
+        public Task<bool> ExisteActivaPorCantidadMinimaAsync(
+            Guid empresaId,
+            Guid productoId,
+            int cantidadMinima,
+            Guid? excluirId = null,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(Reglas.Any(regla =>
+                regla.EmpresaId == empresaId &&
+                regla.ProductoId == productoId &&
+                regla.CantidadMinima == cantidadMinima &&
+                regla.Activa &&
+                (!excluirId.HasValue || regla.Id != excluirId.Value)));
+        }
+
+        public Task ActualizarAsync(
+            ReglaPrecioMayorista regla,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
         }
     }
 

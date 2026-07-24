@@ -60,6 +60,22 @@ public static class ProductoEndpoints
             .WithName("DesactivarProductoVariante")
             .RequirePermisoEmpresa(PermisoEmpresa.OperarAlmacen);
 
+        group.MapGet("/{productoId:guid}/precios-mayoristas", ListarReglasPrecioMayoristaAsync)
+            .WithName("ListarReglasPrecioMayorista")
+            .RequirePermisoEmpresa(PermisoEmpresa.OperarAlmacen);
+
+        group.MapPost("/{productoId:guid}/precios-mayoristas", CrearReglaPrecioMayoristaAsync)
+            .WithName("CrearReglaPrecioMayorista")
+            .RequirePermisoEmpresa(PermisoEmpresa.OperarAlmacen);
+
+        group.MapPatch("/{productoId:guid}/precios-mayoristas/{reglaId:guid}/activar", ActivarReglaPrecioMayoristaAsync)
+            .WithName("ActivarReglaPrecioMayorista")
+            .RequirePermisoEmpresa(PermisoEmpresa.OperarAlmacen);
+
+        group.MapPatch("/{productoId:guid}/precios-mayoristas/{reglaId:guid}/desactivar", DesactivarReglaPrecioMayoristaAsync)
+            .WithName("DesactivarReglaPrecioMayorista")
+            .RequirePermisoEmpresa(PermisoEmpresa.OperarAlmacen);
+
         return app;
     }
 
@@ -401,6 +417,84 @@ public static class ProductoEndpoints
             : Results.Ok(ProductoVarianteResponse.From(variante));
     }
 
+    private static async Task<IResult> ListarReglasPrecioMayoristaAsync(
+        Guid productoId,
+        ListarReglasPrecioMayoristaUseCase useCase,
+        CancellationToken cancellationToken)
+    {
+        var reglas = await useCase.EjecutarAsync(productoId, cancellationToken);
+
+        return reglas is null
+            ? Results.NotFound()
+            : Results.Ok(reglas.Select(ReglaPrecioMayoristaResponse.From));
+    }
+
+    private static async Task<IResult> CrearReglaPrecioMayoristaAsync(
+        Guid productoId,
+        CrearReglaPrecioMayoristaRequest request,
+        CrearReglaPrecioMayoristaUseCase useCase,
+        CancellationToken cancellationToken)
+    {
+        var requestSeguro = request with
+        {
+            ProductoId = productoId
+        };
+        if (!EndpointInputValidator.TryValidate(requestSeguro, out var error))
+        {
+            return Results.BadRequest(ErrorResponse.From(error));
+        }
+
+        try
+        {
+            var regla = await useCase.EjecutarAsync(requestSeguro, cancellationToken);
+
+            return Results.Created(
+                $"/api/productos/{productoId}/precios-mayoristas/{regla.Id}",
+                ReglaPrecioMayoristaResponse.From(regla));
+        }
+        catch (ArgumentException ex)
+        {
+            return Results.BadRequest(ErrorResponse.From(ex.Message));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Results.BadRequest(ErrorResponse.From(ex.Message));
+        }
+    }
+
+    private static async Task<IResult> ActivarReglaPrecioMayoristaAsync(
+        Guid productoId,
+        Guid reglaId,
+        ActivarReglaPrecioMayoristaUseCase useCase,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var regla = await useCase.EjecutarAsync(productoId, reglaId, cancellationToken);
+
+            return regla is null
+                ? Results.NotFound()
+                : Results.Ok(ReglaPrecioMayoristaResponse.From(regla));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Results.BadRequest(ErrorResponse.From(ex.Message));
+        }
+    }
+
+    private static async Task<IResult> DesactivarReglaPrecioMayoristaAsync(
+        Guid productoId,
+        Guid reglaId,
+        DesactivarReglaPrecioMayoristaUseCase useCase,
+        CancellationToken cancellationToken)
+    {
+        var regla = await useCase.EjecutarAsync(productoId, reglaId, cancellationToken);
+
+        return regla is null
+            ? Results.NotFound()
+            : Results.Ok(ReglaPrecioMayoristaResponse.From(regla));
+    }
+
     private static Task AuditarProductoAsync(
         IAuditoriaOperaciones auditoria,
         IEmpresaActivaContext empresaActiva,
@@ -511,5 +605,27 @@ public sealed record ProductoVarianteResponse(
             variante.CodigoBarras,
             variante.Activo,
             variante.FechaCreacion);
+    }
+}
+
+public sealed record ReglaPrecioMayoristaResponse(
+    Guid Id,
+    Guid EmpresaId,
+    Guid ProductoId,
+    int CantidadMinima,
+    decimal PrecioUnitarioMayorista,
+    bool Activa,
+    DateTimeOffset FechaCreacion)
+{
+    public static ReglaPrecioMayoristaResponse From(ReglaPrecioMayorista regla)
+    {
+        return new ReglaPrecioMayoristaResponse(
+            regla.Id,
+            regla.EmpresaId,
+            regla.ProductoId,
+            regla.CantidadMinima,
+            regla.PrecioUnitarioMayorista,
+            regla.Activa,
+            regla.FechaCreacion);
     }
 }

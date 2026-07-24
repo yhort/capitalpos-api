@@ -2169,6 +2169,29 @@ public class ApplicationVentaTests
     {
         public List<ReglaPrecioMayorista> Reglas { get; } = [];
 
+        public Task AgregarAsync(
+            ReglaPrecioMayorista regla,
+            CancellationToken cancellationToken = default)
+        {
+            Reglas.Add(regla);
+            return Task.CompletedTask;
+        }
+
+        public Task<IReadOnlyCollection<ReglaPrecioMayorista>> ListarPorProductoAsync(
+            Guid empresaId,
+            Guid productoId,
+            CancellationToken cancellationToken = default)
+        {
+            IReadOnlyCollection<ReglaPrecioMayorista> reglas = Reglas
+                .Where(regla =>
+                    regla.EmpresaId == empresaId &&
+                    regla.ProductoId == productoId)
+                .OrderBy(regla => regla.CantidadMinima)
+                .ToArray();
+
+            return Task.FromResult(reglas);
+        }
+
         public Task<IReadOnlyCollection<ReglaPrecioMayorista>> ListarActivasPorProductosAsync(
             Guid empresaId,
             IReadOnlyCollection<Guid> productoIds,
@@ -2182,6 +2205,40 @@ public class ApplicationVentaTests
                 .ToArray();
 
             return Task.FromResult(reglas);
+        }
+
+        public Task<ReglaPrecioMayorista?> ObtenerPorEmpresaYProductoAsync(
+            Guid empresaId,
+            Guid productoId,
+            Guid id,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(Reglas.FirstOrDefault(regla =>
+                regla.EmpresaId == empresaId &&
+                regla.ProductoId == productoId &&
+                regla.Id == id));
+        }
+
+        public Task<bool> ExisteActivaPorCantidadMinimaAsync(
+            Guid empresaId,
+            Guid productoId,
+            int cantidadMinima,
+            Guid? excluirId = null,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(Reglas.Any(regla =>
+                regla.EmpresaId == empresaId &&
+                regla.ProductoId == productoId &&
+                regla.CantidadMinima == cantidadMinima &&
+                regla.Activa &&
+                (!excluirId.HasValue || regla.Id != excluirId.Value)));
+        }
+
+        public Task ActualizarAsync(
+            ReglaPrecioMayorista regla,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
         }
     }
 

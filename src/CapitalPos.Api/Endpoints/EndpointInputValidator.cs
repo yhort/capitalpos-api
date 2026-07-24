@@ -289,6 +289,30 @@ public static class EndpointInputValidator
         return true;
     }
 
+    public static bool TryValidate(CrearReglaPrecioMayoristaRequest request, out string error)
+    {
+        if (request.ProductoId == Guid.Empty)
+        {
+            error = "El identificador del producto es obligatorio.";
+            return false;
+        }
+
+        if (request.CantidadMinima <= 0)
+        {
+            error = "La cantidad minima debe ser mayor que cero.";
+            return false;
+        }
+
+        if (request.PrecioUnitarioMayorista <= 0)
+        {
+            error = "El precio unitario mayorista debe ser mayor que cero.";
+            return false;
+        }
+
+        error = string.Empty;
+        return true;
+    }
+
     public static bool TryValidate(CrearClienteRequest request, out string error)
     {
         if (string.IsNullOrWhiteSpace(request.TipoDocumento))
