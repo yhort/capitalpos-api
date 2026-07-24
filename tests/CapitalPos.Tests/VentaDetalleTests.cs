@@ -24,7 +24,9 @@ public class VentaDetalleTests
             18m,
             118m,
             productoVarianteId,
-            productoPresentacionId);
+            productoPresentacionId,
+            12m,
+            24m);
 
         Assert.Equal(id, detalle.Id);
         Assert.Equal(empresaId, detalle.EmpresaId);
@@ -36,6 +38,8 @@ public class VentaDetalleTests
         Assert.Equal(50m, detalle.PrecioUnitario);
         Assert.Equal(18m, detalle.Igv);
         Assert.Equal(118m, detalle.Total);
+        Assert.Equal(12m, detalle.FactorConversionAplicado);
+        Assert.Equal(24m, detalle.CantidadBaseDescontada);
     }
 
     [Fact]
@@ -53,6 +57,8 @@ public class VentaDetalleTests
 
         Assert.Null(detalle.ProductoVarianteId);
         Assert.Null(detalle.ProductoPresentacionId);
+        Assert.Equal(1m, detalle.FactorConversionAplicado);
+        Assert.Equal(1m, detalle.CantidadBaseDescontada);
     }
 
     [Fact]
@@ -69,6 +75,34 @@ public class VentaDetalleTests
                 0m,
                 10m,
                 productoPresentacionId: Guid.Empty));
+    }
+
+    [Fact]
+    public void Rechaza_factor_conversion_o_cantidad_base_invalidos()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new VentaDetalle(
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                1m,
+                10m,
+                0m,
+                10m,
+                factorConversionAplicado: 0m));
+
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new VentaDetalle(
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                1m,
+                10m,
+                0m,
+                10m,
+                cantidadBaseDescontada: 0m));
     }
 
     [Theory]

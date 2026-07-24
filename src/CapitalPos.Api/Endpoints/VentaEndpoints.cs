@@ -278,6 +278,8 @@ public sealed record VentaDetalleResponse(
     Guid? ProductoVarianteId,
     Guid? ProductoPresentacionId,
     decimal Cantidad,
+    decimal FactorConversionAplicado,
+    decimal CantidadBaseDescontada,
     decimal PrecioUnitario,
     decimal Igv,
     decimal Total)
@@ -290,6 +292,8 @@ public sealed record VentaDetalleResponse(
             detalle.ProductoVarianteId,
             detalle.ProductoPresentacionId,
             detalle.Cantidad,
+            detalle.FactorConversionAplicado,
+            detalle.CantidadBaseDescontada,
             detalle.PrecioUnitario,
             detalle.Igv,
             detalle.Total);

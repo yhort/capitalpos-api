@@ -44,6 +44,14 @@ public sealed class VentaDetalleConfiguration : IEntityTypeConfiguration<VentaDe
             .HasPrecision(18, 2)
             .IsRequired();
 
+        builder.Property(detalle => detalle.FactorConversionAplicado)
+            .HasPrecision(18, 3)
+            .IsRequired();
+
+        builder.Property(detalle => detalle.CantidadBaseDescontada)
+            .HasPrecision(18, 3)
+            .IsRequired();
+
         builder.HasIndex(detalle => detalle.EmpresaId);
 
         builder.HasIndex(detalle => new

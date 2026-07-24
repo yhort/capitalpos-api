@@ -37,10 +37,6 @@ public sealed class ProductoVarianteConfiguration : IEntityTypeConfiguration<Pro
             .HasMaxLength(80)
             .IsRequired();
 
-        builder.Property(variante => variante.StockActual)
-            .HasPrecision(18, 3)
-            .IsRequired();
-
         builder.Property(variante => variante.Activo)
             .IsRequired();
 

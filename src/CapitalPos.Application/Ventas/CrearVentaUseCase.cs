@@ -226,8 +226,7 @@ public sealed class CrearVentaUseCase
         if (detalleRequest.ProductoPresentacionId is null)
         {
             return new DetalleVentaPreparado(
-                detalleRequest.CrearDetalle(empresaId, ventaId),
-                detalleRequest.Cantidad);
+                detalleRequest.CrearDetalle(empresaId, ventaId));
         }
 
         var presentacion = await _productoPresentacionRepository.ObtenerPorEmpresaAsync(
@@ -249,7 +248,7 @@ public sealed class CrearVentaUseCase
             throw new InvalidOperationException("La presentacion del producto no esta activa.");
         }
 
-        var cantidadStock = detalleRequest.Cantidad * presentacion.FactorConversion;
+        var cantidadBaseDescontada = detalleRequest.Cantidad * presentacion.FactorConversion;
         var total = Redondear(detalleRequest.Cantidad * presentacion.PrecioVenta);
         var subtotal = Redondear(total / 1.18m);
         var igv = Redondear(total - subtotal);
@@ -263,9 +262,11 @@ public sealed class CrearVentaUseCase
             igv,
             total,
             detalleRequest.ProductoVarianteId,
-            presentacion.Id);
+            presentacion.Id,
+            presentacion.FactorConversion,
+            cantidadBaseDescontada);
 
-        return new DetalleVentaPreparado(detalle, cantidadStock);
+        return new DetalleVentaPreparado(detalle);
     }
 
     private async Task ValidarVarianteAsync(
@@ -300,7 +301,7 @@ public sealed class CrearVentaUseCase
             .Select(grupo => new StockADescontarRequest(
                 grupo.Key.ProductoId,
                 grupo.Key.ProductoVarianteId,
-                grupo.Sum(detalle => detalle.CantidadStock)))
+                grupo.Sum(detalle => detalle.Detalle.CantidadBaseDescontada)))
             .ToArray();
 
         foreach (var item in cantidadesPorStock)
@@ -354,8 +355,7 @@ public sealed class CrearVentaUseCase
     private sealed record StockKey(Guid ProductoId, Guid? ProductoVarianteId);
 
     private sealed record DetalleVentaPreparado(
-        VentaDetalle Detalle,
-        decimal CantidadStock);
+        VentaDetalle Detalle);
 
     private sealed record StockADescontarRequest(
         Guid ProductoId,

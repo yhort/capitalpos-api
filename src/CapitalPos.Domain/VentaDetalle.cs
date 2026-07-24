@@ -16,7 +16,9 @@ public sealed class VentaDetalle
         decimal igv,
         decimal total,
         Guid? productoVarianteId = null,
-        Guid? productoPresentacionId = null)
+        Guid? productoPresentacionId = null,
+        decimal factorConversionAplicado = 1m,
+        decimal? cantidadBaseDescontada = null)
     {
         if (id == Guid.Empty)
         {
@@ -68,6 +70,17 @@ public sealed class VentaDetalle
             throw new ArgumentOutOfRangeException(nameof(total), "El total del detalle debe ser mayor que cero.");
         }
 
+        if (factorConversionAplicado <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(factorConversionAplicado), "El factor de conversion aplicado debe ser mayor que cero.");
+        }
+
+        var cantidadBaseDescontadaNormalizada = cantidadBaseDescontada ?? cantidad * factorConversionAplicado;
+        if (cantidadBaseDescontadaNormalizada <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(cantidadBaseDescontada), "La cantidad base descontada debe ser mayor que cero.");
+        }
+
         Id = id;
         EmpresaId = empresaId;
         VentaId = ventaId;
@@ -78,6 +91,8 @@ public sealed class VentaDetalle
         PrecioUnitario = precioUnitario;
         Igv = igv;
         Total = total;
+        FactorConversionAplicado = factorConversionAplicado;
+        CantidadBaseDescontada = cantidadBaseDescontadaNormalizada;
     }
 
     public Guid Id { get; private set; }
@@ -99,4 +114,8 @@ public sealed class VentaDetalle
     public decimal Igv { get; private set; }
 
     public decimal Total { get; private set; }
+
+    public decimal FactorConversionAplicado { get; private set; }
+
+    public decimal CantidadBaseDescontada { get; private set; }
 }

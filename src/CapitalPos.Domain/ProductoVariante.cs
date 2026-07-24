@@ -18,7 +18,6 @@ public sealed class ProductoVariante
         string? color = null,
         string? codigoSku = null,
         string? codigoBarras = null,
-        decimal stockActual = 0,
         bool activo = true,
         DateTimeOffset? fechaCreacion = null)
     {
@@ -35,11 +34,6 @@ public sealed class ProductoVariante
         if (productoId == Guid.Empty)
         {
             throw new ArgumentException("El identificador del producto es obligatorio.", nameof(productoId));
-        }
-
-        if (stockActual < 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(stockActual), "El stock de la variante no puede ser negativo.");
         }
 
         var tallaNormalizada = NormalizarTexto(talla);
@@ -69,7 +63,6 @@ public sealed class ProductoVariante
         Color = colorNormalizado;
         CodigoSku = codigoSkuNormalizado;
         CodigoBarras = codigoBarrasNormalizado;
-        StockActual = stockActual;
         Activo = activo;
         FechaCreacion = fechaCreacionNormalizada;
     }
@@ -87,8 +80,6 @@ public sealed class ProductoVariante
     public string CodigoSku { get; private set; }
 
     public string CodigoBarras { get; private set; }
-
-    public decimal StockActual { get; private set; }
 
     public bool Activo { get; private set; }
 
@@ -118,16 +109,6 @@ public sealed class ProductoVariante
         Color = colorNormalizada;
         CodigoSku = codigoSkuNormalizado;
         CodigoBarras = codigoBarrasNormalizado;
-    }
-
-    public void ActualizarStock(decimal stockActual)
-    {
-        if (stockActual < 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(stockActual), "El stock de la variante no puede ser negativo.");
-        }
-
-        StockActual = stockActual;
     }
 
     public void Desactivar()

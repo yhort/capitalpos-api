@@ -358,9 +358,9 @@ public class EfCoreModelTests
         AssertPropiedad(entityType, nameof(ProductoVariante.Color), maxLength: 80, nullable: false);
         AssertPropiedad(entityType, nameof(ProductoVariante.CodigoSku), maxLength: 80, nullable: false);
         AssertPropiedad(entityType, nameof(ProductoVariante.CodigoBarras), maxLength: 80, nullable: false);
-        AssertPropiedad(entityType, nameof(ProductoVariante.StockActual), nullable: false);
         AssertPropiedad(entityType, nameof(ProductoVariante.Activo), nullable: false);
         AssertPropiedad(entityType, nameof(ProductoVariante.FechaCreacion), nullable: false);
+        Assert.Null(entityType.FindProperty("StockActual"));
 
         Assert.Contains(entityType.GetIndexes(), index =>
             index.Properties.Select(property => property.Name).SequenceEqual([nameof(ProductoVariante.EmpresaId)]));
@@ -527,6 +527,8 @@ public class EfCoreModelTests
         AssertPropiedad(entityType, nameof(VentaDetalle.PrecioUnitario), nullable: false);
         AssertPropiedad(entityType, nameof(VentaDetalle.Igv), nullable: false);
         AssertPropiedad(entityType, nameof(VentaDetalle.Total), nullable: false);
+        AssertPropiedad(entityType, nameof(VentaDetalle.FactorConversionAplicado), nullable: false);
+        AssertPropiedad(entityType, nameof(VentaDetalle.CantidadBaseDescontada), nullable: false);
 
         Assert.Contains(entityType.GetIndexes(), index =>
             index.Properties.Select(property => property.Name).SequenceEqual([nameof(VentaDetalle.EmpresaId)]));

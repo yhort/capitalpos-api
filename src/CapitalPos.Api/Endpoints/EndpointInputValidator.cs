@@ -240,12 +240,6 @@ public static class EndpointInputValidator
             return false;
         }
 
-        if (request.StockActual < 0)
-        {
-            error = "El stock actual de la variante no puede ser negativo.";
-            return false;
-        }
-
         if (string.IsNullOrWhiteSpace(request.Talla) &&
             string.IsNullOrWhiteSpace(request.Color) &&
             string.IsNullOrWhiteSpace(request.CodigoSku) &&

@@ -499,7 +499,6 @@ public sealed record ProductoVarianteResponse(
     bool Activo,
     DateTimeOffset FechaCreacion)
 {
-    // StockActual queda fuera del contrato publico; el stock operativo vive en StockProducto.
     public static ProductoVarianteResponse From(ProductoVariante variante)
     {
         return new ProductoVarianteResponse(

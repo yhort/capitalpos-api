@@ -8,7 +8,6 @@ public sealed record CrearProductoVarianteRequest(
     string? Color = null,
     string? CodigoSku = null,
     string? CodigoBarras = null,
-    decimal StockActual = 0,
     bool Activo = true)
 {
     public ProductoVariante CrearProductoVariante(Guid empresaId)
@@ -21,7 +20,6 @@ public sealed record CrearProductoVarianteRequest(
             Color,
             CodigoSku,
             CodigoBarras,
-            StockActual,
             Activo);
     }
 }

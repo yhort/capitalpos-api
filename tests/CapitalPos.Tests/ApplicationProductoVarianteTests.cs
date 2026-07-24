@@ -21,8 +21,7 @@ public class ApplicationProductoVarianteTests
             " M ",
             " Azul ",
             " SKU-AZ-M ",
-            " 7750000000104 ",
-            12);
+            " 7750000000104 ");
 
         var variante = await useCase.EjecutarAsync(request);
 
@@ -33,7 +32,6 @@ public class ApplicationProductoVarianteTests
         Assert.Equal("Azul", variante.Color);
         Assert.Equal("SKU-AZ-M", variante.CodigoSku);
         Assert.Equal("7750000000104", variante.CodigoBarras);
-        Assert.Equal(12, variante.StockActual);
         Assert.Same(variante, repository.Variantes.Single());
     }
 

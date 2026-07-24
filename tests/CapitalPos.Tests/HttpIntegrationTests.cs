@@ -2125,6 +2125,8 @@ public class HttpIntegrationTests
         Assert.NotNull(body);
         var detalle = Assert.Single(body.Detalles);
         Assert.Equal(presentacionId, detalle.ProductoPresentacionId);
+        Assert.Equal(12m, detalle.FactorConversionAplicado);
+        Assert.Equal(24m, detalle.CantidadBaseDescontada);
         Assert.Equal(118m, detalle.PrecioUnitario);
         Assert.Equal(36m, detalle.Igv);
         Assert.Equal(236m, detalle.Total);

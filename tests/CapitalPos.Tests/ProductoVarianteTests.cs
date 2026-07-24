@@ -20,7 +20,6 @@ public class ProductoVarianteTests
             " Azul ",
             " SKU-AZ-M ",
             " 7750000000104 ",
-            12,
             fechaCreacion: fechaCreacion);
 
         Assert.Equal(id, variante.Id);
@@ -30,7 +29,6 @@ public class ProductoVarianteTests
         Assert.Equal("Azul", variante.Color);
         Assert.Equal("SKU-AZ-M", variante.CodigoSku);
         Assert.Equal("7750000000104", variante.CodigoBarras);
-        Assert.Equal(12, variante.StockActual);
         Assert.True(variante.Activo);
         Assert.Equal(fechaCreacion, variante.FechaCreacion);
     }
@@ -48,7 +46,6 @@ public class ProductoVarianteTests
         Assert.Equal(string.Empty, variante.Color);
         Assert.Equal(string.Empty, variante.CodigoSku);
         Assert.Equal(string.Empty, variante.CodigoBarras);
-        Assert.Equal(0, variante.StockActual);
     }
 
     [Fact]
@@ -95,18 +92,6 @@ public class ProductoVarianteTests
     }
 
     [Fact]
-    public void Rechaza_stock_negativo()
-    {
-        Assert.Throws<ArgumentOutOfRangeException>(() =>
-            new ProductoVariante(
-                Guid.NewGuid(),
-                Guid.NewGuid(),
-                Guid.NewGuid(),
-                talla: "M",
-                stockActual: -1));
-    }
-
-    [Fact]
     public void Actualizar_datos_basicos_normaliza_campos()
     {
         var variante = new ProductoVariante(
@@ -128,21 +113,6 @@ public class ProductoVarianteTests
     }
 
     [Fact]
-    public void Actualizar_stock_valida_y_actualiza_stock()
-    {
-        var variante = new ProductoVariante(
-            Guid.NewGuid(),
-            Guid.NewGuid(),
-            Guid.NewGuid(),
-            talla: "M");
-
-        variante.ActualizarStock(8);
-
-        Assert.Equal(8, variante.StockActual);
-        Assert.Throws<ArgumentOutOfRangeException>(() => variante.ActualizarStock(-0.01m));
-    }
-
-    [Fact]
     public void Activar_y_desactivar_cambian_estado()
     {
         var variante = new ProductoVariante(
@@ -156,5 +126,12 @@ public class ProductoVarianteTests
 
         variante.Activar();
         Assert.True(variante.Activo);
+    }
+
+    [Fact]
+    public void Variante_no_expone_stock_actual_ni_actualizar_stock()
+    {
+        Assert.Null(typeof(ProductoVariante).GetProperty("StockActual"));
+        Assert.Null(typeof(ProductoVariante).GetMethod("ActualizarStock"));
     }
 }

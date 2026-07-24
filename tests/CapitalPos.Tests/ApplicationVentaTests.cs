@@ -436,8 +436,11 @@ public class ApplicationVentaTests
             stockRepository,
             empresaId);
 
-        await useCase.EjecutarAsync(CrearVentaRequest(productoId, null, 2m));
+        var venta = await useCase.EjecutarAsync(CrearVentaRequest(productoId, null, 2m));
 
+        var detalle = Assert.Single(venta.Detalles);
+        Assert.Equal(1m, detalle.FactorConversionAplicado);
+        Assert.Equal(2m, detalle.CantidadBaseDescontada);
         Assert.Single(ventaRepository.Ventas);
         Assert.Equal(3m, stockRepository.Stocks.Single().CantidadDisponible);
     }
@@ -636,8 +639,11 @@ public class ApplicationVentaTests
             stockRepository,
             empresaId);
 
-        await useCase.EjecutarAsync(CrearVentaRequest(productoId, varianteId, 3m));
+        var venta = await useCase.EjecutarAsync(CrearVentaRequest(productoId, varianteId, 3m));
 
+        var detalle = Assert.Single(venta.Detalles);
+        Assert.Equal(1m, detalle.FactorConversionAplicado);
+        Assert.Equal(3m, detalle.CantidadBaseDescontada);
         Assert.Single(ventaRepository.Ventas);
         Assert.Equal(4m, stockRepository.Stocks.Single().CantidadDisponible);
     }
@@ -689,6 +695,8 @@ public class ApplicationVentaTests
         Assert.Equal(presentacionId, detalle.ProductoPresentacionId);
         Assert.Equal(2m, detalle.Cantidad);
         Assert.Equal(118m, detalle.PrecioUnitario);
+        Assert.Equal(12m, detalle.FactorConversionAplicado);
+        Assert.Equal(24m, detalle.CantidadBaseDescontada);
         Assert.Equal(200m, detalle.Total - detalle.Igv);
         Assert.Equal(36m, detalle.Igv);
         Assert.Equal(236m, detalle.Total);
@@ -734,13 +742,73 @@ public class ApplicationVentaTests
             empresaId,
             presentacionRepository: presentacionRepository);
 
-        await useCase.EjecutarAsync(new CrearVentaRequest(
+        var venta = await useCase.EjecutarAsync(new CrearVentaRequest(
             DateTimeOffset.UtcNow,
             null,
             [new CrearVentaDetalleRequest(productoId, varianteId, 3m, 1m, 0m, 1m, presentacionId)],
             PuntoVentaIdPrueba));
 
+        var detalle = Assert.Single(venta.Detalles);
+        Assert.Equal(6m, detalle.FactorConversionAplicado);
+        Assert.Equal(18m, detalle.CantidadBaseDescontada);
         Assert.Equal(2m, stockRepository.Stocks.Single().CantidadDisponible);
+    }
+
+    [Fact]
+    public async Task Crear_venta_con_presentacion_conserva_snapshot_si_cambia_factor_despues()
+    {
+        var empresaId = Guid.NewGuid();
+        var productoId = Guid.NewGuid();
+        var presentacionId = Guid.NewGuid();
+        var unidadMedidaId = Guid.NewGuid();
+        var ventaRepository = new VentaRepositoryFake();
+        var productoRepository = new ProductoRepositoryFake();
+        var presentacionRepository = new ProductoPresentacionRepositoryFake();
+        var stockRepository = new StockProductoRepositoryFake();
+        await productoRepository.AgregarAsync(new Producto(productoId, empresaId, "Polo", 10m));
+        await presentacionRepository.AgregarAsync(new ProductoPresentacion(
+            presentacionId,
+            empresaId,
+            productoId,
+            unidadMedidaId,
+            12m,
+            false,
+            118m));
+        await stockRepository.GuardarAsync(new StockProducto(
+            Guid.NewGuid(),
+            empresaId,
+            SedeIdPrueba,
+            productoId,
+            null,
+            50m));
+        var useCase = CrearUseCase(
+            ventaRepository,
+            productoRepository,
+            new ProductoVarianteRepositoryFake(),
+            new ClienteRepositoryFake(),
+            stockRepository,
+            empresaId,
+            presentacionRepository: presentacionRepository);
+
+        var venta = await useCase.EjecutarAsync(new CrearVentaRequest(
+            DateTimeOffset.UtcNow,
+            null,
+            [new CrearVentaDetalleRequest(productoId, null, 2m, 1m, 0m, 1m, presentacionId)],
+            PuntoVentaIdPrueba));
+        presentacionRepository.Presentaciones.Clear();
+        await presentacionRepository.AgregarAsync(new ProductoPresentacion(
+            presentacionId,
+            empresaId,
+            productoId,
+            unidadMedidaId,
+            24m,
+            false,
+            118m));
+
+        var detalle = Assert.Single(venta.Detalles);
+        Assert.Equal(12m, detalle.FactorConversionAplicado);
+        Assert.Equal(24m, detalle.CantidadBaseDescontada);
+        Assert.Equal(26m, stockRepository.Stocks.Single().CantidadDisponible);
     }
 
     [Fact]
