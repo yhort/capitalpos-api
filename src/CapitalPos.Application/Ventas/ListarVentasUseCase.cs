@@ -90,7 +90,8 @@ public sealed record VentaResumenResponse(
     decimal Igv,
     decimal Total,
     int CantidadItems,
-    decimal UnidadesComerciales)
+    decimal UnidadesComerciales,
+    IReadOnlyCollection<VentaPagoResumenResponse> Pagos)
 {
     public static VentaResumenResponse From(Venta venta)
     {
@@ -106,6 +107,19 @@ public sealed record VentaResumenResponse(
             venta.Igv,
             venta.Total,
             venta.Detalles.Count,
-            venta.Detalles.Sum(detalle => detalle.Cantidad));
+            venta.Detalles.Sum(detalle => detalle.Cantidad),
+            venta.Pagos.Select(VentaPagoResumenResponse.From).ToArray());
+    }
+}
+
+public sealed record VentaPagoResumenResponse(
+    string MetodoPago,
+    decimal Monto)
+{
+    public static VentaPagoResumenResponse From(VentaPago pago)
+    {
+        return new VentaPagoResumenResponse(
+            pago.MetodoPago.ToString(),
+            pago.Monto);
     }
 }

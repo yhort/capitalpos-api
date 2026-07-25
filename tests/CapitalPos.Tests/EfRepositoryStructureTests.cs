@@ -8,6 +8,7 @@ using CapitalPos.Application.Sedes;
 using CapitalPos.Application.Seguridad;
 using CapitalPos.Application.Series;
 using CapitalPos.Application.Usuarios;
+using CapitalPos.Application.Ventas;
 using CapitalPos.Infrastructure.Persistence.Repositories;
 
 namespace CapitalPos.Tests;
@@ -102,6 +103,17 @@ public class EfRepositoryStructureTests
     public void Ef_sesion_caja_repository_implementa_puerto_de_aplicacion()
     {
         Assert.True(typeof(ISesionCajaRepository).IsAssignableFrom(typeof(EfSesionCajaRepository)));
+    }
+
+    [Fact]
+    public void Ef_venta_repository_incluye_pagos_y_filtra_por_empresa()
+    {
+        Assert.True(typeof(IVentaRepository).IsAssignableFrom(typeof(EfVentaRepository)));
+        var source = File.ReadAllText(ResolverRutaRepo(
+            "src/CapitalPos.Infrastructure/Persistence/Repositories/EfVentaRepository.cs"));
+
+        Assert.Contains("Include(venta => venta.Pagos)", source);
+        Assert.Contains("venta.EmpresaId == empresaId", source);
     }
 
     [Theory]

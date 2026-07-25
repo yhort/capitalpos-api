@@ -106,7 +106,8 @@ public sealed record VentaDetalleCompletoResponse(
     decimal Total,
     int CantidadItems,
     decimal UnidadesComerciales,
-    IReadOnlyCollection<VentaDetalleLineaResponse> Detalles)
+    IReadOnlyCollection<VentaDetalleLineaResponse> Detalles,
+    IReadOnlyCollection<VentaPagoDetalleResponse> Pagos)
 {
     public static VentaDetalleCompletoResponse From(
         Venta venta,
@@ -126,7 +127,28 @@ public sealed record VentaDetalleCompletoResponse(
             venta.Total,
             detalles.Count,
             detalles.Sum(detalle => detalle.Cantidad),
-            detalles);
+            detalles,
+            venta.Pagos.Select(VentaPagoDetalleResponse.From).ToArray());
+    }
+}
+
+public sealed record VentaPagoDetalleResponse(
+    Guid Id,
+    string MetodoPago,
+    decimal Monto,
+    string? CodigoOperacion,
+    string? Observacion,
+    DateTimeOffset FechaCreacion)
+{
+    public static VentaPagoDetalleResponse From(VentaPago pago)
+    {
+        return new VentaPagoDetalleResponse(
+            pago.Id,
+            pago.MetodoPago.ToString(),
+            pago.Monto,
+            pago.CodigoOperacion,
+            pago.Observacion,
+            pago.FechaCreacion);
     }
 }
 

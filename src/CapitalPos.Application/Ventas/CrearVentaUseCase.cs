@@ -88,6 +88,7 @@ public sealed class CrearVentaUseCase
         var total = detalles.Sum(detalle => detalle.Total);
         var igv = detalles.Sum(detalle => detalle.Igv);
         var subtotal = total - igv;
+        var pagos = CrearPagos(request.Pagos, empresaId, ventaId, total);
         var venta = new Venta(
             ventaId,
             empresaId,
@@ -100,7 +101,8 @@ public sealed class CrearVentaUseCase
             puntoVenta.Id,
             request.ClienteId,
             canalVenta,
-            request.VendedorId);
+            request.VendedorId,
+            pagos: pagos);
 
         try
         {
@@ -123,6 +125,56 @@ public sealed class CrearVentaUseCase
         }
 
         return venta;
+    }
+
+    private static IReadOnlyCollection<VentaPago> CrearPagos(
+        IReadOnlyCollection<CrearVentaPagoRequest>? pagosRequest,
+        Guid empresaId,
+        Guid ventaId,
+        decimal total)
+    {
+        if (pagosRequest is null || pagosRequest.Count == 0)
+        {
+            return
+            [
+                new VentaPago(
+                    Guid.NewGuid(),
+                    empresaId,
+                    ventaId,
+                    MetodoPago.EFECTIVO,
+                    total)
+            ];
+        }
+
+        var pagos = pagosRequest
+            .Select(pago => new VentaPago(
+                Guid.NewGuid(),
+                empresaId,
+                ventaId,
+                NormalizarMetodoPago(pago.MetodoPago),
+                pago.Monto,
+                pago.CodigoOperacion,
+                pago.Observacion))
+            .ToArray();
+
+        if (pagos.Sum(pago => pago.Monto) != total)
+        {
+            throw new ArgumentException("La suma de los pagos debe ser igual al total de la venta.", nameof(pagosRequest));
+        }
+
+        return pagos;
+    }
+
+    private static MetodoPago NormalizarMetodoPago(string? metodoPago)
+    {
+        if (!string.IsNullOrWhiteSpace(metodoPago)
+            && Enum.TryParse<MetodoPago>(metodoPago.Trim(), true, out var metodoNormalizado)
+            && Enum.IsDefined(metodoNormalizado))
+        {
+            return metodoNormalizado;
+        }
+
+        throw new ArgumentException("El metodo de pago no es valido.", nameof(metodoPago));
     }
 
     private async Task ValidarClienteAsync(

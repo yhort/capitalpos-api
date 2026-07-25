@@ -8,7 +8,14 @@ public sealed record CrearVentaRequest(
     IReadOnlyCollection<CrearVentaDetalleRequest> Detalles,
     Guid PuntoVentaId,
     string? CanalVenta = null,
-    Guid? VendedorId = null);
+    Guid? VendedorId = null,
+    IReadOnlyCollection<CrearVentaPagoRequest>? Pagos = null);
+
+public sealed record CrearVentaPagoRequest(
+    string MetodoPago,
+    decimal Monto,
+    string? CodigoOperacion = null,
+    string? Observacion = null);
 
 public sealed record CrearVentaDetalleRequest(
     Guid ProductoId,

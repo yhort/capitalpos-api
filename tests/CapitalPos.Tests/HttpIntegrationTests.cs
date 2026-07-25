@@ -2339,7 +2339,143 @@ public class HttpIntegrationTests
         Assert.Null(body.VendedorId);
         Assert.Single(factory.VentaRepository.Ventas);
         Assert.Equal(3m, factory.StockRepository.Stocks.Single().CantidadDisponible);
+        var pago = Assert.Single(body.Pagos);
+        Assert.Equal("EFECTIVO", pago.MetodoPago);
+        Assert.Equal(body.Total, pago.Monto);
         AssertSeguro(content);
+    }
+
+    [Theory]
+    [InlineData("EFECTIVO", null)]
+    [InlineData("YAPE", "YAPE-001")]
+    [InlineData("TARJETA", "VISA-001")]
+    public async Task Crear_venta_registra_pago_manual(
+        string metodoPago,
+        string? codigoOperacion)
+    {
+        var productoId = Guid.NewGuid();
+        await using var factory = new CapitalPosHttpFactory();
+        await factory.ProductoRepository.AgregarAsync(CrearProducto(EmpresaId, productoId));
+        await factory.StockRepository.GuardarAsync(new StockProducto(
+            Guid.NewGuid(),
+            EmpresaId,
+            SedeId,
+            productoId,
+            null,
+            5m));
+        AgregarCajaAbierta(factory);
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+        var request = CrearVentaRequest(
+            productoId,
+            null,
+            2m,
+            pagos:
+            [
+                new CrearVentaPagoRequest(
+                    metodoPago,
+                    20m,
+                    codigoOperacion,
+                    "Cobro manual")
+            ]);
+
+        var response = await client.PostAsJsonAsync("/api/ventas/", request);
+        var body = await response.Content.ReadFromJsonAsync<VentaResponse>();
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.NotNull(body);
+        var pago = Assert.Single(body.Pagos);
+        Assert.Equal(metodoPago, pago.MetodoPago);
+        Assert.Equal(20m, pago.Monto);
+        Assert.Equal(codigoOperacion, pago.CodigoOperacion);
+        Assert.Equal("Cobro manual", pago.Observacion);
+        Assert.Equal(3m, factory.StockRepository.Stocks.Single().CantidadDisponible);
+    }
+
+    [Fact]
+    public async Task Crear_venta_acepta_pago_mixto_efectivo_y_yape()
+    {
+        var productoId = Guid.NewGuid();
+        await using var factory = new CapitalPosHttpFactory();
+        await factory.ProductoRepository.AgregarAsync(CrearProducto(EmpresaId, productoId));
+        await factory.StockRepository.GuardarAsync(new StockProducto(
+            Guid.NewGuid(),
+            EmpresaId,
+            SedeId,
+            productoId,
+            null,
+            5m));
+        AgregarCajaAbierta(factory);
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+        var request = CrearVentaRequest(
+            productoId,
+            null,
+            2m,
+            pagos:
+            [
+                new CrearVentaPagoRequest("EFECTIVO", 8m),
+                new CrearVentaPagoRequest("YAPE", 12m, "YAPE-MIXTO")
+            ]);
+
+        var response = await client.PostAsJsonAsync("/api/ventas/", request);
+        var body = await response.Content.ReadFromJsonAsync<VentaResponse>();
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.NotNull(body);
+        Assert.Collection(
+            body.Pagos.OrderBy(pago => pago.MetodoPago),
+            pago =>
+            {
+                Assert.Equal("EFECTIVO", pago.MetodoPago);
+                Assert.Equal(8m, pago.Monto);
+            },
+            pago =>
+            {
+                Assert.Equal("YAPE", pago.MetodoPago);
+                Assert.Equal(12m, pago.Monto);
+            });
+    }
+
+    [Theory]
+    [InlineData("EFECTIVO", 19)]
+    [InlineData("EFECTIVO", 0)]
+    [InlineData("YAPE", -1)]
+    [InlineData("CRIPTOMONEDA", 20)]
+    public async Task Crear_venta_rechaza_pago_invalido_sin_descontar_stock(
+        string metodoPago,
+        decimal monto)
+    {
+        var productoId = Guid.NewGuid();
+        await using var factory = new CapitalPosHttpFactory();
+        await factory.ProductoRepository.AgregarAsync(CrearProducto(EmpresaId, productoId));
+        await factory.StockRepository.GuardarAsync(new StockProducto(
+            Guid.NewGuid(),
+            EmpresaId,
+            SedeId,
+            productoId,
+            null,
+            5m));
+        AgregarCajaAbierta(factory);
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+        var request = CrearVentaRequest(
+            productoId,
+            null,
+            2m,
+            pagos: [new CrearVentaPagoRequest(metodoPago, monto)]);
+
+        var response = await client.PostAsJsonAsync("/api/ventas/", request);
+        var content = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Empty(factory.VentaRepository.Ventas);
+        Assert.Equal(5m, factory.StockRepository.Stocks.Single().CantidadDisponible);
+        Assert.Contains(
+            metodoPago == "CRIPTOMONEDA"
+                ? "metodo de pago no es valido"
+                : monto <= 0
+                    ? "monto del pago debe ser mayor que cero"
+                    : "suma de los pagos debe ser igual al total",
+            content,
+            StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -2349,7 +2485,8 @@ public class HttpIntegrationTests
             EmpresaId,
             CanalVenta.TIENDA,
             new DateTimeOffset(2026, 7, 25, 10, 0, 0, TimeSpan.FromHours(-5)),
-            [(2m, 40m), (1m, 20m)]);
+            [(2m, 40m), (1m, 20m)],
+            MetodoPago.EFECTIVO);
         var ventaWeb = CrearVentaReporte(
             EmpresaId,
             CanalVenta.MARKETING,
@@ -2377,6 +2514,9 @@ public class HttpIntegrationTests
         Assert.Equal(2, item.CantidadItems);
         Assert.Equal(3m, item.UnidadesComerciales);
         Assert.Equal(60m, item.Total);
+        var pago = Assert.Single(item.Pagos);
+        Assert.Equal("EFECTIVO", pago.MetodoPago);
+        Assert.Equal(60m, pago.Monto);
     }
 
     [Fact]
@@ -2407,7 +2547,18 @@ public class HttpIntegrationTests
             75m,
             [detalle],
             SedeId,
-            PuntoVentaId);
+            PuntoVentaId,
+            pagos:
+            [
+                new VentaPago(
+                    Guid.NewGuid(),
+                    EmpresaId,
+                    ventaId,
+                    MetodoPago.YAPE,
+                    75m,
+                    "YAPE-HISTORIAL",
+                    "Pago mostrado en detalle")
+            ]);
         var otraVenta = CrearVentaReporte(
             Guid.NewGuid(),
             CanalVenta.TIENDA,
@@ -2433,6 +2584,11 @@ public class HttpIntegrationTests
         Assert.Equal("Polo Brooklyn - M / Negro", linea.Descripcion);
         Assert.True(linea.PrecioMayoristaAplicado);
         Assert.Equal(3m, linea.CantidadBaseDescontada);
+        var pago = Assert.Single(body.Pagos);
+        Assert.Equal("YAPE", pago.MetodoPago);
+        Assert.Equal(75m, pago.Monto);
+        Assert.Equal("YAPE-HISTORIAL", pago.CodigoOperacion);
+        Assert.Equal("Pago mostrado en detalle", pago.Observacion);
         Assert.Equal(HttpStatusCode.NotFound, responseOtraEmpresa.StatusCode);
     }
 
@@ -2494,6 +2650,9 @@ public class HttpIntegrationTests
             Assert.True(detalle.PrecioMayoristaAplicado);
             Assert.Equal(35m, detalle.PrecioUnitario);
         });
+        var pago = Assert.Single(body.Pagos);
+        Assert.Equal("EFECTIVO", pago.MetodoPago);
+        Assert.Equal(body.Total, pago.Monto);
         Assert.Equal(420m, body.Total);
         Assert.Equal(3m, factory.StockRepository.Stocks.Single(stock => stock.ProductoVarianteId == varianteSId).CantidadDisponible);
         Assert.Equal(5m, factory.StockRepository.Stocks.Single(stock => stock.ProductoVarianteId == varianteMId).CantidadDisponible);
@@ -2958,7 +3117,8 @@ public class HttpIntegrationTests
         string? canalVenta = null,
         Guid? puntoVentaId = null,
         Guid? vendedorId = null,
-        Guid? productoPresentacionId = null)
+        Guid? productoPresentacionId = null,
+        IReadOnlyCollection<CrearVentaPagoRequest>? pagos = null)
     {
         return new CrearVentaRequest(
             DateTimeOffset.UtcNow,
@@ -2973,7 +3133,8 @@ public class HttpIntegrationTests
                 productoPresentacionId)],
             puntoVentaId ?? PuntoVentaId,
             canalVenta,
-            vendedorId);
+            vendedorId,
+            pagos);
     }
 
     private static void AgregarCajaAbierta(CapitalPosHttpFactory factory)
@@ -2990,7 +3151,8 @@ public class HttpIntegrationTests
         Guid empresaId,
         CanalVenta canalVenta,
         DateTimeOffset fecha,
-        IReadOnlyCollection<(decimal Cantidad, decimal Total)> detalles)
+        IReadOnlyCollection<(decimal Cantidad, decimal Total)> detalles,
+        MetodoPago? metodoPago = null)
     {
         var ventaId = Guid.NewGuid();
         var ventaDetalles = detalles
@@ -3005,6 +3167,14 @@ public class HttpIntegrationTests
                 detalle.Total))
             .ToArray();
         var total = ventaDetalles.Sum(detalle => detalle.Total);
+        IReadOnlyCollection<VentaPago>? pagos = metodoPago.HasValue
+            ? [new VentaPago(
+                Guid.NewGuid(),
+                empresaId,
+                ventaId,
+                metodoPago.Value,
+                total)]
+            : null;
 
         return new Venta(
             ventaId,
@@ -3016,7 +3186,8 @@ public class HttpIntegrationTests
             ventaDetalles,
             SedeId,
             PuntoVentaId,
-            canalVenta: canalVenta);
+            canalVenta: canalVenta,
+            pagos: pagos);
     }
 
     private static Venta CrearVentaDashboard(

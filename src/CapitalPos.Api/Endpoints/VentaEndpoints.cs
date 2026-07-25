@@ -314,7 +314,8 @@ public sealed record VentaResponse(
     decimal Total,
     string Estado,
     DateTimeOffset FechaCreacion,
-    IReadOnlyCollection<VentaDetalleResponse> Detalles)
+    IReadOnlyCollection<VentaDetalleResponse> Detalles,
+    IReadOnlyCollection<VentaPagoResponse> Pagos)
 {
     public static VentaResponse From(Venta venta)
     {
@@ -332,7 +333,28 @@ public sealed record VentaResponse(
             venta.Total,
             venta.Estado.ToString(),
             venta.FechaCreacion,
-            venta.Detalles.Select(VentaDetalleResponse.From).ToArray());
+            venta.Detalles.Select(VentaDetalleResponse.From).ToArray(),
+            venta.Pagos.Select(VentaPagoResponse.From).ToArray());
+    }
+}
+
+public sealed record VentaPagoResponse(
+    Guid Id,
+    string MetodoPago,
+    decimal Monto,
+    string? CodigoOperacion,
+    string? Observacion,
+    DateTimeOffset FechaCreacion)
+{
+    public static VentaPagoResponse From(VentaPago pago)
+    {
+        return new VentaPagoResponse(
+            pago.Id,
+            pago.MetodoPago.ToString(),
+            pago.Monto,
+            pago.CodigoOperacion,
+            pago.Observacion,
+            pago.FechaCreacion);
     }
 }
 

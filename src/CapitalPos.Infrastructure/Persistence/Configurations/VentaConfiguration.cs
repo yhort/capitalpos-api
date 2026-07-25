@@ -140,5 +140,22 @@ public sealed class VentaConfiguration : IEntityTypeConfiguration<Venta>
 
         builder.Navigation(venta => venta.Detalles)
             .UsePropertyAccessMode(PropertyAccessMode.Field);
+
+        builder.HasMany(venta => venta.Pagos)
+            .WithOne()
+            .HasForeignKey(pago => new
+            {
+                pago.VentaId,
+                pago.EmpresaId
+            })
+            .HasPrincipalKey(venta => new
+            {
+                venta.Id,
+                venta.EmpresaId
+            })
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.Navigation(venta => venta.Pagos)
+            .UsePropertyAccessMode(PropertyAccessMode.Field);
     }
 }

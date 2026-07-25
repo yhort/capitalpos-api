@@ -3,6 +3,7 @@ namespace CapitalPos.Domain;
 public sealed class Venta
 {
     private readonly List<VentaDetalle> _detalles = new();
+    private readonly List<VentaPago> _pagos = new();
 
     private Venta()
     {
@@ -22,7 +23,8 @@ public sealed class Venta
         CanalVenta canalVenta = CanalVenta.TIENDA,
         Guid? vendedorId = null,
         EstadoVenta estado = EstadoVenta.Registrada,
-        DateTimeOffset? fechaCreacion = null)
+        DateTimeOffset? fechaCreacion = null,
+        IReadOnlyCollection<VentaPago>? pagos = null)
     {
         if (id == Guid.Empty)
         {
@@ -103,6 +105,19 @@ public sealed class Venta
             throw new ArgumentException("Los totales de la venta deben coincidir con sus detalles.", nameof(detalles));
         }
 
+        if (pagos is not null)
+        {
+            if (pagos.Any(pago => pago.EmpresaId != empresaId || pago.VentaId != id))
+            {
+                throw new ArgumentException("Todos los pagos deben pertenecer a la misma venta y empresa.", nameof(pagos));
+            }
+
+            if (pagos.Count > 0 && pagos.Sum(pago => pago.Monto) != total)
+            {
+                throw new ArgumentException("La suma de los pagos debe ser igual al total de la venta.", nameof(pagos));
+            }
+        }
+
         var fechaCreacionNormalizada = fechaCreacion ?? DateTimeOffset.UtcNow;
         if (fechaCreacionNormalizada == default)
         {
@@ -123,6 +138,10 @@ public sealed class Venta
         Estado = estado;
         FechaCreacion = fechaCreacionNormalizada;
         _detalles.AddRange(detalles);
+        if (pagos is not null)
+        {
+            _pagos.AddRange(pagos);
+        }
     }
 
     public Guid Id { get; private set; }
@@ -152,6 +171,8 @@ public sealed class Venta
     public DateTimeOffset FechaCreacion { get; private set; }
 
     public IReadOnlyCollection<VentaDetalle> Detalles => _detalles;
+
+    public IReadOnlyCollection<VentaPago> Pagos => _pagos;
 
     public void Anular()
     {

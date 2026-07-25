@@ -28,6 +28,7 @@ public sealed class EfVentaRepository : IVentaRepository
         return await _dbContext.Ventas
             .AsNoTracking()
             .Include(venta => venta.Detalles)
+            .Include(venta => venta.Pagos)
             .Where(venta => venta.EmpresaId == empresaId)
             .OrderByDescending(venta => venta.Fecha)
             .ToListAsync(cancellationToken);
@@ -42,6 +43,7 @@ public sealed class EfVentaRepository : IVentaRepository
         return await _dbContext.Ventas
             .AsNoTracking()
             .Include(venta => venta.Detalles)
+            .Include(venta => venta.Pagos)
             .Where(venta =>
                 venta.EmpresaId == empresaId &&
                 venta.Estado == EstadoVenta.Registrada &&
@@ -58,6 +60,7 @@ public sealed class EfVentaRepository : IVentaRepository
     {
         return _dbContext.Ventas
             .Include(venta => venta.Detalles)
+            .Include(venta => venta.Pagos)
             .SingleOrDefaultAsync(
                 venta => venta.EmpresaId == empresaId && venta.Id == id,
                 cancellationToken);
