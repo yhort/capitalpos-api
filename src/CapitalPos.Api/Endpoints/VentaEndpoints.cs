@@ -17,6 +17,14 @@ public static class VentaEndpoints
             .RequireAuthorization()
             .AddEndpointFilter<EmpresaActivaEndpointFilter>();
 
+        group.MapGet("/", ListarVentasAsync)
+            .WithName("ListarVentas")
+            .RequirePermisoEmpresa(PermisoEmpresa.OperarVentas);
+
+        group.MapGet("/{id:guid}", ObtenerVentaDetalleAsync)
+            .WithName("ObtenerVentaDetalle")
+            .RequirePermisoEmpresa(PermisoEmpresa.OperarVentas);
+
         group.MapPost("/", CrearVentaAsync)
             .WithName("CrearVenta")
             .RequirePermisoEmpresa(PermisoEmpresa.OperarVentas);
@@ -26,6 +34,62 @@ public static class VentaEndpoints
             .RequirePermisoEmpresa(PermisoEmpresa.EmitirCpe);
 
         return app;
+    }
+
+    private static async Task<IResult> ListarVentasAsync(
+        string desde,
+        string hasta,
+        string? canalVenta,
+        Guid? sedeId,
+        Guid? puntoVentaId,
+        ListarVentasUseCase useCase,
+        CancellationToken cancellationToken)
+    {
+        if (!DateOnly.TryParseExact(desde, "yyyy-MM-dd", out var fechaDesde)
+            || !DateOnly.TryParseExact(hasta, "yyyy-MM-dd", out var fechaHasta))
+        {
+            return Results.BadRequest(ErrorResponse.From(
+                "Los filtros desde y hasta son obligatorios y deben usar el formato yyyy-MM-dd."));
+        }
+
+        CanalVenta? canal = null;
+        if (!string.IsNullOrWhiteSpace(canalVenta))
+        {
+            if (!Enum.TryParse<CanalVenta>(canalVenta, true, out var canalParseado)
+                || !Enum.IsDefined(canalParseado))
+            {
+                return Results.BadRequest(ErrorResponse.From("El canal de venta no es valido."));
+            }
+
+            canal = canalParseado;
+        }
+
+        try
+        {
+            var ventas = await useCase.EjecutarAsync(
+                fechaDesde,
+                fechaHasta,
+                canal,
+                sedeId,
+                puntoVentaId,
+                cancellationToken);
+            return Results.Ok(ventas);
+        }
+        catch (ArgumentException ex)
+        {
+            return Results.BadRequest(ErrorResponse.From(ex.Message));
+        }
+    }
+
+    private static async Task<IResult> ObtenerVentaDetalleAsync(
+        Guid id,
+        ObtenerVentaDetalleUseCase useCase,
+        CancellationToken cancellationToken)
+    {
+        var venta = await useCase.EjecutarAsync(id, cancellationToken);
+        return venta is null
+            ? Results.NotFound()
+            : Results.Ok(venta);
     }
 
     private static async Task<IResult> CrearVentaAsync(

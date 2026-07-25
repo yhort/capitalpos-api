@@ -45,6 +45,20 @@ public class EndpointPermissionStructureTests
         Assert.DoesNotContain(".Rol !=", source);
     }
 
+    [Fact]
+    public void Historial_ventas_declara_proteccion_empresa_y_permiso_operar_ventas()
+    {
+        var source = File.ReadAllText(
+            ResolverRutaRepo("src/CapitalPos.Api/Endpoints/VentaEndpoints.cs"));
+
+        Assert.Contains("MapGet(\"/\", ListarVentasAsync)", source);
+        Assert.Contains("MapGet(\"/{id:guid}\", ObtenerVentaDetalleAsync)", source);
+        Assert.Contains(".RequireAuthorization()", source);
+        Assert.Contains(".AddEndpointFilter<EmpresaActivaEndpointFilter>()", source);
+        Assert.True(
+            source.Split("RequirePermisoEmpresa(PermisoEmpresa.OperarVentas)").Length - 1 >= 3);
+    }
+
     private static string ResolverRutaRepo(string relativePath)
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);

@@ -2343,6 +2343,100 @@ public class HttpIntegrationTests
     }
 
     [Fact]
+    public async Task Historial_ventas_filtra_y_resume_solo_empresa_activa()
+    {
+        var ventaTienda = CrearVentaReporte(
+            EmpresaId,
+            CanalVenta.TIENDA,
+            new DateTimeOffset(2026, 7, 25, 10, 0, 0, TimeSpan.FromHours(-5)),
+            [(2m, 40m), (1m, 20m)]);
+        var ventaWeb = CrearVentaReporte(
+            EmpresaId,
+            CanalVenta.MARKETING,
+            new DateTimeOffset(2026, 7, 25, 11, 0, 0, TimeSpan.FromHours(-5)),
+            [(4m, 80m)]);
+        var ventaOtraEmpresa = CrearVentaReporte(
+            Guid.NewGuid(),
+            CanalVenta.TIENDA,
+            new DateTimeOffset(2026, 7, 25, 12, 0, 0, TimeSpan.FromHours(-5)),
+            [(9m, 90m)]);
+        await using var factory = new CapitalPosHttpFactory();
+        await factory.VentaRepository.AgregarAsync(ventaTienda);
+        await factory.VentaRepository.AgregarAsync(ventaWeb);
+        await factory.VentaRepository.AgregarAsync(ventaOtraEmpresa);
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+
+        var response = await client.GetAsync(
+            $"/api/ventas?desde=2026-07-25&hasta=2026-07-25&canalVenta=TIENDA&sedeId={SedeId}&puntoVentaId={PuntoVentaId}");
+        var body = await response.Content.ReadFromJsonAsync<VentaResumenResponse[]>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var item = Assert.Single(Assert.IsType<VentaResumenResponse[]>(body));
+        Assert.Equal(ventaTienda.Id, item.Id);
+        Assert.Equal(EmpresaId, item.EmpresaId);
+        Assert.Equal(2, item.CantidadItems);
+        Assert.Equal(3m, item.UnidadesComerciales);
+        Assert.Equal(60m, item.Total);
+    }
+
+    [Fact]
+    public async Task Detalle_venta_devuelve_lineas_y_oculta_venta_de_otra_empresa()
+    {
+        var productoId = Guid.NewGuid();
+        var varianteId = Guid.NewGuid();
+        var ventaId = Guid.NewGuid();
+        var detalle = new VentaDetalle(
+            Guid.NewGuid(),
+            EmpresaId,
+            ventaId,
+            productoId,
+            3m,
+            25m,
+            0m,
+            75m,
+            varianteId,
+            factorConversionAplicado: 1m,
+            cantidadBaseDescontada: 3m,
+            precioMayoristaAplicado: true);
+        var venta = new Venta(
+            ventaId,
+            EmpresaId,
+            new DateTimeOffset(2026, 7, 25, 10, 0, 0, TimeSpan.FromHours(-5)),
+            75m,
+            0m,
+            75m,
+            [detalle],
+            SedeId,
+            PuntoVentaId);
+        var otraVenta = CrearVentaReporte(
+            Guid.NewGuid(),
+            CanalVenta.TIENDA,
+            DateTimeOffset.UtcNow,
+            [(1m, 10m)]);
+        await using var factory = new CapitalPosHttpFactory();
+        factory.ProductoRepository.Productos.Add(
+            new Producto(productoId, EmpresaId, "Polo Brooklyn", 35m));
+        factory.ProductoVarianteRepository.Variantes.Add(
+            new ProductoVariante(varianteId, EmpresaId, productoId, "M", "Negro"));
+        await factory.VentaRepository.AgregarAsync(venta);
+        await factory.VentaRepository.AgregarAsync(otraVenta);
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+
+        var response = await client.GetAsync($"/api/ventas/{venta.Id}");
+        var body = await response.Content.ReadFromJsonAsync<VentaDetalleCompletoResponse>();
+        var responseOtraEmpresa = await client.GetAsync($"/api/ventas/{otraVenta.Id}");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(body);
+        var linea = Assert.Single(body.Detalles);
+        Assert.Equal(varianteId, linea.ProductoVarianteId);
+        Assert.Equal("Polo Brooklyn - M / Negro", linea.Descripcion);
+        Assert.True(linea.PrecioMayoristaAplicado);
+        Assert.Equal(3m, linea.CantidadBaseDescontada);
+        Assert.Equal(HttpStatusCode.NotFound, responseOtraEmpresa.StatusCode);
+    }
+
+    [Fact]
     public async Task Crear_venta_aplica_precio_mayorista_y_devuelve_snapshot()
     {
         var productoId = Guid.NewGuid();
