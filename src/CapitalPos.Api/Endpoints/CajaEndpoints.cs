@@ -19,6 +19,10 @@ public static class CajaEndpoints
             .WithName("ObtenerSesionCajaAbierta")
             .RequirePermisoEmpresa(PermisoEmpresa.OperarVentas);
 
+        group.MapGet("/{sesionCajaId:guid}/resumen", ObtenerResumenAsync)
+            .WithName("ObtenerResumenSesionCaja")
+            .RequirePermisoEmpresa(PermisoEmpresa.OperarVentas);
+
         group.MapPost("/abrir", AbrirAsync)
             .WithName("AbrirSesionCaja")
             .RequirePermisoEmpresa(PermisoEmpresa.OperarVentas);
@@ -28,6 +32,34 @@ public static class CajaEndpoints
             .RequirePermisoEmpresa(PermisoEmpresa.OperarVentas);
 
         return app;
+    }
+
+    private static async Task<IResult> ObtenerResumenAsync(
+        Guid sesionCajaId,
+        ObtenerResumenSesionCajaUseCase useCase,
+        CancellationToken cancellationToken)
+    {
+        if (sesionCajaId == Guid.Empty)
+        {
+            return Results.BadRequest(ErrorResponse.From(
+                "El identificador de la sesion de caja es obligatorio."));
+        }
+
+        try
+        {
+            var resumen = await useCase.EjecutarAsync(sesionCajaId, cancellationToken);
+            return resumen is null
+                ? Results.NotFound()
+                : Results.Ok(resumen);
+        }
+        catch (ArgumentException ex)
+        {
+            return Results.BadRequest(ErrorResponse.From(ex.Message));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Results.BadRequest(ErrorResponse.From(ex.Message));
+        }
     }
 
     private static async Task<IResult> ObtenerAbiertaAsync(

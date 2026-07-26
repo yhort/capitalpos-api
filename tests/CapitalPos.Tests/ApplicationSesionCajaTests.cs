@@ -1,6 +1,7 @@
 using CapitalPos.Application.Caja;
 using CapitalPos.Application.Sedes;
 using CapitalPos.Application.Seguridad;
+using CapitalPos.Application.Ventas;
 using CapitalPos.Domain;
 
 namespace CapitalPos.Tests;
@@ -157,6 +158,171 @@ public class ApplicationSesionCajaTests
                 .EjecutarAsync(new CerrarSesionCajaRequest(Guid.NewGuid(), 10m)));
     }
 
+    [Fact]
+    public async Task Resumen_caja_abierta_suma_ventas_y_pagos_por_metodo()
+    {
+        var apertura = new DateTimeOffset(2026, 7, 25, 9, 0, 0, TimeSpan.FromHours(-5));
+        var sesion = new SesionCaja(
+            Guid.NewGuid(),
+            EmpresaId,
+            SedeId,
+            PuntoVentaId,
+            100m,
+            fechaApertura: apertura);
+        var repos = CrearRepositorios();
+        repos.SesionesCaja.Sesiones.Add(sesion);
+        var ventas = new VentaRepositoryFake();
+        ventas.Ventas.Add(CrearVenta(
+            EmpresaId,
+            PuntoVentaId,
+            apertura.AddMinutes(30),
+            60m,
+            [(MetodoPago.EFECTIVO, 20m), (MetodoPago.YAPE, 40m)]));
+        var useCase = new ObtenerResumenSesionCajaUseCase(
+            repos.SesionesCaja,
+            ventas,
+            new EmpresaActivaContextFake(EmpresaId, UsuarioId));
+
+        var resumen = await useCase.EjecutarAsync(sesion.Id);
+
+        Assert.NotNull(resumen);
+        Assert.Equal("Abierta", resumen.Estado);
+        Assert.Equal(60m, resumen.TotalVentas);
+        Assert.Equal(1, resumen.CantidadVentas);
+        Assert.Equal(60m, resumen.TotalPagado);
+        Assert.Null(resumen.DiferenciaOperativa);
+        Assert.Collection(
+            resumen.PagosPorMetodo.Where(item => item.Total > 0).OrderBy(item => item.MetodoPago),
+            efectivo =>
+            {
+                Assert.Equal("EFECTIVO", efectivo.MetodoPago);
+                Assert.Equal(20m, efectivo.Total);
+                Assert.Equal(1, efectivo.CantidadPagos);
+            },
+            yape =>
+            {
+                Assert.Equal("YAPE", yape.MetodoPago);
+                Assert.Equal(40m, yape.Total);
+                Assert.Equal(1, yape.CantidadPagos);
+            });
+    }
+
+    [Fact]
+    public async Task Resumen_caja_cerrada_excluye_ventas_fuera_intervalo_punto_empresa_y_anuladas()
+    {
+        var apertura = new DateTimeOffset(2026, 7, 25, 9, 0, 0, TimeSpan.FromHours(-5));
+        var cierre = apertura.AddHours(3);
+        var sesion = new SesionCaja(
+            Guid.NewGuid(),
+            EmpresaId,
+            SedeId,
+            PuntoVentaId,
+            100m,
+            fechaApertura: apertura);
+        sesion.Cerrar(200m, cierre);
+        var repos = CrearRepositorios();
+        repos.SesionesCaja.Sesiones.Add(sesion);
+        var ventas = new VentaRepositoryFake();
+        ventas.Ventas.Add(CrearVenta(
+            EmpresaId,
+            PuntoVentaId,
+            apertura.AddHours(1),
+            60m,
+            [(MetodoPago.TARJETA, 60m)]));
+        ventas.Ventas.Add(CrearVenta(EmpresaId, PuntoVentaId, apertura.AddMinutes(-1), 10m));
+        ventas.Ventas.Add(CrearVenta(EmpresaId, PuntoVentaId, cierre.AddMinutes(1), 10m));
+        ventas.Ventas.Add(CrearVenta(EmpresaId, Guid.NewGuid(), apertura.AddHours(1), 10m));
+        ventas.Ventas.Add(CrearVenta(OtraEmpresaId, PuntoVentaId, apertura.AddHours(1), 10m));
+        ventas.Ventas.Add(CrearVenta(
+            EmpresaId,
+            PuntoVentaId,
+            apertura.AddHours(1),
+            10m,
+            estado: EstadoVenta.Anulada));
+        var useCase = new ObtenerResumenSesionCajaUseCase(
+            repos.SesionesCaja,
+            ventas,
+            new EmpresaActivaContextFake(EmpresaId, UsuarioId));
+
+        var resumen = await useCase.EjecutarAsync(sesion.Id);
+
+        Assert.NotNull(resumen);
+        Assert.Equal("Cerrada", resumen.Estado);
+        Assert.Equal(60m, resumen.TotalVentas);
+        Assert.Equal(1, resumen.CantidadVentas);
+        Assert.Equal(60m, resumen.TotalPagado);
+        Assert.Equal(100m, resumen.DiferenciaCierre);
+        Assert.Equal(40m, resumen.DiferenciaOperativa);
+        var tarjeta = Assert.Single(
+            resumen.PagosPorMetodo,
+            item => item.MetodoPago == "TARJETA");
+        Assert.Equal(60m, tarjeta.Total);
+        Assert.Equal(1, tarjeta.CantidadPagos);
+    }
+
+    [Fact]
+    public async Task Resumen_caja_ajena_no_se_expone()
+    {
+        var repos = CrearRepositorios();
+        var sesionAjena = new SesionCaja(
+            Guid.NewGuid(),
+            OtraEmpresaId,
+            SedeId,
+            PuntoVentaId,
+            10m);
+        repos.SesionesCaja.Sesiones.Add(sesionAjena);
+        var useCase = new ObtenerResumenSesionCajaUseCase(
+            repos.SesionesCaja,
+            new VentaRepositoryFake(),
+            new EmpresaActivaContextFake(EmpresaId, UsuarioId));
+
+        var resumen = await useCase.EjecutarAsync(sesionAjena.Id);
+
+        Assert.Null(resumen);
+    }
+
+    private static Venta CrearVenta(
+        Guid empresaId,
+        Guid puntoVentaId,
+        DateTimeOffset fechaCreacion,
+        decimal total,
+        IReadOnlyCollection<(MetodoPago Metodo, decimal Monto)>? pagos = null,
+        EstadoVenta estado = EstadoVenta.Registrada)
+    {
+        var ventaId = Guid.NewGuid();
+        var detalle = new VentaDetalle(
+            Guid.NewGuid(),
+            empresaId,
+            ventaId,
+            Guid.NewGuid(),
+            1m,
+            total,
+            0m,
+            total);
+        var pagosVenta = (pagos ?? [(MetodoPago.EFECTIVO, total)])
+            .Select(pago => new VentaPago(
+                Guid.NewGuid(),
+                empresaId,
+                ventaId,
+                pago.Metodo,
+                pago.Monto))
+            .ToArray();
+
+        return new Venta(
+            ventaId,
+            empresaId,
+            fechaCreacion,
+            total,
+            0m,
+            total,
+            [detalle],
+            SedeId,
+            puntoVentaId,
+            estado: estado,
+            fechaCreacion: fechaCreacion,
+            pagos: pagosVenta);
+    }
+
     private static Repositorios CrearRepositorios(
         Guid? empresaPuntoVenta = null,
         bool puntoVentaActivo = true)
@@ -274,6 +440,48 @@ public class ApplicationSesionCajaTests
         {
             Guardado = true;
             return Task.CompletedTask;
+        }
+    }
+
+    private sealed class VentaRepositoryFake : IVentaRepository
+    {
+        public List<Venta> Ventas { get; } = [];
+
+        public Task AgregarAsync(Venta venta, CancellationToken cancellationToken = default)
+        {
+            Ventas.Add(venta);
+            return Task.CompletedTask;
+        }
+
+        public Task<IReadOnlyCollection<Venta>> ListarPorEmpresaAsync(
+            Guid empresaId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyCollection<Venta>>(
+                Ventas.Where(venta => venta.EmpresaId == empresaId).ToArray());
+        }
+
+        public Task<IReadOnlyCollection<Venta>> ListarRegistradasPorEmpresaYFechaAsync(
+            Guid empresaId,
+            DateTimeOffset desde,
+            DateTimeOffset hastaExclusivo,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyCollection<Venta>>(
+                Ventas.Where(venta =>
+                    venta.EmpresaId == empresaId
+                    && venta.Estado == EstadoVenta.Registrada
+                    && venta.Fecha >= desde
+                    && venta.Fecha < hastaExclusivo).ToArray());
+        }
+
+        public Task<Venta?> ObtenerPorEmpresaAsync(
+            Guid empresaId,
+            Guid id,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(
+                Ventas.SingleOrDefault(venta => venta.EmpresaId == empresaId && venta.Id == id));
         }
     }
 }

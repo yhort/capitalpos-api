@@ -1340,6 +1340,70 @@ public class HttpIntegrationTests
     }
 
     [Fact]
+    public async Task Resumen_caja_devuelve_ventas_pagos_y_diferencia_operativa()
+    {
+        var apertura = new DateTimeOffset(2026, 7, 25, 9, 0, 0, TimeSpan.FromHours(-5));
+        var cierre = apertura.AddHours(8);
+        var sesionId = Guid.NewGuid();
+        var sesion = new SesionCaja(
+            sesionId,
+            EmpresaId,
+            SedeId,
+            PuntoVentaId,
+            100m,
+            fechaApertura: apertura);
+        sesion.Cerrar(175m, cierre);
+        await using var factory = new CapitalPosHttpFactory();
+        factory.SesionCajaRepository.Sesiones.Add(sesion);
+        await factory.VentaRepository.AgregarAsync(CrearVentaReporte(
+            EmpresaId,
+            CanalVenta.TIENDA,
+            apertura.AddHours(1),
+            [(1m, 50m)],
+            MetodoPago.YAPE,
+            apertura.AddHours(1)));
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+
+        var response = await client.GetAsync($"/api/caja/sesiones/{sesionId}/resumen");
+        var content = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadFromJsonAsync<ResumenSesionCajaResponse>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(body);
+        Assert.Equal(sesionId, body.SesionCajaId);
+        Assert.Equal("Cerrada", body.Estado);
+        Assert.Equal(50m, body.TotalVentas);
+        Assert.Equal(1, body.CantidadVentas);
+        Assert.Equal(50m, body.TotalPagado);
+        Assert.Equal(25m, body.DiferenciaOperativa);
+        var yape = Assert.Single(
+            body.PagosPorMetodo,
+            item => item.MetodoPago == "YAPE");
+        Assert.Equal(50m, yape.Total);
+        Assert.Equal(1, yape.CantidadPagos);
+        AssertSeguro(content);
+    }
+
+    [Fact]
+    public async Task Resumen_caja_ajena_devuelve_not_found()
+    {
+        var sesionAjenaId = Guid.NewGuid();
+        var otraEmpresaId = Guid.Parse("44444444-4444-4444-4444-444444444444");
+        await using var factory = new CapitalPosHttpFactory();
+        factory.SesionCajaRepository.Sesiones.Add(new SesionCaja(
+            sesionAjenaId,
+            otraEmpresaId,
+            SedeId,
+            PuntoVentaId,
+            100m));
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+
+        var response = await client.GetAsync($"/api/caja/sesiones/{sesionAjenaId}/resumen");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
     public async Task Obtener_stock_producto_devuelve_stock_de_empresa_activa()
     {
         var productoId = Guid.NewGuid();
@@ -3152,7 +3216,10 @@ public class HttpIntegrationTests
         CanalVenta canalVenta,
         DateTimeOffset fecha,
         IReadOnlyCollection<(decimal Cantidad, decimal Total)> detalles,
-        MetodoPago? metodoPago = null)
+        MetodoPago? metodoPago = null,
+        DateTimeOffset? fechaCreacion = null,
+        Guid? puntoVentaId = null,
+        EstadoVenta estado = EstadoVenta.Registrada)
     {
         var ventaId = Guid.NewGuid();
         var ventaDetalles = detalles
@@ -3185,8 +3252,10 @@ public class HttpIntegrationTests
             total,
             ventaDetalles,
             SedeId,
-            PuntoVentaId,
+            puntoVentaId ?? PuntoVentaId,
             canalVenta: canalVenta,
+            estado: estado,
+            fechaCreacion: fechaCreacion,
             pagos: pagos);
     }
 

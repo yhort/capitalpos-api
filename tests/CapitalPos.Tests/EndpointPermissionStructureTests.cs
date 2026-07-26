@@ -59,6 +59,22 @@ public class EndpointPermissionStructureTests
             source.Split("RequirePermisoEmpresa(PermisoEmpresa.OperarVentas)").Length - 1 >= 3);
     }
 
+    [Fact]
+    public void Resumen_caja_declara_ruta_y_permiso_operar_ventas()
+    {
+        var source = File.ReadAllText(
+            ResolverRutaRepo("src/CapitalPos.Api/Endpoints/CajaEndpoints.cs"));
+
+        Assert.Contains(
+            "MapGet(\"/{sesionCajaId:guid}/resumen\", ObtenerResumenAsync)",
+            source);
+        Assert.Contains(".RequireAuthorization()", source);
+        Assert.Contains(".AddEndpointFilter<EmpresaActivaEndpointFilter>()", source);
+        Assert.Contains(
+            "RequirePermisoEmpresa(PermisoEmpresa.OperarVentas)",
+            source);
+    }
+
     private static string ResolverRutaRepo(string relativePath)
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);

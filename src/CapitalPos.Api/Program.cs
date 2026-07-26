@@ -95,6 +95,7 @@ builder.Services.AddScoped<ObtenerSerieComprobanteActivaUseCase>();
 builder.Services.AddScoped<AbrirSesionCajaUseCase>();
 builder.Services.AddScoped<CerrarSesionCajaUseCase>();
 builder.Services.AddScoped<ObtenerSesionCajaAbiertaUseCase>();
+builder.Services.AddScoped<ObtenerResumenSesionCajaUseCase>();
 builder.Services.AddScoped<ReporteVentasPorCanalUseCase>();
 builder.Services.AddScoped<DashboardComercialUseCase>();
 builder.Services.AddSingleton<IDashboardComercialClock, DashboardComercialClock>();
