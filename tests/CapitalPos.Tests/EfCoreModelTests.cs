@@ -29,6 +29,7 @@ public class EfCoreModelTests
         Assert.NotNull(context.Model.FindEntityType(typeof(Comprobante)));
         Assert.NotNull(context.Model.FindEntityType(typeof(ConfiguracionFiscalEmpresa)));
         Assert.NotNull(context.Model.FindEntityType(typeof(StockProducto)));
+        Assert.NotNull(context.Model.FindEntityType(typeof(MovimientoInventario)));
         Assert.NotNull(context.Model.FindEntityType(typeof(Sede)));
         Assert.NotNull(context.Model.FindEntityType(typeof(PuntoVenta)));
         Assert.NotNull(context.Model.FindEntityType(typeof(SerieComprobante)));
@@ -761,6 +762,40 @@ public class EfCoreModelTests
             foreignKey.Properties.Select(property => property.Name).SequenceEqual([
                 nameof(StockProducto.ProductoVarianteId),
                 nameof(StockProducto.EmpresaId)
+            ]));
+    }
+
+    [Fact]
+    public void Movimiento_inventario_tiene_campos_kardex_e_indices()
+    {
+        var entityType = ObtenerEntidad<MovimientoInventario>();
+
+        Assert.Equal("movimientos_inventario", entityType.GetTableName());
+        Assert.Equal(nameof(MovimientoInventario.Id), entityType.FindPrimaryKey()?.Properties.Single().Name);
+        AssertPropiedad(entityType, nameof(MovimientoInventario.EmpresaId), nullable: false);
+        AssertPropiedad(entityType, nameof(MovimientoInventario.SedeId), nullable: false);
+        AssertPropiedad(entityType, nameof(MovimientoInventario.ProductoId), nullable: false);
+        AssertPropiedad(entityType, nameof(MovimientoInventario.ProductoVarianteId));
+        AssertPropiedad(entityType, nameof(MovimientoInventario.TipoMovimiento), maxLength: 30, nullable: false);
+        AssertPropiedad(entityType, nameof(MovimientoInventario.Cantidad), nullable: false);
+        AssertPropiedad(entityType, nameof(MovimientoInventario.StockAnterior), nullable: false);
+        AssertPropiedad(entityType, nameof(MovimientoInventario.StockPosterior), nullable: false);
+        AssertPropiedad(entityType, nameof(MovimientoInventario.ReferenciaTipo), maxLength: 50);
+        AssertPropiedad(entityType, nameof(MovimientoInventario.ReferenciaId));
+        AssertPropiedad(entityType, nameof(MovimientoInventario.Motivo), maxLength: 500);
+        AssertPropiedad(entityType, nameof(MovimientoInventario.FechaCreacion), nullable: false);
+        AssertPropiedad(entityType, nameof(MovimientoInventario.UsuarioId));
+
+        var tipoProperty = entityType.FindProperty(nameof(MovimientoInventario.TipoMovimiento));
+        Assert.Equal(typeof(string), tipoProperty?.GetProviderClrType());
+
+        Assert.Contains(entityType.GetIndexes(), index =>
+            index.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(MovimientoInventario.EmpresaId),
+                nameof(MovimientoInventario.SedeId),
+                nameof(MovimientoInventario.ProductoId),
+                nameof(MovimientoInventario.ProductoVarianteId),
+                nameof(MovimientoInventario.FechaCreacion)
             ]));
     }
 

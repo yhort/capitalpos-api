@@ -45,6 +45,7 @@ public sealed class CapitalPosDbContext : DbContext
     public DbSet<ConfiguracionFiscalEmpresa> ConfiguracionesFiscalesEmpresas => Set<ConfiguracionFiscalEmpresa>();
 
     public DbSet<StockProducto> StocksProductos => Set<StockProducto>();
+    public DbSet<MovimientoInventario> MovimientosInventario => Set<MovimientoInventario>();
 
     public DbSet<Sede> Sedes => Set<Sede>();
 

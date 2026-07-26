@@ -75,6 +75,20 @@ public class EndpointPermissionStructureTests
             source);
     }
 
+    [Fact]
+    public void Kardex_declara_ruta_y_permiso_operar_almacen()
+    {
+        var source = File.ReadAllText(
+            ResolverRutaRepo("src/CapitalPos.Api/Endpoints/StockEndpoints.cs"));
+
+        Assert.Contains("MapGet(\"/kardex\", ListarKardexAsync)", source);
+        Assert.Contains(".RequireAuthorization()", source);
+        Assert.Contains(".AddEndpointFilter<EmpresaActivaEndpointFilter>()", source);
+        Assert.Contains(
+            "RequirePermisoEmpresa(PermisoEmpresa.OperarAlmacen)",
+            source);
+    }
+
     private static string ResolverRutaRepo(string relativePath)
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);

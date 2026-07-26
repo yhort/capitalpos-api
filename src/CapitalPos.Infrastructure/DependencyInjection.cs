@@ -56,6 +56,7 @@ public static class DependencyInjection
         services.AddScoped<IComprobanteRepository, EfComprobanteRepository>();
         services.AddScoped<IConfiguracionFiscalEmpresaRepository, EfConfiguracionFiscalEmpresaRepository>();
         services.AddScoped<IStockProductoRepository, EfStockProductoRepository>();
+        services.AddScoped<IMovimientoInventarioRepository, EfMovimientoInventarioRepository>();
         services.AddScoped<ISedeRepository, EfSedeRepository>();
         services.AddScoped<IPuntoVentaRepository, EfPuntoVentaRepository>();
         services.AddScoped<ISerieComprobanteRepository, EfSerieComprobanteRepository>();

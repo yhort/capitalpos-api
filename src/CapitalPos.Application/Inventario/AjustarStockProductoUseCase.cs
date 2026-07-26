@@ -14,6 +14,7 @@ public sealed class AjustarStockProductoUseCase
     private readonly ISedeRepository _sedeRepository;
     private readonly IStockProductoRepository _stockRepository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IMovimientoInventarioRepository? _movimientos;
 
     public AjustarStockProductoUseCase(
         IStockProductoRepository stockRepository,
@@ -21,7 +22,7 @@ public sealed class AjustarStockProductoUseCase
         IProductoVarianteRepository productoVarianteRepository,
         ISedeRepository sedeRepository,
         IUnitOfWork unitOfWork,
-        IEmpresaActivaContext empresaActiva)
+        IEmpresaActivaContext empresaActiva, IMovimientoInventarioRepository? movimientos = null)
     {
         _stockRepository = stockRepository;
         _productoRepository = productoRepository;
@@ -29,6 +30,7 @@ public sealed class AjustarStockProductoUseCase
         _sedeRepository = sedeRepository;
         _unitOfWork = unitOfWork;
         _empresaActiva = empresaActiva;
+        _movimientos = movimientos;
     }
 
     public async Task<StockProducto> EjecutarAsync(
@@ -47,6 +49,7 @@ public sealed class AjustarStockProductoUseCase
             request.ProductoVarianteId,
             cancellationToken);
 
+        var anterior = stock?.CantidadDisponible ?? 0m;
         if (stock is null)
         {
             stock = new StockProducto(
@@ -63,6 +66,8 @@ public sealed class AjustarStockProductoUseCase
         }
 
         await _stockRepository.GuardarAsync(stock, cancellationToken);
+        if (_movimientos is not null && stock.CantidadDisponible != anterior)
+            await _movimientos.AgregarAsync(new MovimientoInventario(Guid.NewGuid(), stock.EmpresaId, stock.SedeId, stock.ProductoId, stock.ProductoVarianteId, TipoMovimientoInventario.AJUSTE, Math.Abs(stock.CantidadDisponible-anterior), anterior, stock.CantidadDisponible, "AJUSTE_STOCK", stock.Id, usuarioId: _empresaActiva.UsuarioId), cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return stock;

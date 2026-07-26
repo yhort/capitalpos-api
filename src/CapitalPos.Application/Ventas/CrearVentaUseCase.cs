@@ -20,6 +20,7 @@ public sealed class CrearVentaUseCase
     private readonly IStockProductoRepository _stockRepository;
     private readonly ISesionCajaRepository _sesionCajaRepository;
     private readonly IVentaRepository _ventaRepository;
+    private readonly IMovimientoInventarioRepository? _movimientos;
 
     public CrearVentaUseCase(
         IVentaRepository ventaRepository,
@@ -31,7 +32,7 @@ public sealed class CrearVentaUseCase
         IStockProductoRepository stockRepository,
         ISesionCajaRepository sesionCajaRepository,
         IPuntoVentaRepository puntoVentaRepository,
-        IEmpresaActivaContext empresaActiva)
+        IEmpresaActivaContext empresaActiva, IMovimientoInventarioRepository? movimientos = null)
     {
         _ventaRepository = ventaRepository;
         _productoRepository = productoRepository;
@@ -43,6 +44,7 @@ public sealed class CrearVentaUseCase
         _sesionCajaRepository = sesionCajaRepository;
         _puntoVentaRepository = puntoVentaRepository;
         _empresaActiva = empresaActiva;
+        _movimientos = movimientos;
     }
 
     public async Task<Venta> EjecutarAsync(
@@ -110,6 +112,7 @@ public sealed class CrearVentaUseCase
             {
                 stockADescontar.Stock.Descontar(stockADescontar.Cantidad);
                 await _stockRepository.GuardarAsync(stockADescontar.Stock, cancellationToken);
+                if (_movimientos is not null) await _movimientos.AgregarAsync(new MovimientoInventario(Guid.NewGuid(), empresaId, puntoVenta.SedeId, stockADescontar.Stock.ProductoId, stockADescontar.Stock.ProductoVarianteId, TipoMovimientoInventario.VENTA, stockADescontar.Cantidad, stockADescontar.CantidadDisponibleOriginal, stockADescontar.Stock.CantidadDisponible, "VENTA", ventaId, usuarioId: _empresaActiva.UsuarioId), cancellationToken);
             }
 
             await _ventaRepository.AgregarAsync(venta, cancellationToken);

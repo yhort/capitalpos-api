@@ -12,17 +12,19 @@ public sealed class AnularVentaUseCase
     private readonly IComprobanteRepository _comprobanteRepository;
     private readonly IStockProductoRepository _stockRepository;
     private readonly IVentaRepository _ventaRepository;
+    private readonly IMovimientoInventarioRepository? _movimientos;
 
     public AnularVentaUseCase(
         IVentaRepository ventaRepository,
         IStockProductoRepository stockRepository,
         IComprobanteRepository comprobanteRepository,
-        IEmpresaActivaContext empresaActiva)
+        IEmpresaActivaContext empresaActiva, IMovimientoInventarioRepository? movimientos = null)
     {
         _ventaRepository = ventaRepository;
         _stockRepository = stockRepository;
         _comprobanteRepository = comprobanteRepository;
         _empresaActiva = empresaActiva;
+        _movimientos = movimientos;
     }
 
     public async Task<Venta?> EjecutarAsync(
@@ -74,8 +76,10 @@ public sealed class AnularVentaUseCase
         venta.Anular(request.Observacion);
         foreach (var (stock, cantidad) in stocks)
         {
+            var anterior = stock.CantidadDisponible;
             stock.Incrementar(cantidad);
             await _stockRepository.GuardarAsync(stock, cancellationToken);
+            if (_movimientos is not null) await _movimientos.AgregarAsync(new MovimientoInventario(Guid.NewGuid(), empresaId, venta.SedeId, stock.ProductoId, stock.ProductoVarianteId, TipoMovimientoInventario.ANULACION_VENTA, cantidad, anterior, stock.CantidadDisponible, "VENTA", venta.Id, request.Observacion, usuarioId: _empresaActiva.UsuarioId), cancellationToken);
         }
 
         await _ventaRepository.GuardarCambiosAsync(cancellationToken);

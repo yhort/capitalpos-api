@@ -88,6 +88,7 @@ builder.Services.AddScoped<RegistrarComprobanteCpeUseCase>();
 builder.Services.AddScoped<GuardarConfiguracionFiscalEmpresaUseCase>();
 builder.Services.AddScoped<ObtenerConfiguracionFiscalEmpresaUseCase>();
 builder.Services.AddScoped<AjustarStockProductoUseCase>();
+builder.Services.AddScoped<ListarKardexUseCase>();
 builder.Services.AddScoped<ObtenerStockProductoUseCase>();
 builder.Services.AddScoped<ListarSedesUseCase>();
 builder.Services.AddScoped<ListarPuntosVentaUseCase>();

@@ -26,6 +26,7 @@ public static class StockEndpoints
         group.MapPut("/ajustar", AjustarStockProductoAsync)
             .WithName("AjustarStockProducto")
             .RequirePermisoEmpresa(PermisoEmpresa.OperarAlmacen);
+        group.MapGet("/kardex", ListarKardexAsync).WithName("ListarKardex").RequirePermisoEmpresa(PermisoEmpresa.OperarAlmacen);
 
         return app;
     }
@@ -122,7 +123,15 @@ public static class StockEndpoints
             return Results.BadRequest(ErrorResponse.From(ex.Message));
         }
     }
+
+    private static async Task<IResult> ListarKardexAsync(Guid? productoId, Guid? productoVarianteId, Guid? sedeId, string desde, string hasta, ListarKardexUseCase useCase, CancellationToken cancellationToken)
+    {
+        if (!DateOnly.TryParse(desde, out var d) || !DateOnly.TryParse(hasta, out var h)) return Results.BadRequest(ErrorResponse.From("Desde y hasta son obligatorios."));
+        try { var result=await useCase.EjecutarAsync(productoId,productoVarianteId,sedeId,d,h,cancellationToken); return Results.Ok(result.Select(MovimientoInventarioResponse.From)); } catch(ArgumentException ex) { return Results.BadRequest(ErrorResponse.From(ex.Message)); }
+    }
 }
+
+public sealed record MovimientoInventarioResponse(Guid Id,Guid EmpresaId,Guid SedeId,Guid ProductoId,Guid? ProductoVarianteId,string TipoMovimiento,decimal Cantidad,decimal StockAnterior,decimal StockPosterior,string? ReferenciaTipo,Guid? ReferenciaId,string? Motivo,DateTimeOffset FechaCreacion) { public static MovimientoInventarioResponse From(MovimientoInventario x)=>new(x.Id,x.EmpresaId,x.SedeId,x.ProductoId,x.ProductoVarianteId,x.TipoMovimiento.ToString(),x.Cantidad,x.StockAnterior,x.StockPosterior,x.ReferenciaTipo,x.ReferenciaId,x.Motivo,x.FechaCreacion); }
 
 public sealed record StockProductoResponse(
     Guid EmpresaId,
