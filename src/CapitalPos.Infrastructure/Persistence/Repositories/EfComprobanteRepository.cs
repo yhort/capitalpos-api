@@ -1,5 +1,6 @@
 using CapitalPos.Application.Ventas;
 using CapitalPos.Domain;
+using Microsoft.EntityFrameworkCore;
 
 namespace CapitalPos.Infrastructure.Persistence.Repositories;
 
@@ -20,5 +21,15 @@ public sealed class EfComprobanteRepository : IComprobanteRepository
 
         await _dbContext.Comprobantes.AddAsync(comprobante, cancellationToken);
         await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public Task<bool> ExistePorVentaAsync(
+        Guid empresaId,
+        Guid ventaId,
+        CancellationToken cancellationToken = default)
+    {
+        return _dbContext.Comprobantes.AnyAsync(
+            comprobante => comprobante.EmpresaId == empresaId && comprobante.VentaId == ventaId,
+            cancellationToken);
     }
 }

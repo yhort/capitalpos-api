@@ -20,4 +20,9 @@ public interface IVentaRepository
         Guid empresaId,
         Guid id,
         CancellationToken cancellationToken = default);
+
+    Task GuardarCambiosAsync(CancellationToken cancellationToken = default)
+    {
+        return Task.CompletedTask;
+    }
 }

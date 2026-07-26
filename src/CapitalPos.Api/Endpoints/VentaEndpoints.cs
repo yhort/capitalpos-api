@@ -29,6 +29,10 @@ public static class VentaEndpoints
             .WithName("CrearVenta")
             .RequirePermisoEmpresa(PermisoEmpresa.OperarVentas);
 
+        group.MapPost("/{id:guid}/anular", AnularVentaAsync)
+            .WithName("AnularVenta")
+            .RequirePermisoEmpresa(PermisoEmpresa.OperarVentas);
+
         group.MapPost("/{id:guid}/emitir-cpe", EmitirCpeDesdeVentaAsync)
             .WithName("EmitirCpeDesdeVenta")
             .RequirePermisoEmpresa(PermisoEmpresa.EmitirCpe);
@@ -162,6 +166,27 @@ public static class VentaEndpoints
                 null,
                 cancellationToken);
             throw;
+        }
+    }
+
+    private static async Task<IResult> AnularVentaAsync(
+        Guid id,
+        AnularVentaRequest request,
+        AnularVentaUseCase useCase,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var venta = await useCase.EjecutarAsync(id, request, cancellationToken);
+            return venta is null ? Results.NotFound() : Results.Ok(VentaResponse.From(venta));
+        }
+        catch (ArgumentException ex)
+        {
+            return Results.BadRequest(ErrorResponse.From(ex.Message));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Results.BadRequest(ErrorResponse.From(ex.Message));
         }
     }
 
@@ -315,7 +340,9 @@ public sealed record VentaResponse(
     string Estado,
     DateTimeOffset FechaCreacion,
     IReadOnlyCollection<VentaDetalleResponse> Detalles,
-    IReadOnlyCollection<VentaPagoResponse> Pagos)
+    IReadOnlyCollection<VentaPagoResponse> Pagos,
+    DateTimeOffset? FechaAnulacion,
+    string? ObservacionAnulacion)
 {
     public static VentaResponse From(Venta venta)
     {
@@ -334,7 +361,9 @@ public sealed record VentaResponse(
             venta.Estado.ToString(),
             venta.FechaCreacion,
             venta.Detalles.Select(VentaDetalleResponse.From).ToArray(),
-            venta.Pagos.Select(VentaPagoResponse.From).ToArray());
+            venta.Pagos.Select(VentaPagoResponse.From).ToArray(),
+            venta.FechaAnulacion,
+            venta.ObservacionAnulacion);
     }
 }
 

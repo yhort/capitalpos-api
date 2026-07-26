@@ -56,6 +56,11 @@ public sealed class VentaConfiguration : IEntityTypeConfiguration<Venta>
         builder.Property(venta => venta.FechaCreacion)
             .IsRequired();
 
+        builder.Property(venta => venta.FechaAnulacion);
+
+        builder.Property(venta => venta.ObservacionAnulacion)
+            .HasMaxLength(500);
+
         builder.HasIndex(venta => venta.EmpresaId);
 
         builder.HasIndex(venta => new

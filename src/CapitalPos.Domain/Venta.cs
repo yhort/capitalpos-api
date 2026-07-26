@@ -24,7 +24,9 @@ public sealed class Venta
         Guid? vendedorId = null,
         EstadoVenta estado = EstadoVenta.Registrada,
         DateTimeOffset? fechaCreacion = null,
-        IReadOnlyCollection<VentaPago>? pagos = null)
+        IReadOnlyCollection<VentaPago>? pagos = null,
+        DateTimeOffset? fechaAnulacion = null,
+        string? observacionAnulacion = null)
     {
         if (id == Guid.Empty)
         {
@@ -137,6 +139,8 @@ public sealed class Venta
         Total = total;
         Estado = estado;
         FechaCreacion = fechaCreacionNormalizada;
+        FechaAnulacion = fechaAnulacion;
+        ObservacionAnulacion = NormalizarObservacionAnulacion(observacionAnulacion);
         _detalles.AddRange(detalles);
         if (pagos is not null)
         {
@@ -170,12 +174,34 @@ public sealed class Venta
 
     public DateTimeOffset FechaCreacion { get; private set; }
 
+    public DateTimeOffset? FechaAnulacion { get; private set; }
+
+    public string? ObservacionAnulacion { get; private set; }
+
     public IReadOnlyCollection<VentaDetalle> Detalles => _detalles;
 
     public IReadOnlyCollection<VentaPago> Pagos => _pagos;
 
-    public void Anular()
+    public void Anular(string? observacion = null, DateTimeOffset? fechaAnulacion = null)
     {
+        if (Estado == EstadoVenta.Anulada)
+        {
+            throw new InvalidOperationException("La venta ya se encuentra anulada.");
+        }
+
         Estado = EstadoVenta.Anulada;
+        FechaAnulacion = fechaAnulacion ?? DateTimeOffset.UtcNow;
+        ObservacionAnulacion = NormalizarObservacionAnulacion(observacion);
+    }
+
+    private static string? NormalizarObservacionAnulacion(string? observacion)
+    {
+        var valorNormalizado = observacion?.Trim();
+        if (valorNormalizado is { Length: > 500 })
+        {
+            throw new ArgumentException("La observacion de anulacion no debe exceder 500 caracteres.", nameof(observacion));
+        }
+
+        return string.IsNullOrWhiteSpace(valorNormalizado) ? null : valorNormalizado;
     }
 }

@@ -82,6 +82,7 @@ builder.Services.AddScoped<ObtenerClientePorIdUseCase>();
 builder.Services.AddScoped<CrearVentaUseCase>();
 builder.Services.AddScoped<ListarVentasUseCase>();
 builder.Services.AddScoped<ObtenerVentaDetalleUseCase>();
+builder.Services.AddScoped<AnularVentaUseCase>();
 builder.Services.AddScoped<EmitirCpeDesdeVentaUseCase>();
 builder.Services.AddScoped<RegistrarComprobanteCpeUseCase>();
 builder.Services.AddScoped<GuardarConfiguracionFiscalEmpresaUseCase>();

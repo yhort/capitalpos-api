@@ -63,6 +63,11 @@ public sealed class EfVentaRepository : IVentaRepository
             .Include(venta => venta.Pagos)
             .SingleOrDefaultAsync(
                 venta => venta.EmpresaId == empresaId && venta.Id == id,
-                cancellationToken);
+            cancellationToken);
+    }
+
+    public Task GuardarCambiosAsync(CancellationToken cancellationToken = default)
+    {
+        return _dbContext.SaveChangesAsync(cancellationToken);
     }
 }

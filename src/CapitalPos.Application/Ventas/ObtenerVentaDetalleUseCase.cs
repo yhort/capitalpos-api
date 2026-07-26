@@ -107,7 +107,9 @@ public sealed record VentaDetalleCompletoResponse(
     int CantidadItems,
     decimal UnidadesComerciales,
     IReadOnlyCollection<VentaDetalleLineaResponse> Detalles,
-    IReadOnlyCollection<VentaPagoDetalleResponse> Pagos)
+    IReadOnlyCollection<VentaPagoDetalleResponse> Pagos,
+    DateTimeOffset? FechaAnulacion,
+    string? ObservacionAnulacion)
 {
     public static VentaDetalleCompletoResponse From(
         Venta venta,
@@ -128,7 +130,9 @@ public sealed record VentaDetalleCompletoResponse(
             detalles.Count,
             detalles.Sum(detalle => detalle.Cantidad),
             detalles,
-            venta.Pagos.Select(VentaPagoDetalleResponse.From).ToArray());
+            venta.Pagos.Select(VentaPagoDetalleResponse.From).ToArray(),
+            venta.FechaAnulacion,
+            venta.ObservacionAnulacion);
     }
 }
 
