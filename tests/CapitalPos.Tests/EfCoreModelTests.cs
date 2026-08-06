@@ -26,6 +26,9 @@ public class EfCoreModelTests
         Assert.NotNull(context.Model.FindEntityType(typeof(Cliente)));
         Assert.NotNull(context.Model.FindEntityType(typeof(Venta)));
         Assert.NotNull(context.Model.FindEntityType(typeof(VentaDetalle)));
+        Assert.NotNull(context.Model.FindEntityType(typeof(PedidoDigital)));
+        Assert.NotNull(context.Model.FindEntityType(typeof(PedidoDigitalDetalle)));
+        Assert.NotNull(context.Model.FindEntityType(typeof(PedidoDigitalHistorialEstado)));
         Assert.NotNull(context.Model.FindEntityType(typeof(Comprobante)));
         Assert.NotNull(context.Model.FindEntityType(typeof(ConfiguracionFiscalEmpresa)));
         Assert.NotNull(context.Model.FindEntityType(typeof(StockProducto)));
@@ -619,6 +622,167 @@ public class EfCoreModelTests
                 nameof(ProductoPresentacion.Id),
                 nameof(ProductoPresentacion.EmpresaId)
             ]));
+    }
+
+    [Fact]
+    public void Pedido_digital_tiene_empresa_sede_cliente_punto_venta_estado_canal_detalles_e_historial()
+    {
+        var entityType = ObtenerEntidad<PedidoDigital>();
+
+        Assert.Equal("pedidos_digitales", entityType.GetTableName());
+        Assert.Equal(nameof(PedidoDigital.Id), entityType.FindPrimaryKey()?.Properties.Single().Name);
+        AssertPropiedad(entityType, nameof(PedidoDigital.EmpresaId), nullable: false);
+        AssertPropiedad(entityType, nameof(PedidoDigital.ClienteId));
+        AssertPropiedad(entityType, nameof(PedidoDigital.SedeId), nullable: false);
+        AssertPropiedad(entityType, nameof(PedidoDigital.PuntoVentaId));
+        AssertPropiedad(entityType, nameof(PedidoDigital.CanalPedido), maxLength: 40, nullable: false);
+        AssertPropiedad(entityType, nameof(PedidoDigital.Estado), maxLength: 30, nullable: false);
+        AssertPropiedad(entityType, nameof(PedidoDigital.FechaPedido), nullable: false);
+        AssertPropiedad(entityType, nameof(PedidoDigital.Subtotal), nullable: false);
+        AssertPropiedad(entityType, nameof(PedidoDigital.Igv), nullable: false);
+        AssertPropiedad(entityType, nameof(PedidoDigital.Total), nullable: false);
+        AssertPropiedad(entityType, nameof(PedidoDigital.ReferenciaExterna), maxLength: 120, nullable: false);
+        AssertPropiedad(entityType, nameof(PedidoDigital.Observacion), maxLength: 500, nullable: false);
+        AssertPropiedad(entityType, nameof(PedidoDigital.FechaCreacion), nullable: false);
+        AssertPropiedad(entityType, nameof(PedidoDigital.FechaActualizacion), nullable: false);
+
+        Assert.Equal(typeof(string), entityType.FindProperty(nameof(PedidoDigital.CanalPedido))?.GetProviderClrType());
+        Assert.Equal(typeof(string), entityType.FindProperty(nameof(PedidoDigital.Estado))?.GetProviderClrType());
+        Assert.Contains(entityType.GetIndexes(), index =>
+            index.Properties.Select(property => property.Name).SequenceEqual([nameof(PedidoDigital.EmpresaId)]));
+        Assert.Contains(entityType.GetIndexes(), index =>
+            index.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(PedidoDigital.EmpresaId),
+                nameof(PedidoDigital.Estado),
+                nameof(PedidoDigital.FechaPedido)
+            ]));
+        Assert.Contains(entityType.GetIndexes(), index =>
+            index.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(PedidoDigital.EmpresaId),
+                nameof(PedidoDigital.CanalPedido),
+                nameof(PedidoDigital.FechaPedido)
+            ]));
+
+        Assert.Contains(entityType.GetForeignKeys(), foreignKey =>
+            foreignKey.PrincipalEntityType.ClrType == typeof(Empresa) &&
+            foreignKey.DeleteBehavior == DeleteBehavior.Restrict &&
+            foreignKey.Properties.Select(property => property.Name).SequenceEqual([nameof(PedidoDigital.EmpresaId)]));
+        Assert.Contains(entityType.GetForeignKeys(), foreignKey =>
+            foreignKey.PrincipalEntityType.ClrType == typeof(Cliente) &&
+            foreignKey.DeleteBehavior == DeleteBehavior.Restrict &&
+            foreignKey.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(PedidoDigital.ClienteId),
+                nameof(PedidoDigital.EmpresaId)
+            ]));
+        Assert.Contains(entityType.GetForeignKeys(), foreignKey =>
+            foreignKey.PrincipalEntityType.ClrType == typeof(Sede) &&
+            foreignKey.DeleteBehavior == DeleteBehavior.Restrict &&
+            foreignKey.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(PedidoDigital.SedeId),
+                nameof(PedidoDigital.EmpresaId)
+            ]));
+        Assert.Contains(entityType.GetForeignKeys(), foreignKey =>
+            foreignKey.PrincipalEntityType.ClrType == typeof(PuntoVenta) &&
+            foreignKey.DeleteBehavior == DeleteBehavior.Restrict &&
+            foreignKey.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(PedidoDigital.PuntoVentaId),
+                nameof(PedidoDigital.EmpresaId)
+            ]));
+    }
+
+    [Fact]
+    public void Pedido_digital_detalle_tiene_empresa_producto_variante_presentacion_y_relaciones()
+    {
+        var entityType = ObtenerEntidad<PedidoDigitalDetalle>();
+
+        Assert.Equal("pedidos_digitales_detalles", entityType.GetTableName());
+        Assert.Equal(nameof(PedidoDigitalDetalle.Id), entityType.FindPrimaryKey()?.Properties.Single().Name);
+        AssertPropiedad(entityType, nameof(PedidoDigitalDetalle.EmpresaId), nullable: false);
+        AssertPropiedad(entityType, nameof(PedidoDigitalDetalle.PedidoDigitalId), nullable: false);
+        AssertPropiedad(entityType, nameof(PedidoDigitalDetalle.ProductoId), nullable: false);
+        AssertPropiedad(entityType, nameof(PedidoDigitalDetalle.ProductoVarianteId));
+        AssertPropiedad(entityType, nameof(PedidoDigitalDetalle.ProductoPresentacionId));
+        AssertPropiedad(entityType, nameof(PedidoDigitalDetalle.Descripcion), maxLength: 250, nullable: false);
+        AssertPropiedad(entityType, nameof(PedidoDigitalDetalle.Cantidad), nullable: false);
+        AssertPropiedad(entityType, nameof(PedidoDigitalDetalle.PrecioUnitario), nullable: false);
+        AssertPropiedad(entityType, nameof(PedidoDigitalDetalle.FactorConversionAplicado), nullable: false);
+        AssertPropiedad(entityType, nameof(PedidoDigitalDetalle.CantidadBase), nullable: false);
+        AssertPropiedad(entityType, nameof(PedidoDigitalDetalle.Total), nullable: false);
+        AssertPropiedad(entityType, nameof(PedidoDigitalDetalle.FechaCreacion), nullable: false);
+
+        Assert.Contains(entityType.GetIndexes(), index =>
+            index.Properties.Select(property => property.Name).SequenceEqual([nameof(PedidoDigitalDetalle.EmpresaId)]));
+        Assert.Contains(entityType.GetIndexes(), index =>
+            index.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(PedidoDigitalDetalle.EmpresaId),
+                nameof(PedidoDigitalDetalle.PedidoDigitalId)
+            ]));
+        Assert.Contains(entityType.GetForeignKeys(), foreignKey =>
+            foreignKey.PrincipalEntityType.ClrType == typeof(PedidoDigital) &&
+            foreignKey.DeleteBehavior == DeleteBehavior.Restrict &&
+            foreignKey.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(PedidoDigitalDetalle.PedidoDigitalId),
+                nameof(PedidoDigitalDetalle.EmpresaId)
+            ]));
+        Assert.Contains(entityType.GetForeignKeys(), foreignKey =>
+            foreignKey.PrincipalEntityType.ClrType == typeof(Producto) &&
+            foreignKey.DeleteBehavior == DeleteBehavior.Restrict &&
+            foreignKey.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(PedidoDigitalDetalle.ProductoId),
+                nameof(PedidoDigitalDetalle.EmpresaId)
+            ]));
+        Assert.Contains(entityType.GetForeignKeys(), foreignKey =>
+            foreignKey.PrincipalEntityType.ClrType == typeof(ProductoVariante) &&
+            foreignKey.DeleteBehavior == DeleteBehavior.Restrict &&
+            foreignKey.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(PedidoDigitalDetalle.ProductoVarianteId),
+                nameof(PedidoDigitalDetalle.EmpresaId)
+            ]));
+        Assert.Contains(entityType.GetForeignKeys(), foreignKey =>
+            foreignKey.PrincipalEntityType.ClrType == typeof(ProductoPresentacion) &&
+            foreignKey.DeleteBehavior == DeleteBehavior.Restrict &&
+            foreignKey.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(PedidoDigitalDetalle.ProductoPresentacionId),
+                nameof(PedidoDigitalDetalle.EmpresaId)
+            ]));
+    }
+
+    [Fact]
+    public void Pedido_digital_historial_estado_tiene_estado_usuario_fecha_e_indices()
+    {
+        var entityType = ObtenerEntidad<PedidoDigitalHistorialEstado>();
+
+        Assert.Equal("pedidos_digitales_historial_estados", entityType.GetTableName());
+        Assert.Equal(nameof(PedidoDigitalHistorialEstado.Id), entityType.FindPrimaryKey()?.Properties.Single().Name);
+        AssertPropiedad(entityType, nameof(PedidoDigitalHistorialEstado.EmpresaId), nullable: false);
+        AssertPropiedad(entityType, nameof(PedidoDigitalHistorialEstado.PedidoDigitalId), nullable: false);
+        AssertPropiedad(entityType, nameof(PedidoDigitalHistorialEstado.EstadoAnterior), maxLength: 30);
+        AssertPropiedad(entityType, nameof(PedidoDigitalHistorialEstado.EstadoNuevo), maxLength: 30, nullable: false);
+        AssertPropiedad(entityType, nameof(PedidoDigitalHistorialEstado.UsuarioId));
+        AssertPropiedad(entityType, nameof(PedidoDigitalHistorialEstado.Fecha), nullable: false);
+        AssertPropiedad(entityType, nameof(PedidoDigitalHistorialEstado.Observacion), maxLength: 500, nullable: false);
+
+        Assert.Equal(typeof(string), entityType.FindProperty(nameof(PedidoDigitalHistorialEstado.EstadoAnterior))?.GetProviderClrType());
+        Assert.Equal(typeof(string), entityType.FindProperty(nameof(PedidoDigitalHistorialEstado.EstadoNuevo))?.GetProviderClrType());
+        Assert.Contains(entityType.GetIndexes(), index =>
+            index.Properties.Select(property => property.Name).SequenceEqual([nameof(PedidoDigitalHistorialEstado.EmpresaId)]));
+        Assert.Contains(entityType.GetIndexes(), index =>
+            index.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(PedidoDigitalHistorialEstado.EmpresaId),
+                nameof(PedidoDigitalHistorialEstado.PedidoDigitalId),
+                nameof(PedidoDigitalHistorialEstado.Fecha)
+            ]));
+        Assert.Contains(entityType.GetForeignKeys(), foreignKey =>
+            foreignKey.PrincipalEntityType.ClrType == typeof(PedidoDigital) &&
+            foreignKey.DeleteBehavior == DeleteBehavior.Restrict &&
+            foreignKey.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(PedidoDigitalHistorialEstado.PedidoDigitalId),
+                nameof(PedidoDigitalHistorialEstado.EmpresaId)
+            ]));
+        Assert.Contains(entityType.GetForeignKeys(), foreignKey =>
+            foreignKey.PrincipalEntityType.ClrType == typeof(Usuario) &&
+            foreignKey.DeleteBehavior == DeleteBehavior.Restrict &&
+            foreignKey.Properties.Select(property => property.Name).SequenceEqual([nameof(PedidoDigitalHistorialEstado.UsuarioId)]));
     }
 
     [Fact]

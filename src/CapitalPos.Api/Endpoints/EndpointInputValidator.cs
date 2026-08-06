@@ -3,6 +3,7 @@ using CapitalPos.Application.Empresas;
 using CapitalPos.Application.Clientes;
 using CapitalPos.Application.ConfiguracionFiscal;
 using CapitalPos.Application.Inventario;
+using CapitalPos.Application.Pedidos;
 using CapitalPos.Application.Productos;
 using CapitalPos.Application.Usuarios;
 using CapitalPos.Application.Ventas;
@@ -571,6 +572,120 @@ public static class EndpointInputValidator
         if (request.Total <= 0)
         {
             error = "El total del detalle debe ser mayor que cero.";
+            return false;
+        }
+
+        error = string.Empty;
+        return true;
+    }
+
+    public static bool TryValidate(CrearPedidoDigitalRequest request, out string error)
+    {
+        if (request.ClienteId == Guid.Empty)
+        {
+            error = "El identificador del cliente no puede estar vacio.";
+            return false;
+        }
+
+        if (request.SedeId == Guid.Empty)
+        {
+            error = "El identificador de la sede es obligatorio.";
+            return false;
+        }
+
+        if (request.PuntoVentaId == Guid.Empty)
+        {
+            error = "El identificador del punto de venta no puede estar vacio.";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(request.CanalPedido))
+        {
+            error = "El canal del pedido digital es obligatorio.";
+            return false;
+        }
+
+        if (!Enum.TryParse<CanalPedidoDigital>(
+                request.CanalPedido.Trim(),
+                ignoreCase: true,
+                out var canalPedido) ||
+            !Enum.IsDefined(canalPedido))
+        {
+            error = "El canal del pedido digital no es valido.";
+            return false;
+        }
+
+        if (request.FechaPedido == default(DateTimeOffset))
+        {
+            error = "La fecha del pedido digital no es valida.";
+            return false;
+        }
+
+        if (request.Detalles is null || request.Detalles.Count == 0)
+        {
+            error = "El pedido digital debe tener al menos un detalle.";
+            return false;
+        }
+
+        if (request.ReferenciaExterna is { Length: > 120 })
+        {
+            error = "La referencia externa no debe exceder 120 caracteres.";
+            return false;
+        }
+
+        if (request.Observacion is { Length: > 500 })
+        {
+            error = "La observacion no debe exceder 500 caracteres.";
+            return false;
+        }
+
+        foreach (var detalle in request.Detalles)
+        {
+            if (!TryValidate(detalle, out error))
+            {
+                return false;
+            }
+        }
+
+        error = string.Empty;
+        return true;
+    }
+
+    public static bool TryValidate(CrearPedidoDigitalDetalleRequest request, out string error)
+    {
+        if (request.ProductoId == Guid.Empty)
+        {
+            error = "El identificador del producto es obligatorio.";
+            return false;
+        }
+
+        if (request.ProductoVarianteId == Guid.Empty)
+        {
+            error = "El identificador de la variante no puede estar vacio.";
+            return false;
+        }
+
+        if (request.ProductoPresentacionId == Guid.Empty)
+        {
+            error = "El identificador de la presentacion no puede estar vacio.";
+            return false;
+        }
+
+        if (request.Cantidad <= 0)
+        {
+            error = "La cantidad del detalle debe ser mayor que cero.";
+            return false;
+        }
+
+        if (request.PrecioUnitario <= 0)
+        {
+            error = "El precio unitario del detalle debe ser mayor que cero.";
+            return false;
+        }
+
+        if (request.Descripcion is { Length: > 250 })
+        {
+            error = "La descripcion del detalle no debe exceder 250 caracteres.";
             return false;
         }
 

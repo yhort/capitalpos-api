@@ -6,6 +6,7 @@ using CapitalPos.Application.ConfiguracionFiscal;
 using CapitalPos.Application.Cpe;
 using CapitalPos.Application.Empresas;
 using CapitalPos.Application.Inventario;
+using CapitalPos.Application.Pedidos;
 using CapitalPos.Application.Persistence;
 using CapitalPos.Application.Productos;
 using CapitalPos.Application.Sedes;
@@ -53,6 +54,7 @@ public static class DependencyInjection
         services.AddScoped<IReglaPrecioMayoristaRepository, EfReglaPrecioMayoristaRepository>();
         services.AddScoped<IClienteRepository, EfClienteRepository>();
         services.AddScoped<IVentaRepository, EfVentaRepository>();
+        services.AddScoped<IPedidoDigitalRepository, EfPedidoDigitalRepository>();
         services.AddScoped<IComprobanteRepository, EfComprobanteRepository>();
         services.AddScoped<IConfiguracionFiscalEmpresaRepository, EfConfiguracionFiscalEmpresaRepository>();
         services.AddScoped<IStockProductoRepository, EfStockProductoRepository>();

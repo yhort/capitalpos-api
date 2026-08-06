@@ -150,6 +150,29 @@ public class StockProductoTests
         Assert.Equal(7.5m, stock.CantidadLibre);
     }
 
+    [Fact]
+    public void Confirmar_reserva_reduce_disponible_y_reservada_sin_cambiar_libre()
+    {
+        var stock = CrearStock(cantidadDisponible: 10m);
+        stock.Reservar(4m);
+        Assert.Equal(6m, stock.CantidadLibre);
+
+        stock.ConfirmarReserva(3m);
+
+        Assert.Equal(7m, stock.CantidadDisponible);
+        Assert.Equal(1m, stock.CantidadReservada);
+        Assert.Equal(6m, stock.CantidadLibre);
+    }
+
+    [Fact]
+    public void Confirmar_reserva_falla_si_excede_cantidad_reservada()
+    {
+        var stock = CrearStock(cantidadDisponible: 10m);
+        stock.Reservar(2m);
+
+        Assert.Throws<InvalidOperationException>(() => stock.ConfirmarReserva(3m));
+    }
+
     private static StockProducto CrearStock(
         decimal cantidadDisponible,
         decimal cantidadReservada = 0)

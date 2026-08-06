@@ -3,6 +3,7 @@ using CapitalPos.Application.Caja;
 using CapitalPos.Application.ConfiguracionFiscal;
 using CapitalPos.Application.Empresas;
 using CapitalPos.Application.Inventario;
+using CapitalPos.Application.Pedidos;
 using CapitalPos.Application.Productos;
 using CapitalPos.Application.Sedes;
 using CapitalPos.Application.Seguridad;
@@ -106,6 +107,12 @@ public class EfRepositoryStructureTests
     }
 
     [Fact]
+    public void Ef_pedido_digital_repository_implementa_puerto_de_aplicacion()
+    {
+        Assert.True(typeof(IPedidoDigitalRepository).IsAssignableFrom(typeof(EfPedidoDigitalRepository)));
+    }
+
+    [Fact]
     public void Ef_venta_repository_incluye_pagos_y_filtra_por_empresa()
     {
         Assert.True(typeof(IVentaRepository).IsAssignableFrom(typeof(EfVentaRepository)));
@@ -114,6 +121,18 @@ public class EfRepositoryStructureTests
 
         Assert.Contains("Include(venta => venta.Pagos)", source);
         Assert.Contains("venta.EmpresaId == empresaId", source);
+    }
+
+    [Fact]
+    public void Ef_pedido_digital_repository_incluye_detalles_historial_y_filtra_por_empresa()
+    {
+        var source = File.ReadAllText(ResolverRutaRepo(
+            "src/CapitalPos.Infrastructure/Persistence/Repositories/EfPedidoDigitalRepository.cs"));
+
+        Assert.Contains("AsNoTracking()", source);
+        Assert.Contains(".Include(pedido => pedido.Detalles)", source);
+        Assert.Contains(".Include(pedido => pedido.HistorialEstados)", source);
+        Assert.Contains("pedido.EmpresaId == empresaId", source);
     }
 
     [Theory]

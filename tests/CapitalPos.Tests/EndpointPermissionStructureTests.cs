@@ -13,6 +13,7 @@ public class EndpointPermissionStructureTests
     [InlineData("src/CapitalPos.Api/Endpoints/CajaEndpoints.cs")]
     [InlineData("src/CapitalPos.Api/Endpoints/ClienteEndpoints.cs")]
     [InlineData("src/CapitalPos.Api/Endpoints/VentaEndpoints.cs")]
+    [InlineData("src/CapitalPos.Api/Endpoints/PedidoDigitalEndpoints.cs")]
     [InlineData("src/CapitalPos.Api/Endpoints/ReporteEndpoints.cs")]
     [InlineData("src/CapitalPos.Api/Endpoints/DashboardEndpoints.cs")]
     [InlineData("src/CapitalPos.Api/Endpoints/ConfiguracionFiscalEndpoints.cs")]
@@ -34,6 +35,7 @@ public class EndpointPermissionStructureTests
     [InlineData("src/CapitalPos.Api/Endpoints/CajaEndpoints.cs")]
     [InlineData("src/CapitalPos.Api/Endpoints/ClienteEndpoints.cs")]
     [InlineData("src/CapitalPos.Api/Endpoints/VentaEndpoints.cs")]
+    [InlineData("src/CapitalPos.Api/Endpoints/PedidoDigitalEndpoints.cs")]
     [InlineData("src/CapitalPos.Api/Endpoints/ReporteEndpoints.cs")]
     [InlineData("src/CapitalPos.Api/Endpoints/DashboardEndpoints.cs")]
     [InlineData("src/CapitalPos.Api/Endpoints/ConfiguracionFiscalEndpoints.cs")]
@@ -73,6 +75,25 @@ public class EndpointPermissionStructureTests
         Assert.Contains(
             "RequirePermisoEmpresa(PermisoEmpresa.OperarVentas)",
             source);
+    }
+
+    [Fact]
+    public void Pedidos_digitales_declaran_proteccion_empresa_y_permiso_operar_ventas()
+    {
+        var source = File.ReadAllText(
+            ResolverRutaRepo("src/CapitalPos.Api/Endpoints/PedidoDigitalEndpoints.cs"));
+
+        Assert.Contains("MapGet(\"/\", ListarPedidosDigitalesAsync)", source);
+        Assert.Contains("MapPost(\"/\", CrearPedidoDigitalAsync)", source);
+        Assert.Contains("MapGet(\"/{id:guid}\", ObtenerPedidoDigitalAsync)", source);
+        Assert.Contains("MapPost(\"/{id:guid}/cancelar\", CancelarPedidoDigitalAsync)", source);
+        Assert.Contains(
+            "MapPost(\"/{id:guid}/convertir-venta\", ConvertirPedidoDigitalAVentaAsync)",
+            source);
+        Assert.Contains(".RequireAuthorization()", source);
+        Assert.Contains(".AddEndpointFilter<EmpresaActivaEndpointFilter>()", source);
+        Assert.True(
+            source.Split("RequirePermisoEmpresa(PermisoEmpresa.OperarVentas)").Length - 1 >= 5);
     }
 
     [Fact]

@@ -40,6 +40,12 @@ public sealed class CapitalPosDbContext : DbContext
 
     public DbSet<VentaPago> VentasPagos => Set<VentaPago>();
 
+    public DbSet<PedidoDigital> PedidosDigitales => Set<PedidoDigital>();
+
+    public DbSet<PedidoDigitalDetalle> PedidosDigitalesDetalles => Set<PedidoDigitalDetalle>();
+
+    public DbSet<PedidoDigitalHistorialEstado> PedidosDigitalesHistorialEstados => Set<PedidoDigitalHistorialEstado>();
+
     public DbSet<Comprobante> Comprobantes => Set<Comprobante>();
 
     public DbSet<ConfiguracionFiscalEmpresa> ConfiguracionesFiscalesEmpresas => Set<ConfiguracionFiscalEmpresa>();

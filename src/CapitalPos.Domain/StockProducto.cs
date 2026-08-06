@@ -150,6 +150,20 @@ public sealed class StockProducto
         MarcarActualizado();
     }
 
+    public void ConfirmarReserva(decimal cantidad)
+    {
+        ValidarCantidadPositiva(cantidad, nameof(cantidad));
+
+        if (cantidad > CantidadReservada)
+        {
+            throw new InvalidOperationException("No se puede confirmar una reserva mayor a la cantidad reservada.");
+        }
+
+        CantidadReservada -= cantidad;
+        CantidadDisponible -= cantidad;
+        MarcarActualizado();
+    }
+
     private static void ValidarCantidades(decimal cantidadDisponible, decimal cantidadReservada)
     {
         if (cantidadDisponible < 0)
