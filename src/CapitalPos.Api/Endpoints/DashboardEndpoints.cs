@@ -18,11 +18,24 @@ public static class DashboardEndpoints
             .WithName("DashboardComercial")
             .RequirePermisoEmpresa(PermisoEmpresa.OperarVentas);
 
+        group.MapGet("/reporte-canales", DashboardReporteCanalesAsync)
+            .WithName("DashboardReporteCanales")
+            .RequirePermisoEmpresa(PermisoEmpresa.OperarVentas);
+
         return app;
     }
 
     private static async Task<IResult> DashboardComercialAsync(
         DashboardComercialUseCase useCase,
+        CancellationToken cancellationToken)
+    {
+        var response = await useCase.EjecutarAsync(cancellationToken);
+
+        return Results.Ok(response);
+    }
+
+    private static async Task<IResult> DashboardReporteCanalesAsync(
+        DashboardReporteCanalesUseCase useCase,
         CancellationToken cancellationToken)
     {
         var response = await useCase.EjecutarAsync(cancellationToken);

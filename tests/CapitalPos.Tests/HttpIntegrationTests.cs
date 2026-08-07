@@ -914,6 +914,97 @@ public class HttpIntegrationTests
     }
 
     [Fact]
+    public async Task Dashboard_reporte_canales_sin_jwt_devuelve_unauthorized()
+    {
+        await using var factory = new CapitalPosHttpFactory();
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync("/api/dashboard/reporte-canales");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Dashboard_reporte_canales_con_jwt_sin_empresa_activa_devuelve_bad_request()
+    {
+        await using var factory = new CapitalPosHttpFactory();
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = CrearAuthorizationHeader(UsuarioId);
+
+        var response = await client.GetAsync("/api/dashboard/reporte-canales");
+        var content = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains(EmpresaActivaHeaders.HeaderName, content);
+        AssertSeguro(content);
+    }
+
+    [Fact]
+    public async Task Dashboard_reporte_canales_usuario_sin_permiso_devuelve_forbidden()
+    {
+        await using var factory = new CapitalPosHttpFactory
+        {
+            UsuarioEmpresa = CrearUsuarioEmpresa(RolEmpresa.Almacenero)
+        };
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+
+        var response = await client.GetAsync("/api/dashboard/reporte-canales");
+        var content = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Contains("permiso requerido", content);
+        AssertSeguro(content);
+    }
+
+    [Fact]
+    public async Task Dashboard_reporte_canales_agrupa_por_canal_incluyendo_ceros()
+    {
+        var otraEmpresaId = Guid.Parse("44444444-4444-4444-4444-444444444444");
+        var productoId = Guid.NewGuid();
+        await using var factory = new CapitalPosHttpFactory();
+        factory.ProductoRepository.Productos.Add(new Producto(productoId, EmpresaId, "Polo", 50m, codigoSku: "POLO"));
+        await factory.VentaRepository.AgregarAsync(CrearVentaDashboard(
+            EmpresaId,
+            CanalVenta.TIENDA,
+            new DateTimeOffset(2026, 7, 17, 10, 0, 0, TimeSpan.FromHours(-5)),
+            [(productoId, null, 2m, 100m)]));
+        await factory.VentaRepository.AgregarAsync(CrearVentaDashboard(
+            EmpresaId,
+            CanalVenta.MARKETING,
+            new DateTimeOffset(2026, 7, 17, 11, 0, 0, TimeSpan.FromHours(-5)),
+            [(productoId, null, 3m, 80m)]));
+        await factory.VentaRepository.AgregarAsync(CrearVentaDashboard(
+            otraEmpresaId,
+            CanalVenta.TIENDA,
+            new DateTimeOffset(2026, 7, 17, 10, 0, 0, TimeSpan.FromHours(-5)),
+            [(productoId, null, 99m, 999m)]));
+        var ventaAnulada = CrearVentaDashboard(
+            EmpresaId,
+            CanalVenta.TIENDA,
+            new DateTimeOffset(2026, 7, 17, 12, 0, 0, TimeSpan.FromHours(-5)),
+            [(productoId, null, 9m, 900m)]);
+        ventaAnulada.Anular();
+        await factory.VentaRepository.AgregarAsync(ventaAnulada);
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+
+        var response = await client.GetAsync("/api/dashboard/reporte-canales");
+        var content = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadFromJsonAsync<DashboardReporteCanalesResponse>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(body);
+        Assert.Equal(new DateOnly(2026, 7, 17), body.Fecha);
+        Assert.Equal(180m, body.Total.MontoFacturado);
+        Assert.Equal(2, body.Total.CantidadTransacciones);
+        Assert.Equal(Enum.GetValues<CanalVenta>().Length, body.Canales.Count);
+        Assert.Equal(100m, body.Canales.Single(c => c.CanalVenta == "TIENDA").MontoFacturado);
+        Assert.Equal(80m, body.Canales.Single(c => c.CanalVenta == "MARKETING").MontoFacturado);
+        Assert.Equal(0, body.Canales.Single(c => c.CanalVenta == "PROVINCIA").CantidadTransacciones);
+        Assert.DoesNotContain("999", content);
+        AssertSeguro(content);
+    }
+
+    [Fact]
     public async Task Stock_sin_jwt_devuelve_unauthorized()
     {
         await using var factory = new CapitalPosHttpFactory();
