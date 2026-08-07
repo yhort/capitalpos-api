@@ -3,7 +3,7 @@ using CapitalPos.Domain;
 
 namespace CapitalPos.Application.Ventas;
 
-public sealed class RegistrarComprobanteCpeUseCase
+public class RegistrarComprobanteCpeUseCase
 {
     private readonly IComprobanteRepository _comprobanteRepository;
     private readonly IEmpresaActivaContext _empresaActiva;
@@ -19,7 +19,7 @@ public sealed class RegistrarComprobanteCpeUseCase
         _empresaActiva = empresaActiva;
     }
 
-    public async Task<Comprobante?> EjecutarAsync(
+    public virtual async Task<Comprobante?> EjecutarAsync(
         RegistrarComprobanteCpeRequest request,
         CancellationToken cancellationToken = default)
     {
@@ -47,7 +47,13 @@ public sealed class RegistrarComprobanteCpeUseCase
             request.Hash,
             request.NombreXml,
             request.NombreZip,
-            request.NombreCdr);
+            request.NombreCdr,
+            comprobanteAfectadoId: request.ComprobanteAfectadoId,
+            tipoComprobanteAfectado: request.TipoComprobanteAfectado,
+            serieAfectada: request.SerieAfectada,
+            correlativoAfectado: request.CorrelativoAfectado,
+            codigoMotivo: request.CodigoMotivo,
+            descripcionMotivo: request.DescripcionMotivo);
         await _comprobanteRepository.AgregarAsync(comprobante, cancellationToken);
 
         return comprobante;

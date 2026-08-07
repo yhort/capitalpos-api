@@ -90,6 +90,7 @@ builder.Services.AddScoped<ObtenerPedidoDigitalUseCase>();
 builder.Services.AddScoped<CancelarPedidoDigitalUseCase>();
 builder.Services.AddScoped<ConvertirPedidoDigitalAVentaUseCase>();
 builder.Services.AddScoped<EmitirCpeDesdeVentaUseCase>();
+builder.Services.AddScoped<EmitirNotaCreditoDesdeVentaUseCase>();
 builder.Services.AddScoped<RegistrarComprobanteCpeUseCase>();
 builder.Services.AddScoped<GuardarConfiguracionFiscalEmpresaUseCase>();
 builder.Services.AddScoped<ObtenerConfiguracionFiscalEmpresaUseCase>();

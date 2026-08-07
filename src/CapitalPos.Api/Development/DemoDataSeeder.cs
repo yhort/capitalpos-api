@@ -52,6 +52,8 @@ public sealed class DemoDataSeeder
             cancellationToken);
         await ObtenerOCrearStockProductoAsync(empresa.Id, sede.Id, producto.Id, cancellationToken);
         await ObtenerOCrearSerieComprobanteAsync(empresa.Id, sede.Id, cancellationToken);
+        await ObtenerOCrearSerieNotaCreditoBoletaAsync(empresa.Id, sede.Id, cancellationToken);
+        await ObtenerOCrearSerieNotaCreditoFacturaAsync(empresa.Id, sede.Id, cancellationToken);
         await CrearCredencialSiCorrespondeAsync(usuario.Id, cancellationToken);
         await _store.GuardarCambiosAsync(cancellationToken);
 
@@ -352,6 +354,64 @@ public sealed class DemoDataSeeder
             sedeId,
             DemoSeedData.SerieComprobanteTipo,
             DemoSeedData.SerieComprobanteSerie,
+            DemoSeedData.SerieComprobanteCorrelativoActual);
+        await _store.AgregarSerieComprobanteAsync(serie, cancellationToken);
+
+        return serie;
+    }
+
+    private async Task<SerieComprobante> ObtenerOCrearSerieNotaCreditoBoletaAsync(
+        Guid empresaId,
+        Guid sedeId,
+        CancellationToken cancellationToken)
+    {
+        var serie = await _store.ObtenerSerieComprobanteAsync(
+            empresaId,
+            sedeId,
+            DemoSeedData.SerieNotaCreditoTipo,
+            DemoSeedData.SerieNotaCreditoBoletaSerie,
+            cancellationToken);
+
+        if (serie is not null)
+        {
+            return serie;
+        }
+
+        serie = new SerieComprobante(
+            DemoSeedData.SerieNotaCreditoBoletaId,
+            empresaId,
+            sedeId,
+            DemoSeedData.SerieNotaCreditoTipo,
+            DemoSeedData.SerieNotaCreditoBoletaSerie,
+            DemoSeedData.SerieComprobanteCorrelativoActual);
+        await _store.AgregarSerieComprobanteAsync(serie, cancellationToken);
+
+        return serie;
+    }
+
+    private async Task<SerieComprobante> ObtenerOCrearSerieNotaCreditoFacturaAsync(
+        Guid empresaId,
+        Guid sedeId,
+        CancellationToken cancellationToken)
+    {
+        var serie = await _store.ObtenerSerieComprobanteAsync(
+            empresaId,
+            sedeId,
+            DemoSeedData.SerieNotaCreditoTipo,
+            DemoSeedData.SerieNotaCreditoFacturaSerie,
+            cancellationToken);
+
+        if (serie is not null)
+        {
+            return serie;
+        }
+
+        serie = new SerieComprobante(
+            DemoSeedData.SerieNotaCreditoFacturaId,
+            empresaId,
+            sedeId,
+            DemoSeedData.SerieNotaCreditoTipo,
+            DemoSeedData.SerieNotaCreditoFacturaSerie,
             DemoSeedData.SerieComprobanteCorrelativoActual);
         await _store.AgregarSerieComprobanteAsync(serie, cancellationToken);
 

@@ -804,9 +804,17 @@ public class EfCoreModelTests
         AssertPropiedad(entityType, nameof(Comprobante.NombreZip), maxLength: 200, nullable: false);
         AssertPropiedad(entityType, nameof(Comprobante.NombreCdr), maxLength: 200, nullable: false);
         AssertPropiedad(entityType, nameof(Comprobante.FechaCreacion), nullable: false);
+        AssertPropiedad(entityType, nameof(Comprobante.ComprobanteAfectadoId));
+        AssertPropiedad(entityType, nameof(Comprobante.TipoComprobanteAfectado), maxLength: 2, nullable: false);
+        AssertPropiedad(entityType, nameof(Comprobante.SerieAfectada), maxLength: 4, nullable: false);
+        AssertPropiedad(entityType, nameof(Comprobante.CorrelativoAfectado));
+        AssertPropiedad(entityType, nameof(Comprobante.CodigoMotivo), maxLength: 2, nullable: false);
+        AssertPropiedad(entityType, nameof(Comprobante.DescripcionMotivo), maxLength: 500, nullable: false);
 
         Assert.Contains(entityType.GetIndexes(), index =>
             index.Properties.Select(property => property.Name).SequenceEqual([nameof(Comprobante.EmpresaId)]));
+        Assert.Contains(entityType.GetIndexes(), index =>
+            index.Properties.Select(property => property.Name).SequenceEqual([nameof(Comprobante.ComprobanteAfectadoId)]));
         Assert.Contains(entityType.GetIndexes(), index =>
             index.IsUnique &&
             index.Properties.Select(property => property.Name).SequenceEqual([
@@ -822,6 +830,12 @@ public class EfCoreModelTests
             foreignKey.Properties.Select(property => property.Name).SequenceEqual([
                 nameof(Comprobante.VentaId),
                 nameof(Comprobante.EmpresaId)
+            ]));
+        Assert.Contains(entityType.GetForeignKeys(), foreignKey =>
+            foreignKey.PrincipalEntityType.ClrType == typeof(Comprobante) &&
+            foreignKey.DeleteBehavior == DeleteBehavior.Restrict &&
+            foreignKey.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(Comprobante.ComprobanteAfectadoId)
             ]));
     }
 

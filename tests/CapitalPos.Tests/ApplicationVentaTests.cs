@@ -2745,6 +2745,45 @@ public class ApplicationVentaTests
 
             return Task.CompletedTask;
         }
+
+        public Task<bool> ExistePorVentaAsync(
+            Guid empresaId,
+            Guid ventaId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(Comprobantes.Any(
+                comprobante => comprobante.EmpresaId == empresaId && comprobante.VentaId == ventaId));
+        }
+
+        public Task<Comprobante?> ObtenerEmisionAceptadaPorVentaAsync(
+            Guid empresaId,
+            Guid ventaId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(Comprobantes
+                .Where(comprobante =>
+                    comprobante.EmpresaId == empresaId &&
+                    comprobante.VentaId == ventaId &&
+                    (comprobante.TipoComprobante == "01" || comprobante.TipoComprobante == "03") &&
+                    (comprobante.EstadoCpe == "ACEPTADO" || comprobante.EstadoCpe == "SIMULADO"))
+                .OrderByDescending(comprobante => comprobante.FechaCreacion)
+                .FirstOrDefault());
+        }
+
+        public Task<Comprobante?> ObtenerNotaCreditoAceptadaPorComprobanteAfectadoAsync(
+            Guid empresaId,
+            Guid comprobanteAfectadoId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(Comprobantes
+                .Where(comprobante =>
+                    comprobante.EmpresaId == empresaId &&
+                    comprobante.TipoComprobante == "07" &&
+                    comprobante.ComprobanteAfectadoId == comprobanteAfectadoId &&
+                    (comprobante.EstadoCpe == "ACEPTADO" || comprobante.EstadoCpe == "SIMULADO"))
+                .OrderByDescending(comprobante => comprobante.FechaCreacion)
+                .FirstOrDefault());
+        }
     }
 
     private sealed class SerieComprobanteRepositoryFake : ISerieComprobanteRepository

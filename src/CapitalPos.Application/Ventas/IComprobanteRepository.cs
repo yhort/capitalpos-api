@@ -9,8 +9,15 @@ public interface IComprobanteRepository
     Task<bool> ExistePorVentaAsync(
         Guid empresaId,
         Guid ventaId,
-        CancellationToken cancellationToken = default)
-    {
-        return Task.FromResult(false);
-    }
+        CancellationToken cancellationToken = default);
+
+    Task<Comprobante?> ObtenerEmisionAceptadaPorVentaAsync(
+        Guid empresaId,
+        Guid ventaId,
+        CancellationToken cancellationToken = default);
+
+    Task<Comprobante?> ObtenerNotaCreditoAceptadaPorComprobanteAfectadoAsync(
+        Guid empresaId,
+        Guid comprobanteAfectadoId,
+        CancellationToken cancellationToken = default);
 }

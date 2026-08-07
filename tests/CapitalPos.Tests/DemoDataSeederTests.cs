@@ -125,13 +125,24 @@ public class DemoDataSeederTests
         Assert.Null(stock.ProductoVarianteId);
         Assert.Equal(DemoSeedData.StockProductoCantidadDisponible, stock.CantidadDisponible);
 
-        var serie = Assert.Single(store.SeriesComprobante);
-        Assert.Equal(empresa.Id, serie.EmpresaId);
-        Assert.Equal(sede.Id, serie.SedeId);
-        Assert.Equal(DemoSeedData.SerieComprobanteTipo, serie.TipoComprobante);
-        Assert.Equal(DemoSeedData.SerieComprobanteSerie, serie.Serie);
-        Assert.Equal(DemoSeedData.SerieComprobanteCorrelativoActual, serie.CorrelativoActual);
-        Assert.True(serie.Activa);
+        var series = store.SeriesComprobante.OrderBy(s => s.Serie).ToArray();
+        Assert.Equal(3, series.Length);
+        Assert.Contains(series, s =>
+            s.TipoComprobante == DemoSeedData.SerieComprobanteTipo &&
+            s.Serie == DemoSeedData.SerieComprobanteSerie);
+        Assert.Contains(series, s =>
+            s.TipoComprobante == DemoSeedData.SerieNotaCreditoTipo &&
+            s.Serie == DemoSeedData.SerieNotaCreditoBoletaSerie);
+        Assert.Contains(series, s =>
+            s.TipoComprobante == DemoSeedData.SerieNotaCreditoTipo &&
+            s.Serie == DemoSeedData.SerieNotaCreditoFacturaSerie);
+        Assert.All(series, s =>
+        {
+            Assert.Equal(empresa.Id, s.EmpresaId);
+            Assert.Equal(sede.Id, s.SedeId);
+            Assert.Equal(DemoSeedData.SerieComprobanteCorrelativoActual, s.CorrelativoActual);
+            Assert.True(s.Activa);
+        });
 
         var credencial = Assert.Single(store.Credenciales);
         Assert.Equal(usuario.Id, credencial.UsuarioId);
@@ -161,7 +172,7 @@ public class DemoDataSeederTests
         Assert.Equal(5, store.UnidadesMedida.Count);
         Assert.Single(store.Productos);
         Assert.Single(store.Stocks);
-        Assert.Single(store.SeriesComprobante);
+        Assert.Equal(3, store.SeriesComprobante.Count);
         Assert.Empty(store.Credenciales);
         Assert.Contains(logger.Messages, message => message.Contains("AdminPassword no esta configurado", StringComparison.Ordinal));
         Assert.DoesNotContain(logger.Messages, message => message.Contains("password", StringComparison.Ordinal) &&
@@ -190,7 +201,7 @@ public class DemoDataSeederTests
         Assert.Equal(5, store.UnidadesMedida.Count);
         Assert.Single(store.Productos);
         Assert.Single(store.Stocks);
-        Assert.Single(store.SeriesComprobante);
+        Assert.Equal(3, store.SeriesComprobante.Count);
         var credencial = Assert.Single(store.Credenciales);
         Assert.Equal(hashOriginal, credencial.PasswordHash);
         Assert.Equal(2, store.SaveChangesCount);

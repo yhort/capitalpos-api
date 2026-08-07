@@ -59,7 +59,33 @@ public sealed class ComprobanteConfiguration : IEntityTypeConfiguration<Comproba
         builder.Property(comprobante => comprobante.FechaCreacion)
             .IsRequired();
 
+        builder.Property(comprobante => comprobante.ComprobanteAfectadoId);
+
+        builder.Property(comprobante => comprobante.TipoComprobanteAfectado)
+            .HasMaxLength(2)
+            .IsRequired();
+
+        builder.Property(comprobante => comprobante.SerieAfectada)
+            .HasMaxLength(4)
+            .IsRequired();
+
+        builder.Property(comprobante => comprobante.CorrelativoAfectado);
+
+        builder.Property(comprobante => comprobante.CodigoMotivo)
+            .HasMaxLength(2)
+            .IsRequired();
+
+        builder.Property(comprobante => comprobante.DescripcionMotivo)
+            .HasMaxLength(500)
+            .IsRequired();
+
+        builder.Ignore(comprobante => comprobante.EsNotaCredito);
+        builder.Ignore(comprobante => comprobante.EsEmision);
+        builder.Ignore(comprobante => comprobante.EstaAceptadoOSimulado);
+
         builder.HasIndex(comprobante => comprobante.EmpresaId);
+
+        builder.HasIndex(comprobante => comprobante.ComprobanteAfectadoId);
 
         builder.HasIndex(comprobante => new
             {
@@ -87,6 +113,11 @@ public sealed class ComprobanteConfiguration : IEntityTypeConfiguration<Comproba
                 venta.Id,
                 venta.EmpresaId
             })
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne<Comprobante>()
+            .WithMany()
+            .HasForeignKey(comprobante => comprobante.ComprobanteAfectadoId)
             .OnDelete(DeleteBehavior.Restrict);
     }
 }

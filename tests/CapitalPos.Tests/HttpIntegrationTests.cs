@@ -13,6 +13,7 @@ using CapitalPos.Application.ConfiguracionFiscal;
 using CapitalPos.Application.Dashboard;
 using CapitalPos.Application.Empresas;
 using CapitalPos.Application.Inventario;
+using CapitalPos.Application.Pedidos;
 using CapitalPos.Application.Persistence;
 using CapitalPos.Application.Productos;
 using CapitalPos.Application.Reportes;
@@ -3408,6 +3409,8 @@ public class HttpIntegrationTests
                 services.RemoveAll<IPuntoVentaRepository>();
                 services.RemoveAll<ISerieComprobanteRepository>();
                 services.RemoveAll<ISesionCajaRepository>();
+                services.RemoveAll<IPedidoDigitalRepository>();
+                services.RemoveAll<IMovimientoInventarioRepository>();
                 services.RemoveAll<IUnitOfWork>();
                 services.RemoveAll<IDashboardComercialClock>();
 
@@ -3431,6 +3434,8 @@ public class HttpIntegrationTests
                 services.AddSingleton<IPuntoVentaRepository>(PuntoVentaRepository);
                 services.AddSingleton<ISerieComprobanteRepository>(SerieComprobanteRepository);
                 services.AddSingleton<ISesionCajaRepository>(SesionCajaRepository);
+                services.AddSingleton<IPedidoDigitalRepository, FakePedidoDigitalRepository>();
+                services.AddSingleton<IMovimientoInventarioRepository, FakeMovimientoInventarioRepository>();
                 services.AddSingleton<IUnitOfWork, FakeUnitOfWork>();
                 services.AddSingleton(DashboardClock);
             });
@@ -4147,10 +4152,80 @@ public class HttpIntegrationTests
 
     private sealed class FakeComprobanteRepository : IComprobanteRepository
     {
+        public List<Comprobante> Comprobantes { get; } = [];
+
         public Task AgregarAsync(Comprobante comprobante, CancellationToken cancellationToken = default)
         {
+            Comprobantes.Add(comprobante);
             return Task.CompletedTask;
         }
+
+        public Task<bool> ExistePorVentaAsync(
+            Guid empresaId,
+            Guid ventaId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(Comprobantes.Any(
+                comprobante => comprobante.EmpresaId == empresaId && comprobante.VentaId == ventaId));
+        }
+
+        public Task<Comprobante?> ObtenerEmisionAceptadaPorVentaAsync(
+            Guid empresaId,
+            Guid ventaId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(Comprobantes
+                .Where(comprobante =>
+                    comprobante.EmpresaId == empresaId &&
+                    comprobante.VentaId == ventaId &&
+                    (comprobante.TipoComprobante == "01" || comprobante.TipoComprobante == "03") &&
+                    (comprobante.EstadoCpe == "ACEPTADO" || comprobante.EstadoCpe == "SIMULADO"))
+                .OrderByDescending(comprobante => comprobante.FechaCreacion)
+                .FirstOrDefault());
+        }
+
+        public Task<Comprobante?> ObtenerNotaCreditoAceptadaPorComprobanteAfectadoAsync(
+            Guid empresaId,
+            Guid comprobanteAfectadoId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(Comprobantes
+                .Where(comprobante =>
+                    comprobante.EmpresaId == empresaId &&
+                    comprobante.TipoComprobante == "07" &&
+                    comprobante.ComprobanteAfectadoId == comprobanteAfectadoId &&
+                    (comprobante.EstadoCpe == "ACEPTADO" || comprobante.EstadoCpe == "SIMULADO"))
+                .OrderByDescending(comprobante => comprobante.FechaCreacion)
+                .FirstOrDefault());
+        }
+    }
+
+    private sealed class FakePedidoDigitalRepository : IPedidoDigitalRepository
+    {
+        public Task AgregarAsync(PedidoDigital pedido, CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
+
+        public Task<IReadOnlyCollection<PedidoDigital>> ListarPorEmpresaAsync(
+            Guid empresaId,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyCollection<PedidoDigital>>([]);
+
+        public Task<PedidoDigital?> ObtenerPorEmpresaAsync(
+            Guid empresaId,
+            Guid id,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<PedidoDigital?>(null);
+    }
+
+    private sealed class FakeMovimientoInventarioRepository : IMovimientoInventarioRepository
+    {
+        public Task AgregarAsync(MovimientoInventario movimiento, CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
+
+        public Task<IReadOnlyCollection<MovimientoInventario>> ListarPorEmpresaAsync(
+            Guid empresaId,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyCollection<MovimientoInventario>>([]);
     }
 
     private sealed class FakeConfiguracionFiscalEmpresaRepository : IConfiguracionFiscalEmpresaRepository

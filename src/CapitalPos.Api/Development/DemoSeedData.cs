@@ -14,6 +14,8 @@ public static class DemoSeedData
     public static readonly Guid ProductoId = Guid.Parse("10000000-0000-0000-0000-000000000006");
     public static readonly Guid StockProductoId = Guid.Parse("10000000-0000-0000-0000-000000000007");
     public static readonly Guid SerieComprobanteId = Guid.Parse("10000000-0000-0000-0000-000000000008");
+    public static readonly Guid SerieNotaCreditoBoletaId = Guid.Parse("10000000-0000-0000-0000-000000000016");
+    public static readonly Guid SerieNotaCreditoFacturaId = Guid.Parse("10000000-0000-0000-0000-000000000017");
     public static readonly Guid UnidadMedidaUndId = Guid.Parse("10000000-0000-0000-0000-000000000011");
     public static readonly Guid UnidadMedidaCajId = Guid.Parse("10000000-0000-0000-0000-000000000012");
     public static readonly Guid UnidadMedidaPaqId = Guid.Parse("10000000-0000-0000-0000-000000000013");
@@ -45,6 +47,9 @@ public static class DemoSeedData
     public const decimal StockProductoCantidadDisponible = 20m;
     public const string SerieComprobanteTipo = "03";
     public const string SerieComprobanteSerie = "B001";
+    public const string SerieNotaCreditoTipo = "07";
+    public const string SerieNotaCreditoBoletaSerie = "BC01";
+    public const string SerieNotaCreditoFacturaSerie = "FC01";
     public const int SerieComprobanteCorrelativoActual = 0;
 
     public static IReadOnlyCollection<(Guid Id, string Codigo, string Nombre)> UnidadesMedidaBasicas { get; } =

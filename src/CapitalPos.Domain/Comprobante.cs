@@ -12,6 +12,10 @@ public sealed class Comprobante
         NombreXml = string.Empty;
         NombreZip = string.Empty;
         NombreCdr = string.Empty;
+        TipoComprobanteAfectado = string.Empty;
+        SerieAfectada = string.Empty;
+        CodigoMotivo = string.Empty;
+        DescripcionMotivo = string.Empty;
     }
 
     public Comprobante(
@@ -27,7 +31,13 @@ public sealed class Comprobante
         string? nombreXml = null,
         string? nombreZip = null,
         string? nombreCdr = null,
-        DateTimeOffset? fechaCreacion = null)
+        DateTimeOffset? fechaCreacion = null,
+        Guid? comprobanteAfectadoId = null,
+        string? tipoComprobanteAfectado = null,
+        string? serieAfectada = null,
+        int? correlativoAfectado = null,
+        string? codigoMotivo = null,
+        string? descripcionMotivo = null)
     {
         if (id == Guid.Empty)
         {
@@ -73,6 +83,18 @@ public sealed class Comprobante
             throw new ArgumentOutOfRangeException(nameof(fechaCreacion), "La fecha de creacion no es valida.");
         }
 
+        if (comprobanteAfectadoId == Guid.Empty)
+        {
+            throw new ArgumentException("El comprobante afectado no es valido.", nameof(comprobanteAfectadoId));
+        }
+
+        if (correlativoAfectado is <= 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(correlativoAfectado),
+                "El correlativo afectado debe ser mayor que cero.");
+        }
+
         Id = id;
         EmpresaId = empresaId;
         VentaId = ventaId;
@@ -86,6 +108,12 @@ public sealed class Comprobante
         NombreZip = NormalizarTexto(nombreZip);
         NombreCdr = NormalizarTexto(nombreCdr);
         FechaCreacion = fechaCreacionNormalizada;
+        ComprobanteAfectadoId = comprobanteAfectadoId;
+        TipoComprobanteAfectado = NormalizarTexto(tipoComprobanteAfectado).ToUpperInvariant();
+        SerieAfectada = NormalizarTexto(serieAfectada).ToUpperInvariant();
+        CorrelativoAfectado = correlativoAfectado;
+        CodigoMotivo = NormalizarTexto(codigoMotivo);
+        DescripcionMotivo = NormalizarTexto(descripcionMotivo);
     }
 
     public Guid Id { get; private set; }
@@ -113,6 +141,26 @@ public sealed class Comprobante
     public string NombreCdr { get; private set; }
 
     public DateTimeOffset FechaCreacion { get; private set; }
+
+    public Guid? ComprobanteAfectadoId { get; private set; }
+
+    public string TipoComprobanteAfectado { get; private set; }
+
+    public string SerieAfectada { get; private set; }
+
+    public int? CorrelativoAfectado { get; private set; }
+
+    public string CodigoMotivo { get; private set; }
+
+    public string DescripcionMotivo { get; private set; }
+
+    public bool EsNotaCredito => TipoComprobante == "07";
+
+    public bool EsEmision => TipoComprobante is "01" or "03";
+
+    public bool EstaAceptadoOSimulado =>
+        string.Equals(EstadoCpe, "ACEPTADO", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(EstadoCpe, "SIMULADO", StringComparison.OrdinalIgnoreCase);
 
     private static string NormalizarTexto(string? valor)
     {
