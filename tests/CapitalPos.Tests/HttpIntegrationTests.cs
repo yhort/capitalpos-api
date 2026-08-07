@@ -9,6 +9,7 @@ using CapitalPos.Api.Endpoints;
 using CapitalPos.Application.Caja;
 using CapitalPos.Application.Catalogo;
 using CapitalPos.Application.Clientes;
+using CapitalPos.Application.Compras;
 using CapitalPos.Application.ConfiguracionFiscal;
 using CapitalPos.Application.Dashboard;
 using CapitalPos.Application.Empresas;
@@ -3353,6 +3354,8 @@ public class HttpIntegrationTests
 
         public FakeVentaRepository VentaRepository { get; } = new();
 
+        public FakeCompraRepository CompraRepository { get; } = new();
+
         public IDashboardComercialClock DashboardClock { get; set; } =
             new FakeDashboardComercialClock(new DateTimeOffset(2026, 7, 17, 15, 42, 10, TimeSpan.FromHours(-5)));
 
@@ -3401,6 +3404,7 @@ public class HttpIntegrationTests
                 services.RemoveAll<IProductoVarianteRepository>();
                 services.RemoveAll<IReglaPrecioMayoristaRepository>();
                 services.RemoveAll<IClienteRepository>();
+                services.RemoveAll<ICompraRepository>();
                 services.RemoveAll<IVentaRepository>();
                 services.RemoveAll<IComprobanteRepository>();
                 services.RemoveAll<IConfiguracionFiscalEmpresaRepository>();
@@ -3426,6 +3430,7 @@ public class HttpIntegrationTests
                 services.AddSingleton<IProductoVarianteRepository>(ProductoVarianteRepository);
                 services.AddSingleton<IReglaPrecioMayoristaRepository>(ReglaPrecioMayoristaRepository);
                 services.AddSingleton<IClienteRepository, FakeClienteRepository>();
+                services.AddSingleton<ICompraRepository>(CompraRepository);
                 services.AddSingleton<IVentaRepository>(VentaRepository);
                 services.AddSingleton<IComprobanteRepository, FakeComprobanteRepository>();
                 services.AddSingleton<IConfiguracionFiscalEmpresaRepository>(ConfiguracionFiscalRepository);
@@ -4058,6 +4063,35 @@ public class HttpIntegrationTests
             return Task.FromResult(PuntosVenta.FirstOrDefault(puntoVenta =>
                 puntoVenta.EmpresaId == empresaId &&
                 puntoVenta.Id == id));
+        }
+    }
+
+    private sealed class FakeCompraRepository : ICompraRepository
+    {
+        public List<Compra> Compras { get; } = [];
+
+        public Task AgregarAsync(Compra compra, CancellationToken cancellationToken = default)
+        {
+            Compras.Add(compra);
+            return Task.CompletedTask;
+        }
+
+        public Task<IReadOnlyCollection<Compra>> ListarPorEmpresaAsync(
+            Guid empresaId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyCollection<Compra>>(
+                Compras.Where(compra => compra.EmpresaId == empresaId).ToArray());
+        }
+
+        public Task<Compra?> ObtenerPorEmpresaAsync(
+            Guid empresaId,
+            Guid id,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(Compras.FirstOrDefault(compra =>
+                compra.EmpresaId == empresaId &&
+                compra.Id == id));
         }
     }
 

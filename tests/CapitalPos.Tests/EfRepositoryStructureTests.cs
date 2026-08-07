@@ -1,5 +1,6 @@
 using CapitalPos.Application.Catalogo;
 using CapitalPos.Application.Caja;
+using CapitalPos.Application.Compras;
 using CapitalPos.Application.ConfiguracionFiscal;
 using CapitalPos.Application.Empresas;
 using CapitalPos.Application.Inventario;
@@ -110,6 +111,17 @@ public class EfRepositoryStructureTests
     public void Ef_pedido_digital_repository_implementa_puerto_de_aplicacion()
     {
         Assert.True(typeof(IPedidoDigitalRepository).IsAssignableFrom(typeof(EfPedidoDigitalRepository)));
+    }
+
+    [Fact]
+    public void Ef_compra_repository_implementa_puerto_de_aplicacion()
+    {
+        Assert.True(typeof(ICompraRepository).IsAssignableFrom(typeof(EfCompraRepository)));
+        var source = File.ReadAllText(ResolverRutaRepo(
+            "src/CapitalPos.Infrastructure/Persistence/Repositories/EfCompraRepository.cs"));
+
+        Assert.Contains("Include(compra => compra.Detalles)", source);
+        Assert.Contains("compra.EmpresaId == empresaId", source);
     }
 
     [Fact]

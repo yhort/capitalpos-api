@@ -34,6 +34,10 @@ public sealed class CapitalPosDbContext : DbContext
 
     public DbSet<Cliente> Clientes => Set<Cliente>();
 
+    public DbSet<Compra> Compras => Set<Compra>();
+
+    public DbSet<CompraDetalle> ComprasDetalles => Set<CompraDetalle>();
+
     public DbSet<Venta> Ventas => Set<Venta>();
 
     public DbSet<VentaDetalle> VentasDetalles => Set<VentaDetalle>();

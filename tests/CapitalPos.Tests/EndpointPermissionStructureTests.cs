@@ -12,6 +12,7 @@ public class EndpointPermissionStructureTests
     [InlineData("src/CapitalPos.Api/Endpoints/SedeEndpoints.cs")]
     [InlineData("src/CapitalPos.Api/Endpoints/CajaEndpoints.cs")]
     [InlineData("src/CapitalPos.Api/Endpoints/ClienteEndpoints.cs")]
+    [InlineData("src/CapitalPos.Api/Endpoints/CompraEndpoints.cs")]
     [InlineData("src/CapitalPos.Api/Endpoints/VentaEndpoints.cs")]
     [InlineData("src/CapitalPos.Api/Endpoints/PedidoDigitalEndpoints.cs")]
     [InlineData("src/CapitalPos.Api/Endpoints/ReporteEndpoints.cs")]
@@ -34,6 +35,7 @@ public class EndpointPermissionStructureTests
     [InlineData("src/CapitalPos.Api/Endpoints/SedeEndpoints.cs")]
     [InlineData("src/CapitalPos.Api/Endpoints/CajaEndpoints.cs")]
     [InlineData("src/CapitalPos.Api/Endpoints/ClienteEndpoints.cs")]
+    [InlineData("src/CapitalPos.Api/Endpoints/CompraEndpoints.cs")]
     [InlineData("src/CapitalPos.Api/Endpoints/VentaEndpoints.cs")]
     [InlineData("src/CapitalPos.Api/Endpoints/PedidoDigitalEndpoints.cs")]
     [InlineData("src/CapitalPos.Api/Endpoints/ReporteEndpoints.cs")]
@@ -94,6 +96,21 @@ public class EndpointPermissionStructureTests
         Assert.Contains(".AddEndpointFilter<EmpresaActivaEndpointFilter>()", source);
         Assert.True(
             source.Split("RequirePermisoEmpresa(PermisoEmpresa.OperarVentas)").Length - 1 >= 5);
+    }
+
+    [Fact]
+    public void Compras_declaran_proteccion_empresa_y_permiso_operar_almacen()
+    {
+        var source = File.ReadAllText(
+            ResolverRutaRepo("src/CapitalPos.Api/Endpoints/CompraEndpoints.cs"));
+
+        Assert.Contains("MapGet(\"/\", ListarComprasAsync)", source);
+        Assert.Contains("MapGet(\"/{id:guid}\", ObtenerCompraAsync)", source);
+        Assert.Contains("MapPost(\"/\", CrearCompraAsync)", source);
+        Assert.Contains(".RequireAuthorization()", source);
+        Assert.Contains(".AddEndpointFilter<EmpresaActivaEndpointFilter>()", source);
+        Assert.True(
+            source.Split("RequirePermisoEmpresa(PermisoEmpresa.OperarAlmacen)").Length - 1 >= 3);
     }
 
     [Fact]

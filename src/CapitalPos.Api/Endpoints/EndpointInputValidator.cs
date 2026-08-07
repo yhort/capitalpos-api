@@ -1,6 +1,7 @@
 using CapitalPos.Application.Catalogo;
 using CapitalPos.Application.Empresas;
 using CapitalPos.Application.Clientes;
+using CapitalPos.Application.Compras;
 using CapitalPos.Application.ConfiguracionFiscal;
 using CapitalPos.Application.Inventario;
 using CapitalPos.Application.Pedidos;
@@ -349,6 +350,116 @@ public static class EndpointInputValidator
         if (request.Direccion is { Length: > 250 })
         {
             error = "La direccion del cliente no debe exceder 250 caracteres.";
+            return false;
+        }
+
+        error = string.Empty;
+        return true;
+    }
+
+    public static bool TryValidate(CrearCompraRequest request, out string error)
+    {
+        if (request.SedeId == Guid.Empty)
+        {
+            error = "El identificador de la sede es obligatorio.";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Proveedor))
+        {
+            error = "El proveedor es obligatorio.";
+            return false;
+        }
+
+        if (request.Proveedor.Trim().Length > 200)
+        {
+            error = "El proveedor no debe exceder 200 caracteres.";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(request.TipoComprobante))
+        {
+            error = "El tipo de comprobante es obligatorio.";
+            return false;
+        }
+
+        if (request.TipoComprobante.Trim().Length > 30)
+        {
+            error = "El tipo de comprobante no debe exceder 30 caracteres.";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Serie))
+        {
+            error = "La serie del comprobante es obligatoria.";
+            return false;
+        }
+
+        if (request.Serie.Trim().Length > 20)
+        {
+            error = "La serie no debe exceder 20 caracteres.";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Correlativo))
+        {
+            error = "El correlativo del comprobante es obligatorio.";
+            return false;
+        }
+
+        if (request.Correlativo.Trim().Length > 20)
+        {
+            error = "El correlativo no debe exceder 20 caracteres.";
+            return false;
+        }
+
+        if (request.FechaCompra == default(DateTimeOffset))
+        {
+            error = "La fecha de compra no es valida.";
+            return false;
+        }
+
+        if (request.Detalles is null || request.Detalles.Count == 0)
+        {
+            error = "La compra debe tener al menos un detalle.";
+            return false;
+        }
+
+        foreach (var detalle in request.Detalles)
+        {
+            if (!TryValidate(detalle, out error))
+            {
+                return false;
+            }
+        }
+
+        error = string.Empty;
+        return true;
+    }
+
+    private static bool TryValidate(CrearCompraDetalleRequest request, out string error)
+    {
+        if (request.ProductoId == Guid.Empty)
+        {
+            error = "El identificador del producto es obligatorio.";
+            return false;
+        }
+
+        if (request.ProductoVarianteId == Guid.Empty)
+        {
+            error = "El identificador de la variante no puede estar vacio.";
+            return false;
+        }
+
+        if (request.Cantidad <= 0)
+        {
+            error = "La cantidad debe ser mayor que cero.";
+            return false;
+        }
+
+        if (request.CostoUnitario < 0)
+        {
+            error = "El costo unitario no puede ser negativo.";
             return false;
         }
 

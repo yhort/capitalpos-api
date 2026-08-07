@@ -24,6 +24,8 @@ public class EfCoreModelTests
         Assert.NotNull(context.Model.FindEntityType(typeof(ProductoVariante)));
         Assert.NotNull(context.Model.FindEntityType(typeof(ReglaPrecioMayorista)));
         Assert.NotNull(context.Model.FindEntityType(typeof(Cliente)));
+        Assert.NotNull(context.Model.FindEntityType(typeof(Compra)));
+        Assert.NotNull(context.Model.FindEntityType(typeof(CompraDetalle)));
         Assert.NotNull(context.Model.FindEntityType(typeof(Venta)));
         Assert.NotNull(context.Model.FindEntityType(typeof(VentaDetalle)));
         Assert.NotNull(context.Model.FindEntityType(typeof(PedidoDigital)));
