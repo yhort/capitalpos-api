@@ -14,6 +14,69 @@ public class ApplicationPedidoDigitalCicloVidaTests
     private static readonly Guid PuntoVentaIdPrueba = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
 
     [Fact]
+    public async Task Actualizar_estado_operativo_registra_historial_y_guarda_cambios()
+    {
+        var empresaId = Guid.NewGuid();
+        var usuarioId = Guid.NewGuid();
+        var pedidoRepository = new PedidoDigitalRepositoryFake();
+        var pedido = CrearPedidoConDetalle(empresaId, Guid.NewGuid(), cantidad: 1m, precio: 59m);
+        await pedidoRepository.AgregarAsync(pedido);
+
+        var useCase = new ActualizarEstadoPedidoDigitalUseCase(
+            pedidoRepository,
+            new EmpresaActivaContextFake(empresaId, usuarioId));
+
+        var actualizado = await useCase.EjecutarAsync(
+            pedido.Id,
+            new ActualizarEstadoPedidoDigitalRequest("Pagado", "Pago recibido"),
+            CancellationToken.None);
+
+        Assert.NotNull(actualizado);
+        Assert.Equal(EstadoPedidoDigital.Pagado, actualizado.Estado);
+        Assert.True(pedidoRepository.Guardado);
+        var historial = Assert.Single(actualizado.HistorialEstados);
+        Assert.Equal(EstadoPedidoDigital.PendientePago, historial.EstadoAnterior);
+        Assert.Equal(EstadoPedidoDigital.Pagado, historial.EstadoNuevo);
+        Assert.Equal(usuarioId, historial.UsuarioId);
+        Assert.Equal("Pago recibido", historial.Observacion);
+        Assert.Equal(empresaId, historial.EmpresaId);
+    }
+
+    [Fact]
+    public async Task Actualizar_estado_pedido_inexistente_en_empresa_activa_retorna_null()
+    {
+        var useCase = new ActualizarEstadoPedidoDigitalUseCase(
+            new PedidoDigitalRepositoryFake(),
+            new EmpresaActivaContextFake(Guid.NewGuid()));
+
+        var resultado = await useCase.EjecutarAsync(
+            Guid.NewGuid(),
+            new ActualizarEstadoPedidoDigitalRequest("Pagado"),
+            CancellationToken.None);
+
+        Assert.Null(resultado);
+    }
+
+    [Fact]
+    public async Task Actualizar_estado_rechaza_transicion_invalida()
+    {
+        var empresaId = Guid.NewGuid();
+        var pedidoRepository = new PedidoDigitalRepositoryFake();
+        var pedido = CrearPedidoConDetalle(empresaId, Guid.NewGuid(), 1m, 59m);
+        await pedidoRepository.AgregarAsync(pedido);
+
+        var useCase = new ActualizarEstadoPedidoDigitalUseCase(
+            pedidoRepository,
+            new EmpresaActivaContextFake(empresaId));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            useCase.EjecutarAsync(
+                pedido.Id,
+                new ActualizarEstadoPedidoDigitalRequest("Empaquetado"),
+                CancellationToken.None));
+    }
+
+    [Fact]
     public async Task Cancelar_pedido_libera_reserva_y_registra_liberacion_en_kardex()
     {
         var empresaId = Guid.NewGuid();
@@ -452,9 +515,9 @@ public class ApplicationPedidoDigitalCicloVidaTests
 
     private sealed class EmpresaActivaContextFake : IEmpresaActivaContext
     {
-        public EmpresaActivaContextFake(Guid empresaId)
+        public EmpresaActivaContextFake(Guid empresaId, Guid? usuarioId = null)
         {
-            UsuarioId = Guid.NewGuid();
+            UsuarioId = usuarioId ?? Guid.NewGuid();
             EmpresaId = empresaId;
             Rol = RolEmpresa.Administrador;
             TieneEmpresaActiva = true;

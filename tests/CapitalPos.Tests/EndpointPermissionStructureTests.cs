@@ -90,12 +90,15 @@ public class EndpointPermissionStructureTests
         Assert.Contains("MapGet(\"/{id:guid}\", ObtenerPedidoDigitalAsync)", source);
         Assert.Contains("MapPost(\"/{id:guid}/cancelar\", CancelarPedidoDigitalAsync)", source);
         Assert.Contains(
+            "MapPut(\"/{id:guid}/estado\", ActualizarEstadoPedidoDigitalAsync)",
+            source);
+        Assert.Contains(
             "MapPost(\"/{id:guid}/convertir-venta\", ConvertirPedidoDigitalAVentaAsync)",
             source);
         Assert.Contains(".RequireAuthorization()", source);
         Assert.Contains(".AddEndpointFilter<EmpresaActivaEndpointFilter>()", source);
         Assert.True(
-            source.Split("RequirePermisoEmpresa(PermisoEmpresa.OperarVentas)").Length - 1 >= 5);
+            source.Split("RequirePermisoEmpresa(PermisoEmpresa.OperarVentas)").Length - 1 >= 6);
     }
 
     [Fact]

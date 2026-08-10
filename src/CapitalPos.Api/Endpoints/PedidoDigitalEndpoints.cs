@@ -32,6 +32,10 @@ public static class PedidoDigitalEndpoints
             .WithName("CancelarPedidoDigital")
             .RequirePermisoEmpresa(PermisoEmpresa.OperarVentas);
 
+        group.MapPut("/{id:guid}/estado", ActualizarEstadoPedidoDigitalAsync)
+            .WithName("ActualizarEstadoPedidoDigital")
+            .RequirePermisoEmpresa(PermisoEmpresa.OperarVentas);
+
         group.MapPost("/{id:guid}/convertir-venta", ConvertirPedidoDigitalAVentaAsync)
             .WithName("ConvertirPedidoDigitalAVenta")
             .RequirePermisoEmpresa(PermisoEmpresa.OperarVentas);
@@ -267,6 +271,103 @@ public static class PedidoDigitalEndpoints
                 httpContext,
                 "CancelarPedidoDigital",
                 "Cancelar",
+                AuditoriaResultados.Error,
+                null,
+                cancellationToken);
+            throw;
+        }
+    }
+
+    private static async Task<IResult> ActualizarEstadoPedidoDigitalAsync(
+        Guid id,
+        ActualizarEstadoPedidoDigitalRequest? request,
+        ActualizarEstadoPedidoDigitalUseCase useCase,
+        IAuditoriaOperaciones auditoria,
+        IEmpresaActivaContext empresaActiva,
+        HttpContext httpContext,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (request is null)
+            {
+                await AuditarPedidoAsync(
+                    auditoria,
+                    empresaActiva,
+                    httpContext,
+                    "ActualizarEstadoPedidoDigital",
+                    "ActualizarEstado",
+                    AuditoriaResultados.Rechazado,
+                    "ValidacionDeEntrada",
+                    cancellationToken);
+
+                return Results.BadRequest(ErrorResponse.From(
+                    "La solicitud de actualizacion de estado es obligatoria."));
+            }
+
+            var pedido = await useCase.EjecutarAsync(id, request, cancellationToken);
+            if (pedido is null)
+            {
+                await AuditarPedidoAsync(
+                    auditoria,
+                    empresaActiva,
+                    httpContext,
+                    "ActualizarEstadoPedidoDigital",
+                    "ActualizarEstado",
+                    AuditoriaResultados.Rechazado,
+                    "NoEncontrado",
+                    cancellationToken);
+                return Results.NotFound();
+            }
+
+            await AuditarPedidoAsync(
+                auditoria,
+                empresaActiva,
+                httpContext,
+                "ActualizarEstadoPedidoDigital",
+                "ActualizarEstado",
+                AuditoriaResultados.Exitoso,
+                $"PedidoDigitalId={pedido.Id};Estado={pedido.Estado}",
+                cancellationToken);
+
+            return Results.Ok(PedidoDigitalResponse.From(pedido));
+        }
+        catch (ArgumentException ex)
+        {
+            await AuditarPedidoAsync(
+                auditoria,
+                empresaActiva,
+                httpContext,
+                "ActualizarEstadoPedidoDigital",
+                "ActualizarEstado",
+                AuditoriaResultados.Rechazado,
+                "ValidacionDeDominio",
+                cancellationToken);
+
+            return Results.BadRequest(ErrorResponse.From(ex.Message));
+        }
+        catch (InvalidOperationException ex)
+        {
+            await AuditarPedidoAsync(
+                auditoria,
+                empresaActiva,
+                httpContext,
+                "ActualizarEstadoPedidoDigital",
+                "ActualizarEstado",
+                AuditoriaResultados.Rechazado,
+                "ReglaDeNegocio",
+                cancellationToken);
+
+            return Results.BadRequest(ErrorResponse.From(ex.Message));
+        }
+        catch
+        {
+            await AuditarPedidoAsync(
+                auditoria,
+                empresaActiva,
+                httpContext,
+                "ActualizarEstadoPedidoDigital",
+                "ActualizarEstado",
                 AuditoriaResultados.Error,
                 null,
                 cancellationToken);

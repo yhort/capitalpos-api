@@ -111,6 +111,64 @@ public class PedidoDigitalTests
     }
 
     [Fact]
+    public void Actualizar_estado_operativo_avanza_secuencia_y_registra_historial()
+    {
+        var id = Guid.NewGuid();
+        var empresaId = Guid.NewGuid();
+        var usuarioId = Guid.NewGuid();
+        var pedido = new PedidoDigital(
+            id,
+            empresaId,
+            Guid.NewGuid(),
+            CanalPedidoDigital.WHATSAPP,
+            DateTimeOffset.UtcNow,
+            [CrearDetalle(empresaId, id)]);
+
+        pedido.ActualizarEstadoOperativo(EstadoPedidoDigital.Pagado, usuarioId, "Pago confirmado");
+        Assert.Equal(EstadoPedidoDigital.Pagado, pedido.Estado);
+
+        pedido.ActualizarEstadoOperativo(EstadoPedidoDigital.Empaquetado, usuarioId);
+        Assert.Equal(EstadoPedidoDigital.Empaquetado, pedido.Estado);
+
+        pedido.ActualizarEstadoOperativo(EstadoPedidoDigital.PendienteEntrega, usuarioId);
+        Assert.Equal(EstadoPedidoDigital.PendienteEntrega, pedido.Estado);
+
+        Assert.Equal(3, pedido.HistorialEstados.Count);
+        var primerHistorial = pedido.HistorialEstados.First();
+        Assert.Equal(EstadoPedidoDigital.PendientePago, primerHistorial.EstadoAnterior);
+        Assert.Equal(EstadoPedidoDigital.Pagado, primerHistorial.EstadoNuevo);
+        Assert.Equal(usuarioId, primerHistorial.UsuarioId);
+        Assert.Equal("Pago confirmado", primerHistorial.Observacion);
+        Assert.Equal(empresaId, primerHistorial.EmpresaId);
+        Assert.Equal(id, primerHistorial.PedidoDigitalId);
+    }
+
+    [Fact]
+    public void Actualizar_estado_operativo_rechaza_saltos_terminales_y_estados_no_permitidos()
+    {
+        var id = Guid.NewGuid();
+        var empresaId = Guid.NewGuid();
+        var pedido = new PedidoDigital(
+            id,
+            empresaId,
+            Guid.NewGuid(),
+            CanalPedidoDigital.WEB,
+            DateTimeOffset.UtcNow,
+            [CrearDetalle(empresaId, id)]);
+
+        Assert.Throws<InvalidOperationException>(() =>
+            pedido.ActualizarEstadoOperativo(EstadoPedidoDigital.Empaquetado));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            pedido.ActualizarEstadoOperativo(EstadoPedidoDigital.Entregado));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            pedido.ActualizarEstadoOperativo(EstadoPedidoDigital.Cancelado));
+
+        pedido.Cancelar();
+        Assert.Throws<InvalidOperationException>(() =>
+            pedido.ActualizarEstadoOperativo(EstadoPedidoDigital.Pagado));
+    }
+
+    [Fact]
     public void Cancelar_cambia_estado_y_registra_historial()
     {
         var id = Guid.NewGuid();

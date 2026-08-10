@@ -152,6 +152,50 @@ public sealed class PedidoDigital
 
     public IReadOnlyCollection<PedidoDigitalHistorialEstado> HistorialEstados => _historialEstados;
 
+    public void ActualizarEstadoOperativo(
+        EstadoPedidoDigital estadoNuevo,
+        Guid? usuarioId = null,
+        string? observacion = null)
+    {
+        if (Estado is EstadoPedidoDigital.Cancelado or EstadoPedidoDigital.Entregado)
+        {
+            throw new InvalidOperationException(
+                "No se puede actualizar el estado de un pedido digital cancelado o entregado.");
+        }
+
+        if (estadoNuevo is not (
+            EstadoPedidoDigital.Pagado or
+            EstadoPedidoDigital.Empaquetado or
+            EstadoPedidoDigital.PendienteEntrega))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(estadoNuevo),
+                "Solo se permiten los estados operativos Pagado, Empaquetado o PendienteEntrega.");
+        }
+
+        var estadoEsperado = Estado switch
+        {
+            EstadoPedidoDigital.PendientePago => EstadoPedidoDigital.Pagado,
+            EstadoPedidoDigital.Pagado => EstadoPedidoDigital.Empaquetado,
+            EstadoPedidoDigital.Empaquetado => EstadoPedidoDigital.PendienteEntrega,
+            _ => throw new InvalidOperationException(
+                $"No hay transicion operativa definida desde el estado {Estado}.")
+        };
+
+        if (estadoNuevo != estadoEsperado)
+        {
+            throw new InvalidOperationException(
+                $"Transicion invalida: desde {Estado} solo se permite avanzar a {estadoEsperado}.");
+        }
+
+        CambiarEstado(
+            estadoNuevo,
+            usuarioId,
+            string.IsNullOrWhiteSpace(observacion)
+                ? $"Actualizacion de estado a {estadoNuevo}."
+                : observacion);
+    }
+
     public void Cancelar(Guid? usuarioId = null, string? observacion = null)
     {
         if (Estado == EstadoPedidoDigital.Cancelado)
