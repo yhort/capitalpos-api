@@ -34,6 +34,30 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
     options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
 });
 
+var corsOrigins = builder.Configuration
+    .GetSection("Cors:AllowedOrigins")
+    .Get<string[]>()?
+    .Where(origin => !string.IsNullOrWhiteSpace(origin))
+    .Select(origin => origin.Trim())
+    .Distinct(StringComparer.OrdinalIgnoreCase)
+    .ToArray() ?? [];
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("CapitalPosWeb", policy =>
+    {
+        if (corsOrigins.Length == 0)
+        {
+            policy.SetIsOriginAllowed(_ => false);
+            return;
+        }
+
+        policy.WithOrigins(corsOrigins)
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
+
 builder.Services.AddCapitalPosInfrastructure(builder.Configuration);
 builder.Services.AddCapitalPosJwtAuthentication(builder.Configuration);
 builder.Services.AddDemoSeed(builder.Configuration);
@@ -133,6 +157,7 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
+app.UseCors("CapitalPosWeb");
 app.UseAuthentication();
 app.UseAuthorization();
 

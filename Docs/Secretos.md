@@ -7,11 +7,26 @@ todavía un proveedor ni almacenar valores reales.
 
 - `ConnectionStrings__CapitalPos`: cadena de conexión PostgreSQL del ambiente.
 - `Jwt__SigningKey`: clave de firma HMAC SHA-256 para access tokens JWT.
-- `CpeApi__BaseUrl`: URL base de CapitalPOS CPE API.
+- `CpeApi__BaseUrl`: URL base de CapitalPOS CPE API (red privada / interna).
 - `CpeApi__ApiKey`: API key enviada por servidor como `X-API-KEY` hacia
   CapitalPOS CPE API.
+- `Cors__AllowedOrigins__N`: origenes frontend autorizados para CORS en
+  `capitalpos-api` (no es un secreto, pero se configura por ambiente).
 - `CAPITALPOS_TEST_CONNECTION_STRING`: cadena exclusiva para pruebas de
   integración con PostgreSQL real.
+
+### Secretos de `capitalpos-cpe-api`
+
+Configurar fuera del repositorio (user-secrets o variables de entorno del
+proceso CPE):
+
+- `CpeSecuritySettings__ApiKey`: API key interna exigida por `X-API-KEY`.
+- `CpeSettings__PasswordCertificado`: password del certificado PFX SUNAT.
+- `CpeSettings__UsuarioSol` / `CpeSettings__ClaveSol`: credenciales SOL.
+- `CpeSettings__RutaCertificado`: ruta a un archivo PFX fuera de Git
+  (volumen montado o secreto de archivo del ambiente).
+
+No versionar archivos `.pfx`, passwords ni claves SOL en el repositorio.
 
 ## Gestión por ambiente
 
@@ -24,6 +39,16 @@ dotnet user-secrets set "ConnectionStrings:CapitalPos" "<cadena-postgresql-local
 dotnet user-secrets set "Jwt:SigningKey" "<clave-local-de-al-menos-32-caracteres>" --project src/CapitalPos.Api
 dotnet user-secrets set "CpeApi:BaseUrl" "<url-local-de-capitalpos-cpe-api>" --project src/CapitalPos.Api
 dotnet user-secrets set "CpeApi:ApiKey" "<api-key-local-de-cpe>" --project src/CapitalPos.Api
+dotnet user-secrets set "Cors:AllowedOrigins:0" "http://localhost:4200" --project src/CapitalPos.Api
+```
+
+Para `capitalpos-cpe-api` (proyecto `CapitalPos.Cpe.Api`):
+
+```bash
+dotnet user-secrets set "CpeSecuritySettings:ApiKey" "<api-key-local-de-cpe>" --project CapitalPos.Cpe.Api
+dotnet user-secrets set "CpeSettings:PasswordCertificado" "<password-pfx-local>" --project CapitalPos.Cpe.Api
+dotnet user-secrets set "CpeSettings:UsuarioSol" "<usuario-sol-local>" --project CapitalPos.Cpe.Api
+dotnet user-secrets set "CpeSettings:ClaveSol" "<clave-sol-local>" --project CapitalPos.Cpe.Api
 ```
 
 ### Pruebas
@@ -49,6 +74,17 @@ ConnectionStrings__CapitalPos="<cadena-postgresql-productiva-con-tls>"
 Jwt__SigningKey="<clave-productiva-de-al-menos-32-caracteres>"
 CpeApi__BaseUrl="<url-productiva-de-capitalpos-cpe-api>"
 CpeApi__ApiKey="<api-key-productiva-de-cpe>"
+Cors__AllowedOrigins__0="<https-origen-frontend-autorizado>"
+```
+
+En el proceso de `capitalpos-cpe-api`:
+
+```bash
+CpeSecuritySettings__ApiKey="<api-key-productiva-de-cpe>"
+CpeSettings__PasswordCertificado="<password-pfx-productivo>"
+CpeSettings__UsuarioSol="<usuario-sol-productivo>"
+CpeSettings__ClaveSol="<clave-sol-productiva>"
+CpeSettings__RutaCertificado="<ruta-segura-al-pfx-fuera-de-git>"
 ```
 
 Los valores anteriores son placeholders y no deben copiarse como secretos.
@@ -120,6 +156,16 @@ Estos valores deben permanecer vacíos en los archivos versionados:
   "CpeApi": {
     "BaseUrl": "",
     "ApiKey": ""
+  },
+  "Cors": {
+    "AllowedOrigins": []
   }
 }
 ```
+
+En `capitalpos-cpe-api`, mantener vacíos en archivos versionados:
+
+- `CpeSecuritySettings:ApiKey`
+- `CpeSettings:PasswordCertificado`
+- `CpeSettings:UsuarioSol`
+- `CpeSettings:ClaveSol`

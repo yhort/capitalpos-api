@@ -15,6 +15,8 @@ publicar la aplicación todavía.
 - Backups y restauración definidos para la base de datos.
 - Monitoreo y alertas definidos antes de abrir tráfico real.
 - Región y costos evaluados.
+- Topologia interna documentada en `Docs/Topologia.md`: `capitalpos-web` solo
+  consume `capitalpos-api` y `capitalpos-cpe-api` queda en red privada.
 
 ## Variables requeridas
 
@@ -26,6 +28,7 @@ ConnectionStrings__CapitalPos="<cadena-postgresql-productiva-con-tls>"
 Jwt__SigningKey="<clave-productiva-de-al-menos-32-caracteres>"
 CpeApi__BaseUrl="<url-productiva-de-capitalpos-cpe-api>"
 CpeApi__ApiKey="<api-key-productiva-de-cpe>"
+Cors__AllowedOrigins__0="<https-origen-frontend-autorizado>"
 ASPNETCORE_ENVIRONMENT="Production"
 ```
 
@@ -108,6 +111,7 @@ ConnectionStrings__CapitalPos="<cadena-postgresql-productiva-con-tls>"
 Jwt__SigningKey="<clave-productiva-de-al-menos-32-caracteres>"
 CpeApi__BaseUrl="<url-productiva-de-capitalpos-cpe-api>"
 CpeApi__ApiKey="<api-key-productiva-de-cpe>"
+Cors__AllowedOrigins__0="<https-origen-frontend-autorizado>"
 ```
 
 Los valores anteriores son placeholders. Sustituirlos solo en el gestor de

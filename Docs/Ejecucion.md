@@ -39,6 +39,7 @@ ConnectionStrings__CapitalPos
 Jwt__SigningKey
 CpeApi__BaseUrl
 CpeApi__ApiKey
+Cors__AllowedOrigins__0
 ```
 
 No imprimir ni registrar esos valores.

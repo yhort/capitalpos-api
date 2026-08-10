@@ -13,6 +13,11 @@ public class SecretsDocumentationTests
         Assert.Contains("Jwt__SigningKey", documentacion);
         Assert.Contains("CpeApi__BaseUrl", documentacion);
         Assert.Contains("CpeApi__ApiKey", documentacion);
+        Assert.Contains("Cors__AllowedOrigins__N", documentacion);
+        Assert.Contains("CpeSecuritySettings__ApiKey", documentacion);
+        Assert.Contains("CpeSettings__PasswordCertificado", documentacion);
+        Assert.Contains("CpeSettings__UsuarioSol", documentacion);
+        Assert.Contains("CpeSettings__ClaveSol", documentacion);
         Assert.Contains("CAPITALPOS_TEST_CONNECTION_STRING", documentacion);
     }
 
@@ -27,6 +32,8 @@ public class SecretsDocumentationTests
         Assert.Contains("Producción", documentacion);
         Assert.Contains("gestor de secretos del proveedor de despliegue", documentacion);
         Assert.Contains("pendiente del despliegue", documentacion);
+        Assert.Contains("CpeSettings:PasswordCertificado", documentacion);
+        Assert.Contains("No versionar archivos `.pfx`", documentacion);
     }
 
     [Fact]

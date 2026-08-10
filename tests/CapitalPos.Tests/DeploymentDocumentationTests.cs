@@ -28,6 +28,7 @@ public class DeploymentDocumentationTests
         Assert.Contains("Jwt__SigningKey", documentacion);
         Assert.Contains("CpeApi__BaseUrl", documentacion);
         Assert.Contains("CpeApi__ApiKey", documentacion);
+        Assert.Contains("Cors__AllowedOrigins__0", documentacion);
         Assert.Contains("ASPNETCORE_ENVIRONMENT=\"Production\"", documentacion);
     }
 
