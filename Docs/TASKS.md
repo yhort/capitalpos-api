@@ -737,6 +737,29 @@ Estas tareas no deben bloquear el primer sistema vendible.
 - Criterio de aceptacion: `/app/ventas` permite seleccionar el canal comercial de la venta, enviarlo a `capitalpos-api` y mantener compatibilidad con venta simple, venta por variante y stock.
 - Evidencia: `CanalVenta` agregado en modelos Angular; `CrearVentaRequest` soporta `canalVenta`, `puntoVentaId` y `vendedorId`; `VentaResponse` soporta esas dimensiones como opcionales/nullables; `/app/ventas` muestra selector "Canal comercial"; default Angular: `TIENDA`; canales disponibles: `TIENDA`, `PROVINCIA`, `MARKETING`, `MAYORISTA`, `MAQUILA` y `OFERTAS`; `POST /api/ventas` envia `canalVenta`; `puntoVentaId` y `vendedorId` se envian `null` por ahora; `PROVINCIA` y `MARKETING` se envian correctamente en pruebas; error backend por canal invalido se muestra y no limpia carrito; se mantiene venta sin variante; se mantiene venta con variante y `productoVarianteId`; se mantiene refresco de stock; no hay referencias productivas a `capitalpos-cpe-api`; no hay uso productivo de `X-API-KEY`; `npm test -- --watch=false` paso con 96 pruebas.
 
+### REP-001 - Reporte de ventas por sede y vendedor (API)
+
+- Prioridad: Alta
+- Estado: Completado
+- Proyecto principal: `capitalpos-api`
+- Criterio de aceptacion: `capitalpos-api` expone un reporte agrupado por `SedeId` y `VendedorId` con rango de fechas, sin reemplazar el reporte por canal.
+- Evidencia: commit `d3fd922`; mensaje: `feat(reportes): agregar reporte de ventas agrupado por sede y vendedor (REP-001).`; se creo `ReporteVentasPorSedeVendedorUseCase`; endpoint `GET /api/reportes/ventas-por-sede-vendedor`; se mantiene `ReporteVentasPorCanalUseCase`; agrupa por `SedeId` + `VendedorId` (incluye `null`); totales: cantidad ventas, unidades, soles, precio promedio; pruebas unitarias e HTTP verdes; sin migraciones; sin graficos ni exportacion.
+
+### AUDIT-001 - Estabilizar suite de pruebas (E2E Postgres + flaky dashboard)
+
+- Prioridad: Alta
+- Estado: Completado
+- Proyecto principal: `capitalpos-api`
+- Criterio de aceptacion: `dotnet test CapitalPos.Api.sln -m:1 -nr:false` corre en verde con E2E reales contra PostgreSQL de pruebas y sin flaky por substring `"999"` en GUIDs.
+- Evidencia: commit de estabilizacion `test(audit): estabilizar suite E2E en postgres y corregir flaky test de dashboard (AUDIT-001).`; E2E usan `CAPITALPOS_TEST_CONNECTION_STRING` apuntando a `Database=capitalpos_test` (PostgreSQL, no SQL Server); flaky `Dashboard_comercial_devuelve_resumen_top_y_stock_bajo` y aserciones similares corregidos con marcador decimal `8888.88`; suite completa: Failed 0, Passed 908, Skipped 0.
+
+### REP-005 - Pantalla Angular de reporte por sede y vendedor
+
+- Prioridad: Alta
+- Estado: Pendiente
+- Proyecto principal: `capitalpos-web`
+- Criterio de aceptacion: `/app/reportes/ventas-por-sede-vendedor` consulta `GET /api/reportes/ventas-por-sede-vendedor`, muestra totales por sede/vendedor en un rango de fechas y queda enlazado desde el indice de reportes, sin romper el reporte por canal.
+
 ### REP-002 - Pantalla Angular de reporte comercial por canal
 
 - Prioridad: Alta

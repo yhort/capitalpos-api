@@ -4,7 +4,7 @@ Este documento es el contexto de arranque para el agente (Cursor) al retomar el 
 
 **Instrucción para el agente antes de empezar cualquier tarea de este documento:** inspeccionar el estado real del repo (entidades en `src/CapitalPos.Domain`, migraciones aplicadas, `git log`) en vez de asumir desde `TASKS.md`. No marcar una tarea como completada en `TASKS.md` sin que el commit correspondiente esté efectivamente en el repo y las pruebas pasen.
 
-**Nota de proceso (leer antes de continuar):** entre un corte anterior de este documento y el 10 agosto 2026, se construyeron cinco módulos completos (pedidos digitales, notas de crédito SUNAT, compras, kardex, pagos/anulación de venta) sin pasar por revisión intermedia, a pesar de que `Roadmap.md` — las reglas operativas del propio agente — indica explícitamente esperar autorización ante decisiones de arquitectura/riesgo y no hacer commit/push sin autorización explícita. La auditoría de ese día confirmó que el trabajo es técnicamente sólido, pero el tamaño del salto fue mayor al acordado. Ver sección 5 (regla de checkpoint reforzada) sobre cómo evitar que se repita.
+**Nota de proceso (leer antes de continuar):** entre un corte anterior de este documento y el 10 agosto 2026, se construyeron cinco módulos completos (pedidos digitales, notas de crédito SUNAT, compras, kardex, pagos/anulación de venta) sin pasar por revisión intermedia, a pesar de que `Roadmap.md` — las reglas operativas del propio agente — indica explícitamente esperar autorización ante decisiones de arquitectura/riesgo y no hacer commit/push sin autorización explícita. La auditoría de ese día confirmó que el trabajo es técnicamente sólido, pero el tamaño del salto fue mayor al acordado. Ver sección 6 (regla de checkpoint reforzada) sobre cómo evitar que se repita.
 
 ## 1. Estado verificado (multisede — cerrado y confirmado en código real)
 
@@ -33,7 +33,7 @@ Entre el corte anterior y el 10 agosto 2026 se agregaron, sin pasar por revisió
 - **Pedidos digitales**: usa correctamente el mecanismo de stock reservado (`StockProducto.Reservar`/`CantidadReservada`) ya existente, no un mecanismo paralelo.
 - **Compras**: correctamente ligadas a `SedeId`.
 
-**No auditado a fondo todavía:** endpoints/autorización de estos módulos nuevos, y las pruebas automatizadas asociadas — pendiente de `AUDIT-001`.
+**Pruebas automatizadas:** confirmadas en verde en `AUDIT-001` (11 agosto 2026): `908/908` passed con PostgreSQL de pruebas.
 
 ## 4. `REP-001` — completado (11 agosto 2026)
 
@@ -45,23 +45,35 @@ Entre el corte anterior y el 10 agosto 2026 se agregaron, sin pasar por revisió
 - Alcance: totales por sede/vendedor (cantidad de ventas, unidades, soles, precio promedio). Sin gráficos ni exportación.
 - Validado con build OK y pruebas del reporte en verde (unitarias + HTTP).
 
-## 5. Próximo bloque de trabajo
+## 5. `AUDIT-001` — completado (11 agosto 2026)
 
-### `AUDIT-001` — Confirmar pruebas en verde de los módulos construidos fuera de plan
+`AUDIT-001` **está cerrado**.
 
-Antes de seguir sumando alcance nuevo, correr y confirmar (con salida real, no solo el número que se reporte en `TASKS.md`):
+- Suite completa: Failed `0`, Passed `908`, Skipped `0`.
+- E2E (11 tests) corren contra PostgreSQL local con `CAPITALPOS_TEST_CONNECTION_STRING` → `Database=capitalpos_test` (no SQL Server).
+- Flaky `Dashboard_comercial_devuelve_resumen_top_y_stock_bajo` corregido: el marcador multiempresa dejó de ser `"999"` (colisionaba con Guid hex) y pasó a `"8888.88"`.
+- Misma corrección aplicada a aserciones HTTP similares de reportes/dashboard.
+
+Para repetir localmente:
 
 ```bash
+export CAPITALPOS_TEST_CONNECTION_STRING='Host=localhost;Port=5432;Database=capitalpos_test;Username=yhortcruz'
 dotnet build CapitalPos.Api.sln -m:1 -nr:false
 dotnet test CapitalPos.Api.sln -m:1 -nr:false
 ```
 
-Pegar el resultado real. Prestar atención especial a pruebas de: `AnularVentaUseCase`, `EmitirNotaCreditoDesdeVentaUseCase`, kardex (`MovimientoInventario`), pedidos digitales.
+## 6. Próximo bloque de trabajo
 
-Notas del entorno local observadas al cerrar `REP-001` (no bloquean el cierre de ese módulo, sí relevantes para `AUDIT-001`):
+### `REP-005` — Pantalla Angular de reporte por sede y vendedor
 
-- Las pruebas E2E de CPE fallan sin `CAPITALPOS_TEST_CONNECTION_STRING` (PostgreSQL de pruebas).
-- Existe al menos un test HTTP flaky del dashboard que busca el substring `"999"` en el JSON (puede coincidir con un Guid aleatorio).
+Prioridad alta y continuación natural de `REP-001` (API ya lista; el índice Angular solo cubre ventas por canal vía `REP-002`/`REP-003`/`REP-004`).
+
+Alcance mínimo propuesto:
+
+- Consumir `GET /api/reportes/ventas-por-sede-vendedor` desde `capitalpos-web`.
+- Pantalla `/app/reportes/ventas-por-sede-vendedor` con rango de fechas y totales por sede/vendedor.
+- Enlace desde el índice `/app/reportes` sin romper el reporte por canal.
+- Sin gráficos nuevos ni exportación en este bloque.
 
 ### Regla de checkpoint reforzada (ver también `Roadmap.md`, sección "Forma de trabajo")
 
@@ -70,7 +82,7 @@ A partir de ahora, después de **cada módulo individual** (no cada bloque grand
 2. Esperar confirmación explícita antes de empezar el siguiente módulo — aunque el módulo anterior haya sido autorizado como parte de un plan más amplio.
 3. No asumir que la autorización de un bloque cubre módulos adicionales no mencionados explícitamente en ese bloque.
 
-## 6. Explícitamente fuera de este bloque
+## 7. Explícitamente fuera de este bloque
 
 No construir todavía (esperar confirmación de necesidad real antes de empezar):
 
@@ -79,4 +91,5 @@ No construir todavía (esperar confirmación de necesidad real antes de empezar)
 - Configuración fiscal por sede más allá del código de establecimiento.
 - Roles de plataforma SaaS y onboarding self-service.
 - SUNAT producción (pendiente de trámite regulatorio, no solo de código).
-- Cualquier módulo adicional no listado en la sección 5, sin importar cuán razonable parezca en el momento — debe pasar primero por esta conversación.
+- Bandeja de pagos externos (`PAG-002`) e integraciones WooCommerce (`INT-001+`) — pendientes en `TASKS.md`, pero después de cerrar la UI del reporte sede/vendedor.
+- Cualquier módulo adicional no listado en la sección 6, sin importar cuán razonable parezca en el momento — debe pasar primero por esta conversación.
