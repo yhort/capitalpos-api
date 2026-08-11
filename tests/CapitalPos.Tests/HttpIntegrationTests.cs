@@ -796,6 +796,104 @@ public class HttpIntegrationTests
     }
 
     [Fact]
+    public async Task Reporte_ventas_por_sede_vendedor_agrupa_filtra_y_calcula_totales()
+    {
+        var otraEmpresaId = Guid.Parse("44444444-4444-4444-4444-444444444444");
+        var sedeB = Guid.Parse("cccccccc-cccc-cccc-cccc-cccccccccccc");
+        var vendedorA = Guid.Parse("dddddddd-dddd-dddd-dddd-dddddddddddd");
+        var vendedorB = Guid.Parse("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee");
+        await using var factory = new CapitalPosHttpFactory();
+        await factory.VentaRepository.AgregarAsync(CrearVentaReporte(
+            EmpresaId,
+            CanalVenta.TIENDA,
+            new DateTimeOffset(2026, 5, 1, 10, 0, 0, TimeSpan.Zero),
+            [(2m, 100m), (1m, 50m)],
+            sedeId: SedeId,
+            vendedorId: vendedorA));
+        await factory.VentaRepository.AgregarAsync(CrearVentaReporte(
+            EmpresaId,
+            CanalVenta.TIENDA,
+            new DateTimeOffset(2026, 5, 10, 10, 0, 0, TimeSpan.Zero),
+            [(1m, 40m)],
+            sedeId: SedeId,
+            vendedorId: vendedorA));
+        await factory.VentaRepository.AgregarAsync(CrearVentaReporte(
+            EmpresaId,
+            CanalVenta.PROVINCIA,
+            new DateTimeOffset(2026, 5, 15, 10, 0, 0, TimeSpan.Zero),
+            [(3m, 90m)],
+            sedeId: SedeId,
+            vendedorId: vendedorB));
+        await factory.VentaRepository.AgregarAsync(CrearVentaReporte(
+            EmpresaId,
+            CanalVenta.MARKETING,
+            new DateTimeOffset(2026, 5, 31, 10, 0, 0, TimeSpan.Zero),
+            [(1m, 20m)],
+            sedeId: sedeB,
+            vendedorId: null));
+        await factory.VentaRepository.AgregarAsync(CrearVentaReporte(
+            EmpresaId,
+            CanalVenta.TIENDA,
+            new DateTimeOffset(2026, 4, 30, 10, 0, 0, TimeSpan.Zero),
+            [(9m, 900m)],
+            sedeId: SedeId,
+            vendedorId: vendedorA));
+        await factory.VentaRepository.AgregarAsync(CrearVentaReporte(
+            otraEmpresaId,
+            CanalVenta.TIENDA,
+            new DateTimeOffset(2026, 5, 10, 10, 0, 0, TimeSpan.Zero),
+            [(99m, 999m)],
+            sedeId: SedeId,
+            vendedorId: vendedorA));
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+
+        var response = await client.GetAsync("/api/reportes/ventas-por-sede-vendedor?desde=2026-05-01&hasta=2026-05-31");
+        var content = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadFromJsonAsync<ReporteVentasPorSedeVendedorResponse>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(body);
+        Assert.Equal(new DateOnly(2026, 5, 1), body.Desde);
+        Assert.Equal(new DateOnly(2026, 5, 31), body.Hasta);
+        Assert.Equal(3, body.Items.Count);
+        var sedeAVendedorA = body.Items.Single(item => item.SedeId == SedeId && item.VendedorId == vendedorA);
+        Assert.Equal(2, sedeAVendedorA.CantidadVentas);
+        Assert.Equal(4m, sedeAVendedorA.Unidades);
+        Assert.Equal(190m, sedeAVendedorA.Soles);
+        Assert.Equal(47.5m, sedeAVendedorA.PrecioPromedio);
+        var sedeAVendedorB = body.Items.Single(item => item.SedeId == SedeId && item.VendedorId == vendedorB);
+        Assert.Equal(1, sedeAVendedorB.CantidadVentas);
+        Assert.Equal(3m, sedeAVendedorB.Unidades);
+        Assert.Equal(90m, sedeAVendedorB.Soles);
+        Assert.Equal(30m, sedeAVendedorB.PrecioPromedio);
+        var sedeBSinVendedor = body.Items.Single(item => item.SedeId == sedeB && item.VendedorId is null);
+        Assert.Equal(1, sedeBSinVendedor.CantidadVentas);
+        Assert.Equal(1m, sedeBSinVendedor.Unidades);
+        Assert.Equal(20m, sedeBSinVendedor.Soles);
+        Assert.Equal(20m, sedeBSinVendedor.PrecioPromedio);
+        Assert.Equal(4, body.TotalGeneral.CantidadVentas);
+        Assert.Equal(8m, body.TotalGeneral.Unidades);
+        Assert.Equal(300m, body.TotalGeneral.Soles);
+        Assert.Equal(37.5m, body.TotalGeneral.PrecioPromedio);
+        Assert.DoesNotContain("999", content);
+        AssertSeguro(content);
+    }
+
+    [Fact]
+    public async Task Reporte_ventas_por_sede_vendedor_rechaza_rango_invalido()
+    {
+        await using var factory = new CapitalPosHttpFactory();
+        using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
+
+        var response = await client.GetAsync("/api/reportes/ventas-por-sede-vendedor?desde=2026-06-01&hasta=2026-05-31");
+        var content = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("desde no puede ser mayor", content);
+        AssertSeguro(content);
+    }
+
+    [Fact]
     public async Task Dashboard_comercial_sin_jwt_devuelve_unauthorized()
     {
         await using var factory = new CapitalPosHttpFactory();
@@ -3312,7 +3410,9 @@ public class HttpIntegrationTests
         MetodoPago? metodoPago = null,
         DateTimeOffset? fechaCreacion = null,
         Guid? puntoVentaId = null,
-        EstadoVenta estado = EstadoVenta.Registrada)
+        EstadoVenta estado = EstadoVenta.Registrada,
+        Guid? sedeId = null,
+        Guid? vendedorId = null)
     {
         var ventaId = Guid.NewGuid();
         var ventaDetalles = detalles
@@ -3344,9 +3444,10 @@ public class HttpIntegrationTests
             0m,
             total,
             ventaDetalles,
-            SedeId,
+            sedeId ?? SedeId,
             puntoVentaId ?? PuntoVentaId,
             canalVenta: canalVenta,
+            vendedorId: vendedorId,
             estado: estado,
             fechaCreacion: fechaCreacion,
             pagos: pagos);

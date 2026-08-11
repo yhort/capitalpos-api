@@ -21,6 +21,10 @@ public static class ReporteEndpoints
             .WithName("ReporteVentasPorCanal")
             .RequirePermisoEmpresa(PermisoEmpresa.OperarVentas);
 
+        group.MapGet("/ventas-por-sede-vendedor", VentasPorSedeVendedorAsync)
+            .WithName("ReporteVentasPorSedeVendedor")
+            .RequirePermisoEmpresa(PermisoEmpresa.OperarVentas);
+
         return app;
     }
 
@@ -28,6 +32,37 @@ public static class ReporteEndpoints
         string? desde,
         string? hasta,
         ReporteVentasPorCanalUseCase useCase,
+        CancellationToken cancellationToken)
+    {
+        if (!TryParseFechaRequerida(desde, "desde", out var desdeNormalizado, out var error))
+        {
+            return Results.BadRequest(ErrorResponse.From(error));
+        }
+
+        if (!TryParseFechaRequerida(hasta, "hasta", out var hastaNormalizado, out error))
+        {
+            return Results.BadRequest(ErrorResponse.From(error));
+        }
+
+        try
+        {
+            var response = await useCase.EjecutarAsync(
+                desdeNormalizado,
+                hastaNormalizado,
+                cancellationToken);
+
+            return Results.Ok(response);
+        }
+        catch (ArgumentException ex)
+        {
+            return Results.BadRequest(ErrorResponse.From(ex.Message));
+        }
+    }
+
+    private static async Task<IResult> VentasPorSedeVendedorAsync(
+        string? desde,
+        string? hasta,
+        ReporteVentasPorSedeVendedorUseCase useCase,
         CancellationToken cancellationToken)
     {
         if (!TryParseFechaRequerida(desde, "desde", out var desdeNormalizado, out var error))
