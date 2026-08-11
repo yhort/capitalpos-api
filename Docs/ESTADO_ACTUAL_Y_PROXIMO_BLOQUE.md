@@ -4,7 +4,7 @@ Este documento es el contexto de arranque para el agente (Cursor) al retomar el 
 
 **Instrucción para el agente antes de empezar cualquier tarea de este documento:** inspeccionar el estado real del repo (entidades en `src/CapitalPos.Domain`, migraciones aplicadas, `git log`) en vez de asumir desde `TASKS.md`. No marcar una tarea como completada en `TASKS.md` sin que el commit correspondiente esté efectivamente en el repo y las pruebas pasen.
 
-**Nota de proceso (leer antes de continuar):** entre un corte anterior de este documento y el 10 agosto 2026, se construyeron cinco módulos completos (pedidos digitales, notas de crédito SUNAT, compras, kardex, pagos/anulación de venta) sin pasar por revisión intermedia, a pesar de que `Roadmap.md` — las reglas operativas del propio agente — indica explícitamente esperar autorización ante decisiones de arquitectura/riesgo y no hacer commit/push sin autorización explícita. La auditoría de ese día confirmó que el trabajo es técnicamente sólido, pero el tamaño del salto fue mayor al acordado. Ver sección 6 (regla de checkpoint reforzada) sobre cómo evitar que se repita.
+**Nota de proceso (leer antes de continuar):** entre un corte anterior de este documento y el 10 agosto 2026, se construyeron cinco módulos completos (pedidos digitales, notas de crédito SUNAT, compras, kardex, pagos/anulación de venta) sin pasar por revisión intermedia, a pesar de que `Roadmap.md` — las reglas operativas del propio agente — indica explícitamente esperar autorización ante decisiones de arquitectura/riesgo y no hacer commit/push sin autorización explícita. La auditoría de ese día confirmó que el trabajo es técnicamente sólido, pero el tamaño del salto fue mayor al acordado. Ver sección 7 (regla de checkpoint reforzada) sobre cómo evitar que se repita.
 
 ## 1. Estado verificado (multisede — cerrado y confirmado en código real)
 
@@ -54,42 +54,43 @@ Entre el corte anterior y el 10 agosto 2026 se agregaron, sin pasar por revisió
 - Flaky `Dashboard_comercial_devuelve_resumen_top_y_stock_bajo` corregido: el marcador multiempresa dejó de ser `"999"` (colisionaba con Guid hex) y pasó a `"8888.88"`.
 - Misma corrección aplicada a aserciones HTTP similares de reportes/dashboard.
 
-Para repetir localmente:
+## 6. `REP-005` — completado (11 agosto 2026)
 
-```bash
-export CAPITALPOS_TEST_CONNECTION_STRING='Host=localhost;Port=5432;Database=capitalpos_test;Username=yhortcruz'
-dotnet build CapitalPos.Api.sln -m:1 -nr:false
-dotnet test CapitalPos.Api.sln -m:1 -nr:false
-```
+`REP-005` (pantalla Angular del reporte por sede y vendedor) **está construido y cerrado** en `capitalpos-web`.
 
-## 6. Próximo bloque de trabajo
-
-### `REP-005` — Pantalla Angular de reporte por sede y vendedor
-
-Prioridad alta y continuación natural de `REP-001` (API ya lista; el índice Angular solo cubre ventas por canal vía `REP-002`/`REP-003`/`REP-004`).
-
-Alcance mínimo propuesto:
-
-- Consumir `GET /api/reportes/ventas-por-sede-vendedor` desde `capitalpos-web`.
-- Pantalla `/app/reportes/ventas-por-sede-vendedor` con rango de fechas y totales por sede/vendedor.
+- Ruta `/app/reportes/ventas-por-sede-vendedor` con filtros `desde`/`hasta`.
+- Consume `GET /api/reportes/ventas-por-sede-vendedor`.
+- Tabla: Sede, Vendedor, Cantidad, Unidades, Total soles.
+- `vendedorId` nulo se muestra como **Sin vendedor**.
 - Enlace desde el índice `/app/reportes` sin romper el reporte por canal.
-- Sin gráficos nuevos ni exportación en este bloque.
+- Validado con pruebas de reportes en verde y `ng build` OK.
+
+## 7. Próximo bloque / fase activa
+
+### Freeze de Código y Paso a Producción
+
+A partir de este corte el proyecto **entra en Freeze de Código**.
+
+- **No se construirán nuevas funcionalidades** de producto (ni en `capitalpos-api`, ni en `capitalpos-web`, ni en `capitalpos-cpe-api`) salvo bug crítico autorizado explícitamente.
+- El foco pasa a **infraestructura** (despliegue, secretos, ambientes, monitoreo, checklists) y **trámites** (SUNAT producción / regulatorio, credenciales, certificados, operación).
+- Tareas de producto pendientes en `TASKS.md` (`PAG-002+`, `INT-001+`, transferencias entre sedes, etc.) quedan **congeladas** hasta que se decida reabrir alcance después del paso a producción.
 
 ### Regla de checkpoint reforzada (ver también `Roadmap.md`, sección "Forma de trabajo")
 
-A partir de ahora, después de **cada módulo individual** (no cada bloque grande), el agente debe:
-1. Mostrar el diff (`git diff --stat`) y un resumen de qué se construyó.
-2. Esperar confirmación explícita antes de empezar el siguiente módulo — aunque el módulo anterior haya sido autorizado como parte de un plan más amplio.
-3. No asumir que la autorización de un bloque cubre módulos adicionales no mencionados explícitamente en ese bloque.
+Durante el freeze, cualquier cambio de código requiere:
 
-## 7. Explícitamente fuera de este bloque
+1. Autorización explícita del usuario (bug crítico o trabajo de infraestructura acordado).
+2. Diff (`git diff --stat`) + resumen antes de continuar.
+3. No asumir que el freeze autoriza módulos de producto no mencionados.
 
-No construir todavía (esperar confirmación de necesidad real antes de empezar):
+## 8. Explícitamente fuera de alcance durante el freeze
 
-- Combinación de variante + presentación como concepto general (`ProductoPresentacion.ProductoVarianteId`) — la necesidad real resultó ser precio por cantidad (`PREC-001`, ya construido), no presentaciones sobre variante.
+No construir todavía:
+
+- Combinación de variante + presentación como concepto general (`ProductoPresentacion.ProductoVarianteId`).
 - Transferencias de stock entre sedes.
 - Configuración fiscal por sede más allá del código de establecimiento.
 - Roles de plataforma SaaS y onboarding self-service.
 - SUNAT producción (pendiente de trámite regulatorio, no solo de código).
-- Bandeja de pagos externos (`PAG-002`) e integraciones WooCommerce (`INT-001+`) — pendientes en `TASKS.md`, pero después de cerrar la UI del reporte sede/vendedor.
-- Cualquier módulo adicional no listado en la sección 6, sin importar cuán razonable parezca en el momento — debe pasar primero por esta conversación.
+- Bandeja de pagos externos (`PAG-002`) e integraciones WooCommerce (`INT-001+`).
+- Cualquier módulo de producto adicional, sin importar cuán razonable parezca — debe pasar primero por esta conversación y por una decisión de reabrir el freeze.

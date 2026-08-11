@@ -756,9 +756,11 @@ Estas tareas no deben bloquear el primer sistema vendible.
 ### REP-005 - Pantalla Angular de reporte por sede y vendedor
 
 - Prioridad: Alta
-- Estado: Pendiente
+- Estado: Completado
 - Proyecto principal: `capitalpos-web`
 - Criterio de aceptacion: `/app/reportes/ventas-por-sede-vendedor` consulta `GET /api/reportes/ventas-por-sede-vendedor`, muestra totales por sede/vendedor en un rango de fechas y queda enlazado desde el indice de reportes, sin romper el reporte por canal.
+- Evidencia: commit web `feat(reportes): agregar pantalla angular de ventas por sede y vendedor (REP-005).`; modelo `ReporteVentasPorSedeVendedor*`; `ReportesApiService.obtenerVentasPorSedeVendedor`; pagina con filtros desde/hasta y tabla Sede/Vendedor/Cantidad/Unidades/Total soles; `vendedorId` null muestra `Sin vendedor`; tarjeta en indice `/app/reportes`; pruebas de reportes verdes; `ng build` OK.
+- Nota de fase: con el cierre de `REP-005` el proyecto entra a **Freeze de Codigo y Paso a Produccion** (sin nuevas funcionalidades; foco en infraestructura y tramites).
 
 ### REP-002 - Pantalla Angular de reporte comercial por canal
 
