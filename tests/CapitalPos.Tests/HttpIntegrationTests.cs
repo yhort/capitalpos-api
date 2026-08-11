@@ -45,6 +45,9 @@ public class HttpIntegrationTests
     private const string Issuer = "CapitalPos.Api";
     private const string Audience = "CapitalPos.Web";
     private const string ApiKeyFicticia = "capitalpos-cpe-http-tests-api-key";
+    // Marcador decimal (con punto) para filtrar fugas multiempresa sin colisionar con Guid hex ("999").
+    private const decimal TotalVentaOtraEmpresa = 8888.88m;
+    private const string MarcadorVentaOtraEmpresa = "8888.88";
 
     [Fact]
     public async Task Health_responde_sin_autenticacion()
@@ -728,7 +731,7 @@ public class HttpIntegrationTests
             otraEmpresaId,
             CanalVenta.TIENDA,
             new DateTimeOffset(2026, 5, 10, 10, 0, 0, TimeSpan.Zero),
-            [(99m, 999m)]));
+            [(99m, TotalVentaOtraEmpresa)]));
         using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
 
         var response = await client.GetAsync("/api/reportes/ventas-por-canal?desde=2026-05-01&hasta=2026-05-31");
@@ -764,7 +767,7 @@ public class HttpIntegrationTests
         Assert.Equal(7m, body.TotalGeneral.Unidades);
         Assert.Equal(260m, body.TotalGeneral.Soles);
         Assert.Equal(37.14m, body.TotalGeneral.PrecioPromedio);
-        Assert.DoesNotContain("999", content);
+        Assert.DoesNotContain(MarcadorVentaOtraEmpresa, content);
         AssertSeguro(content);
     }
 
@@ -842,7 +845,7 @@ public class HttpIntegrationTests
             otraEmpresaId,
             CanalVenta.TIENDA,
             new DateTimeOffset(2026, 5, 10, 10, 0, 0, TimeSpan.Zero),
-            [(99m, 999m)],
+            [(99m, TotalVentaOtraEmpresa)],
             sedeId: SedeId,
             vendedorId: vendedorA));
         using var client = CrearClienteAutenticado(factory, UsuarioId, EmpresaId);
@@ -875,7 +878,7 @@ public class HttpIntegrationTests
         Assert.Equal(8m, body.TotalGeneral.Unidades);
         Assert.Equal(300m, body.TotalGeneral.Soles);
         Assert.Equal(37.5m, body.TotalGeneral.PrecioPromedio);
-        Assert.DoesNotContain("999", content);
+        Assert.DoesNotContain(MarcadorVentaOtraEmpresa, content);
         AssertSeguro(content);
     }
 
@@ -981,7 +984,7 @@ public class HttpIntegrationTests
             otraEmpresaId,
             CanalVenta.TIENDA,
             new DateTimeOffset(2026, 7, 17, 10, 0, 0, TimeSpan.FromHours(-5)),
-            [(productoId, varianteId, 99m, 999m)]));
+            [(productoId, varianteId, 99m, TotalVentaOtraEmpresa)]));
         var ventaAnulada = CrearVentaDashboard(
             EmpresaId,
             CanalVenta.TIENDA,
@@ -1007,7 +1010,7 @@ public class HttpIntegrationTests
         Assert.Equal("POLO-M-NEGRO", body.TopProductos.Single().CodigoSku);
         Assert.Single(body.StockBajo);
         Assert.Equal(3m, body.StockBajo.Single().StockLibre);
-        Assert.DoesNotContain("999", content);
+        Assert.DoesNotContain(MarcadorVentaOtraEmpresa, content);
         AssertSeguro(content);
     }
 
@@ -1075,7 +1078,7 @@ public class HttpIntegrationTests
             otraEmpresaId,
             CanalVenta.TIENDA,
             new DateTimeOffset(2026, 7, 17, 10, 0, 0, TimeSpan.FromHours(-5)),
-            [(productoId, null, 99m, 999m)]));
+            [(productoId, null, 99m, TotalVentaOtraEmpresa)]));
         var ventaAnulada = CrearVentaDashboard(
             EmpresaId,
             CanalVenta.TIENDA,
@@ -1098,7 +1101,7 @@ public class HttpIntegrationTests
         Assert.Equal(100m, body.Canales.Single(c => c.CanalVenta == "TIENDA").MontoFacturado);
         Assert.Equal(80m, body.Canales.Single(c => c.CanalVenta == "MARKETING").MontoFacturado);
         Assert.Equal(0, body.Canales.Single(c => c.CanalVenta == "PROVINCIA").CantidadTransacciones);
-        Assert.DoesNotContain("999", content);
+        Assert.DoesNotContain(MarcadorVentaOtraEmpresa, content);
         AssertSeguro(content);
     }
 
